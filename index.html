@@ -5,17 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Timeless</title>
 
-    <!-- Favicon (make sure it's in public/) -->
+    <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
 
     <!-- Retro Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
   </head>
-  <body class="bg-cat bg-cover bg-no-repeat bg-center text-white font-vintage min-h-screen">
-    <div id="root"></div>
+  <body class="bg-cat bg-cover bg-no-repeat bg-center text-white font-vintage min-h-screen overflow-x-hidden">
+    <div id="root" class="flex flex-col items-center justify-start w-full max-w-screen"></div>
 
-    <!-- Vite loads this during build -->
+    <!-- Vite entry -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

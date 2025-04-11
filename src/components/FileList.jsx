@@ -79,7 +79,13 @@ const FileList = ({ files, refresh }) => {
       {visibleFiles.length === 0 ? (
         <p className="text-yellow-200 text-center">No files found.</p>
       ) : (
-        <div className={`grid gap-4 ${view === 'grid' ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+        <div
+          className={`grid gap-4 ${
+            view === 'grid'
+              ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
+              : 'grid-cols-1'
+          }`}
+        >
           {visibleFiles.map((file) => (
             <div key={file._id} className="w-full">
               <FileItem file={file} refresh={refresh} />

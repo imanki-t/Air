@@ -82,7 +82,7 @@ setTimeout(() => setMessage(''), 10000); // auto-hide after 5s
         <>
           <div className="w-full bg-yellow-200 rounded-full h-4 mb-3 overflow-hidden">
             <div
-              className="bg-green-500 h-full transition-all duration-200 ease-in-out"
+              className="bg-green-900 h-full transition-all duration-200 ease-in-out"
               style={{ width: `${progress}%` }}
             />
           </div>

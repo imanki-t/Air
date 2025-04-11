@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 const AccessGate = ({ children }) => {
   const [passkey, setPasskey] = useState('');
   const [error, setError] = useState('');
+  const [fadeOut, setFadeOut] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
 
   useEffect(() => {
@@ -14,8 +15,14 @@ const AccessGate = ({ children }) => {
     e.preventDefault();
     const correct = import.meta.env.VITE_SITE_PASSKEY;
     if (passkey === correct) {
-      setUnlocked(true);
-      sessionStorage.setItem('access_granted', 'true');
+      const audio = new Audio('/access-granted.mp3');
+      audio.play().catch(() => {}); // ignore autoplay errors
+
+      setFadeOut(true);
+      setTimeout(() => {
+        setUnlocked(true);
+        sessionStorage.setItem('access_granted', 'true');
+      }, 500);
     } else {
       setError('Wrong Password!');
       setPasskey('');
@@ -25,12 +32,12 @@ const AccessGate = ({ children }) => {
   if (unlocked) return children;
 
   return (
-    <div className="fixed inset-0 bg-black flex items-center justify-center z-50 p-4">
+    <div className={`fixed inset-0 bg-black flex items-center justify-center z-50 p-4 transition-all ${fadeOut ? 'animate-fade-out' : ''}`}>
       <form
         onSubmit={handleSubmit}
         className="bg-yellow-100 border-4 border-purple-600 p-6 rounded-xl w-full max-w-md text-center shadow-vintage animate-retro"
       >
-        <h2 className="font-vintage text-2xl mb-4 text-green-500 drop-shadow-[0_0_3px_#0f0]">
+        <h2 className="font-crt text-2xl mb-4 text-green-500 drop-shadow-[0_0_3px_#0f0]">
           Enter Passkey
         </h2>
         <input

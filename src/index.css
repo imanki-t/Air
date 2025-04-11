@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.vintage-btn {
+  @apply px-3 py-1 rounded-md text-white font-bold shadow-md;
+  font-family: 'Press Start 2P', cursive;
+  border: 2px dashed white;
+  text-shadow: 1px 1px black;
+}
+
+.shadow-vintage {
+  box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.8);
+}

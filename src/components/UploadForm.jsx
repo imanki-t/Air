@@ -36,17 +36,17 @@ const UploadForm = ({ refresh }) => {
       );
 
       setMessage('File uploaded successfully!');
-      setTimeout(() => setMessage(''), 10000); // auto-hide after 10s
+      setTimeout(() => setMessage(''), 10000);
       setFile(null);
       refresh();
     } catch (err) {
       if (axios.isCancel(err) || err.code === 'ERR_CANCELED') {
-  setMessage('Upload cancelled.');
-  setFile(null); // reset file
-  setTimeout(() => setMessage(''), 10000);
-} else {
-  setMessage('Upload failed.');
-  setTimeout(() => setMessage(''), 10000);
+        setMessage('Upload cancelled.');
+        setFile(null);
+        setTimeout(() => setMessage(''), 10000);
+      } else {
+        setMessage('Upload failed.');
+        setTimeout(() => setMessage(''), 10000);
       }
     } finally {
       setProgress(0);
@@ -59,6 +59,12 @@ const UploadForm = ({ refresh }) => {
     if (controllerRef.current) {
       controllerRef.current.abort();
     }
+  };
+
+  const handleRemove = () => {
+    setFile(null);
+    setMessage('');
+    setProgress(0);
   };
 
   return (
@@ -89,23 +95,41 @@ const UploadForm = ({ refresh }) => {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="mb-4 px-4 py-1 bg-red-600 hover:bg-red-700 text-white rounded vintage-btn"
-          >
-            Cancel Upload
-          </button>
+          <div className="flex flex-wrap gap-2 mb-3">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-4 py-1 bg-red-600 hover:bg-red-700 text-white rounded vintage-btn"
+            >
+              Cancel Upload
+            </button>
+            <button
+              type="button"
+              onClick={handleRemove}
+              className="px-4 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded vintage-btn"
+            >
+              Remove File
+            </button>
+          </div>
         </>
       )}
 
-      {file && !isUploading && (
-        <button
-          type="submit"
-          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md vintage-btn"
-        >
-          Upload
-        </button>
+      {!isUploading && file && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="submit"
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md vintage-btn"
+          >
+            Upload
+          </button>
+          <button
+            type="button"
+            onClick={handleRemove}
+            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md vintage-btn"
+          >
+            Remove
+          </button>
+        </div>
       )}
 
       {message && <p className="mt-3 text-pink-100">{message}</p>}

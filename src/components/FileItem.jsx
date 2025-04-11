@@ -7,7 +7,6 @@ const FileItem = ({ file, refresh }) => {
   const [showShare, setShowShare] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [copied, setCopied] = useState(false);
-
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const download = () => {
@@ -77,7 +76,7 @@ const FileItem = ({ file, refresh }) => {
   return (
     <>
       {/* File Card */}
-      <div className="bg-yellow-100 p-4 rounded-xl shadow-lg border-4 border-dashed border-purple-600 w-full overflow-hidden">
+      <div className="bg-yellow-100 w-full p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-lg border-4 border-dashed border-purple-600 overflow-hidden">
         {renderPreview()}
         <h3 className="text-black font-bold truncate">{file.filename}</h3>
         <p className="text-xs text-gray-600">Type: {file.metadata?.type}</p>

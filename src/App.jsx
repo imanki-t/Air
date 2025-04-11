@@ -1,31 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import UploadForm from './components/UploadForm';
 import FileList from './components/FileList';
+import axios from 'axios';
 
 function App() {
   const [error, setError] = useState(null);
+  const [files, setFiles] = useState([]);
 
-  // Add this to help debug on production
+  const fetchFiles = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/files`);
+      setFiles(res.data);
+    } catch (err) {
+      console.error('Error fetching files:', err);
+      setError('Failed to load files');
+    }
+  };
+
   useEffect(() => {
-    // Global error handler to prevent white screens
     window.onerror = (message, source, lineno, colno, error) => {
       console.error('Global error:', message, error);
       setError(`Error: ${message}`);
-      return true; // Prevents the default error handling
+      return true;
     };
-    
-    // Check if backend URL is available
+
     if (!import.meta.env.VITE_BACKEND_URL) {
       console.warn('Backend URL not configured. API calls will fail.');
-      setError('Backend URL not configured. Please check environment variables.');
+      setError('Backend URL not configured.');
     }
-    
+
+    fetchFiles();
+
     return () => {
       window.onerror = null;
     };
   }, []);
 
-  // Render error message if something went wrong
   if (error) {
     return (
       <div className="min-h-screen p-4 bg-red-900 text-white flex items-center justify-center">
@@ -46,8 +56,8 @@ function App() {
   return (
     <div className="min-h-screen p-4 sm:p-6 bg-black bg-opacity-50">
       <h1 className="text-4xl mb-8 text-yellow-300 inline-block">wsp bro 🥰</h1>
-      <UploadForm />
-      <FileList />
+      <UploadForm refresh={fetchFiles} />
+      <FileList files={files} refresh={fetchFiles} />
     </div>
   );
 }

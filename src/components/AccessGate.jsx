@@ -29,7 +29,6 @@ const AccessGate = ({ children }) => {
     if (unlockedBefore === 'true') {
       setUnlocked(true);
     } else {
-      // Fake loading
       setTimeout(() => setLoading(false), 2000);
     }
   }, []);
@@ -39,7 +38,7 @@ const AccessGate = ({ children }) => {
     const correct = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone';
     if (passkey === correct) {
       const audio = new Audio('/access-granted.mp3');
-      audio.play().catch(() => {}); // ignore autoplay errors
+      audio.play().catch(() => {});
       setFadeOut(true);
       setTimeout(() => {
         setUnlocked(true);
@@ -55,10 +54,15 @@ const AccessGate = ({ children }) => {
 
   return (
     <div
-      className={`fixed inset-0 flex items-center justify-center z-50 p-4 bg-black bg-opacity-90 backdrop-blur-sm transition-all font-crt ${
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-black bg-opacity-90 backdrop-blur-sm font-crt transition-all ${
         fadeOut ? 'animate-fade-out' : 'animate-flicker'
       }`}
     >
+      {/* Global Site Header */}
+      <h1 className="text-4xl sm:text-5xl font-vintage text-red-700 drop-shadow-lg mb-6 text-center">
+        TIMELESS!!
+      </h1>
+
       {loading ? (
         <div className="text-green-400 text-xl sm:text-2xl text-center">
           <div className="font-mono mb-2 tracking-wider animate-pulse">{quote}</div>
@@ -69,11 +73,6 @@ const AccessGate = ({ children }) => {
           onSubmit={handleSubmit}
           className="bg-yellow-100 border-4 border-purple-600 p-6 rounded-xl w-full max-w-md text-center shadow-vintage animate-retro"
         >
-          {/* Vintage header */}
-          <h1 className="text-3xl sm:text-4xl mb-2 font-vintage text-red-700 drop-shadow-md">
-            TIMELESS!!
-          </h1>
-
           <h2 className="font-crt text-xl mb-4 text-green-600 drop-shadow-[0_0_3px_#0f0]">
             Enter Passkey
           </h2>

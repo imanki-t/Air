@@ -1,24 +1,48 @@
-import React from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 
 const FileItem = ({ file, refresh }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
+  const [showShare, setShowShare] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const download = () => {
     window.open(`${backendUrl}/api/files/download/${file._id}`, '_blank');
   };
 
   const deleteFile = async () => {
-    const confirmDelete = confirm(`Are you sure you want to delete "${file.filename}"?`);
-    if (!confirmDelete) return;
-
-    await axios.delete(`${backendUrl}/api/files/${file._id}`);
-    refresh();
+    try {
+      await axios.delete(`${backendUrl}/api/files/${file._id}`);
+      refresh();
+    } catch (err) {
+      console.error('Delete failed:', err);
+    } finally {
+      setShowDeleteConfirm(false);
+    }
   };
 
   const share = async () => {
-    const res = await axios.post(`${backendUrl}/api/files/share/${file._id}`);
-    alert(`Shareable Link (1 hr):\n${res.data.url}`);
+    try {
+      const res = await axios.post(`${backendUrl}/api/files/share/${file._id}`);
+      setShareLink(res.data.url);
+      setCopied(false);
+      setShowShare(true);
+    } catch (err) {
+      console.error('Share failed:', err);
+    }
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setCopied(true);
+    } catch (err) {
+      console.error('Copy failed:', err);
+    }
   };
 
   const formatSize = (bytes) => {
@@ -31,17 +55,14 @@ const FileItem = ({ file, refresh }) => {
   const renderPreview = () => {
     const url = `${backendUrl}/api/files/download/${file._id}`;
     const type = file.metadata?.type;
-
-    const sharedClass = 'rounded-lg mb-2 w-full max-h-48 object-contain';
+    const previewClass = 'rounded-lg mb-2 w-full max-h-48 object-contain';
 
     if (type === 'image') {
-      return <img src={url} alt={file.filename} className={sharedClass} />;
+      return <img src={url} alt={file.filename} className={previewClass} />;
     }
-
     if (type === 'video') {
-      return <video src={url} controls className={sharedClass} />;
+      return <video src={url} controls className={previewClass} />;
     }
-
     if (type === 'audio') {
       return <audio src={url} controls className="w-full mb-2" />;
     }
@@ -54,18 +75,71 @@ const FileItem = ({ file, refresh }) => {
   };
 
   return (
-    <div className="bg-yellow-100 p-4 rounded-xl shadow-lg border-4 border-dashed border-purple-600 w-full overflow-hidden">
-      {renderPreview()}
-      <h3 className="text-black font-bold truncate">{file.filename}</h3>
-      <p className="text-xs text-gray-600">Type: {file.metadata?.type}</p>
-      <p className="text-xs text-gray-600">Size: {formatSize(file.length)}</p>
-      <p className="text-xs text-gray-500">Uploaded: {new Date(file.uploadDate).toLocaleString()}</p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        <button onClick={download} className="vintage-btn bg-blue-600 hover:bg-blue-700">Download</button>
-        <button onClick={share} className="vintage-btn bg-yellow-500 hover:bg-yellow-600">Share</button>
-        <button onClick={deleteFile} className="vintage-btn bg-red-600 hover:bg-red-700">Delete</button>
+    <>
+      {/* File Card */}
+      <div className="bg-yellow-100 p-4 rounded-xl shadow-lg border-4 border-dashed border-purple-600 w-full overflow-hidden">
+        {renderPreview()}
+        <h3 className="text-black font-bold truncate">{file.filename}</h3>
+        <p className="text-xs text-gray-600">Type: {file.metadata?.type}</p>
+        <p className="text-xs text-gray-600">Size: {formatSize(file.length)}</p>
+        <p className="text-xs text-gray-500">Uploaded: {new Date(file.uploadDate).toLocaleString()}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button onClick={download} className="vintage-btn bg-blue-600 hover:bg-blue-700">Download</button>
+          <button onClick={share} className="vintage-btn bg-yellow-500 hover:bg-yellow-600">Share</button>
+          <button onClick={() => setShowDeleteConfirm(true)} className="vintage-btn bg-red-600 hover:bg-red-700">Delete</button>
+        </div>
       </div>
-    </div>
+
+      {/* Share Modal */}
+      {showShare && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
+          <div className="bg-yellow-100 border-4 border-purple-600 p-4 rounded-xl max-w-sm w-full text-center relative shadow-vintage">
+            <button
+              onClick={() => setShowShare(false)}
+              className="absolute top-2 right-2 text-xl font-bold text-red-600 hover:text-red-800"
+              title="Close"
+            >
+              ×
+            </button>
+            <h2 className="font-bold mb-2 text-lg text-purple-800">Shareable Link</h2>
+            <input
+              value={shareLink}
+              readOnly
+              className="w-full px-3 py-2 bg-yellow-200 border border-yellow-400 rounded font-mono text-sm mb-3"
+            />
+            <button
+              onClick={copyToClipboard}
+              className="vintage-btn bg-green-600 hover:bg-green-700"
+            >
+              ⧉ {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
+          <div className="bg-yellow-100 border-4 border-red-600 p-4 rounded-xl max-w-sm w-full text-center relative shadow-vintage">
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              className="absolute top-2 right-2 text-xl font-bold text-red-600 hover:text-red-800"
+              title="Cancel"
+            >
+              ×
+            </button>
+            <h2 className="font-bold mb-2 text-lg text-red-700">Confirm Delete</h2>
+            <p className="text-sm text-gray-700 mb-4">
+              Are you sure you want to delete <span className="font-bold">{file.filename}</span>?
+            </p>
+            <div className="flex justify-center gap-3">
+              <button onClick={deleteFile} className="vintage-btn bg-red-600 hover:bg-red-700">Yes</button>
+              <button onClick={() => setShowDeleteConfirm(false)} className="vintage-btn bg-gray-600 hover:bg-gray-700">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

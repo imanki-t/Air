@@ -1,12 +1,13 @@
+// tailwind.config.js
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
   theme: {
     extend: {
       backgroundImage: {
-        cat: "url('./public/cat-bg.jpg')" // Updated path to be more specific
+        cat: "url('/cat-bg.jpg')" // match the image file name exactly
       },
       fontFamily: {
-        vintage: ['"Press Start 2P"', 'cursive'],
+        vintage: ['"Press Start 2P"', 'cursive']
       }
     }
   },

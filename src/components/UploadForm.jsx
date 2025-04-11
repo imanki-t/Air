@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import axios from 'axios';
 
-const UploadForm = () => {
+const UploadForm = ({ refresh }) => {
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState('');
+  const [progress, setProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const controllerRef = useRef(null); // to store abort controller
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -12,12 +15,45 @@ const UploadForm = () => {
     const formData = new FormData();
     formData.append('file', file);
 
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     try {
-      await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/files/upload`, formData);
+      setMessage('');
+      setProgress(0);
+      setIsUploading(true);
+
+      await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/files/upload`,
+        formData,
+        {
+          signal: controller.signal,
+          onUploadProgress: (event) => {
+            const percent = Math.round((event.loaded * 100) / event.total);
+            setProgress(percent);
+          }
+        }
+      );
+
       setMessage('File uploaded successfully!');
       setFile(null);
+      refresh();
     } catch (err) {
-      setMessage('Upload failed.');
+      if (axios.isCancel(err) || err.code === 'ERR_CANCELED') {
+        setMessage('Upload cancelled.');
+      } else {
+        setMessage('Upload failed.');
+      }
+    } finally {
+      setProgress(0);
+      setIsUploading(false);
+      controllerRef.current = null;
+    }
+  };
+
+  const handleCancel = () => {
+    if (controllerRef.current) {
+      controllerRef.current.abort();
     }
   };
 
@@ -41,9 +77,30 @@ const UploadForm = () => {
         className="hidden"
       />
 
+      {isUploading && (
+        <>
+          <div className="w-full bg-yellow-200 rounded-full h-4 mb-3 overflow-hidden">
+            <div
+              className="bg-green-500 h-full transition-all duration-200 ease-in-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="mb-4 px-4 py-1 bg-red-600 hover:bg-red-700 text-white rounded vintage-btn"
+          >
+            Cancel Upload
+          </button>
+        </>
+      )}
+
       <button
         type="submit"
-        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md vintage-btn"
+        disabled={isUploading}
+        className={`px-4 py-2 ${
+          isUploading ? 'bg-gray-600 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+        } text-white rounded-md vintage-btn`}
       >
         Upload
       </button>

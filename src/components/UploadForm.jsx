@@ -36,6 +36,7 @@ const UploadForm = ({ refresh }) => {
       );
 
       setMessage('File uploaded successfully!');
+setTimeout(() => setMessage(''), 10000); // auto-hide after 5s
       setFile(null);
       refresh();
     } catch (err) {

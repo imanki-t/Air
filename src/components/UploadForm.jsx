@@ -27,17 +27,27 @@ const UploadForm = () => {
       className="mb-6 p-4 border-4 border-double border-yellow-300 bg-pink-200 bg-opacity-30 rounded-2xl shadow-vintage"
     >
       <label className="block mb-2 text-xl text-yellow-200">Choose a file:</label>
+
+      <label
+        htmlFor="fileInput"
+        className="block w-full cursor-pointer bg-yellow-500 text-black px-4 py-2 rounded font-bold text-center mb-4"
+      >
+        {file ? file.name : 'Browse file'}
+      </label>
       <input
+        id="fileInput"
         type="file"
         onChange={(e) => setFile(e.target.files[0])}
-        className="mb-4 block w-full text-sm text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-500 file:text-black file:hover:bg-yellow-400"
+        className="hidden"
       />
+
       <button
         type="submit"
         className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md vintage-btn"
       >
         Upload
       </button>
+
       {message && <p className="mt-3 text-pink-100">{message}</p>}
     </form>
   );

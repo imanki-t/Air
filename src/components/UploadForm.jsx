@@ -6,7 +6,7 @@ const UploadForm = ({ refresh }) => {
   const [message, setMessage] = useState('');
   const [progress, setProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
-  const controllerRef = useRef(null); // to store abort controller
+  const controllerRef = useRef(null);
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -36,7 +36,7 @@ const UploadForm = ({ refresh }) => {
       );
 
       setMessage('File uploaded successfully!');
-setTimeout(() => setMessage(''), 10000); // auto-hide after 5s
+      setTimeout(() => setMessage(''), 10000); // auto-hide after 10s
       setFile(null);
       refresh();
     } catch (err) {
@@ -96,15 +96,14 @@ setTimeout(() => setMessage(''), 10000); // auto-hide after 5s
         </>
       )}
 
-      <button
-        type="submit"
-        disabled={isUploading}
-        className={`px-4 py-2 ${
-          isUploading ? 'bg-gray-600 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
-        } text-white rounded-md vintage-btn`}
-      >
-        Upload
-      </button>
+      {file && !isUploading && (
+        <button
+          type="submit"
+          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md vintage-btn"
+        >
+          Upload
+        </button>
+      )}
 
       {message && <p className="mt-3 text-pink-100">{message}</p>}
     </form>

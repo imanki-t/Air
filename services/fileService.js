@@ -1,6 +1,5 @@
 // services/fileService.js
-const getGFS = require('../config/gridfs');
-const bucket = new GridFSBucket(db, { bucketName: 'uploads' });
+const { GridFSBucket, ObjectId } = require('mongodb');
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const getFileCategory = require('../utils/fileType');

@@ -55,7 +55,7 @@ function App() {
 
   return (
     <div className="min-h-screen p-4 sm:p-6 bg-transparent">
-      <h1 className="text-5xl mb-2 text-pink-300 font-vintage drop-shadow-lg">Timeless!</h1>
+      <h1 className="text-5xl mb-2 text-red-300 font-vintage drop-shadow-lg">Timeless!</h1>
 <h2 className="text-2xl mb-8 text-yellow-300 inline-block">wsp bro 🥰</h2>
       <UploadForm refresh={fetchFiles} />
       <FileList files={files} refresh={fetchFiles} />

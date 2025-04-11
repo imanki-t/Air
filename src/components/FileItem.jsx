@@ -9,12 +9,12 @@ const FileItem = ({ file, refresh }) => {
   };
 
   const deleteFile = async () => {
-  const confirmDelete = confirm(`Are you sure you want to delete "${file.filename}"?`);
-  if (!confirmDelete) return;
+    const confirmDelete = confirm(`Are you sure you want to delete "${file.filename}"?`);
+    if (!confirmDelete) return;
 
-  await axios.delete(`${backendUrl}/api/files/${file._id}`);
-  refresh();
-};
+    await axios.delete(`${backendUrl}/api/files/${file._id}`);
+    refresh();
+  };
 
   const share = async () => {
     const res = await axios.post(`${backendUrl}/api/files/share/${file._id}`);
@@ -32,12 +32,14 @@ const FileItem = ({ file, refresh }) => {
     const url = `${backendUrl}/api/files/download/${file._id}`;
     const type = file.metadata?.type;
 
+    const sharedClass = 'rounded-lg mb-2 w-full max-h-48 object-contain';
+
     if (type === 'image') {
-      return <img src={url} alt={file.filename} className="max-h-48 w-auto rounded-lg mb-2" />;
+      return <img src={url} alt={file.filename} className={sharedClass} />;
     }
 
     if (type === 'video') {
-      return <video src={url} controls className="w-full rounded-lg mb-2" />;
+      return <video src={url} controls className={sharedClass} />;
     }
 
     if (type === 'audio') {
@@ -52,13 +54,13 @@ const FileItem = ({ file, refresh }) => {
   };
 
   return (
-    <div className="bg-yellow-100 p-4 rounded-xl shadow-lg border-4 border-dashed border-purple-600 mb-3">
+    <div className="bg-yellow-100 p-4 rounded-xl shadow-lg border-4 border-dashed border-purple-600 w-full overflow-hidden">
       {renderPreview()}
       <h3 className="text-black font-bold truncate">{file.filename}</h3>
       <p className="text-xs text-gray-600">Type: {file.metadata?.type}</p>
       <p className="text-xs text-gray-600">Size: {formatSize(file.length)}</p>
       <p className="text-xs text-gray-500">Uploaded: {new Date(file.uploadDate).toLocaleString()}</p>
-      <div className="mt-2 space-x-2">
+      <div className="mt-2 flex flex-wrap gap-2">
         <button onClick={download} className="vintage-btn bg-blue-600 hover:bg-blue-700">Download</button>
         <button onClick={share} className="vintage-btn bg-yellow-500 hover:bg-yellow-600">Share</button>
         <button onClick={deleteFile} className="vintage-btn bg-red-600 hover:bg-red-700">Delete</button>

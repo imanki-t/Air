@@ -1,4 +1,3 @@
-// src/components/UploadForm.jsx
 import React, { useState } from 'react';
 import axios from 'axios';
 
@@ -31,7 +30,7 @@ const UploadForm = () => {
       <input
         type="file"
         onChange={(e) => setFile(e.target.files[0])}
-        className="mb-4 w-full sm:w-auto"
+        className="mb-4 block w-full text-sm text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-yellow-500 file:text-black file:hover:bg-yellow-400"
       />
       <button
         type="submit"

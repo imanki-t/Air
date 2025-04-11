@@ -32,7 +32,6 @@ const UploadForm = () => {
         type="file"
         onChange={(e) => setFile(e.target.files[0])}
         className="mb-4 w-full sm:w-auto"
-/>"
       />
       <button
         type="submit"

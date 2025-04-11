@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import UploadForm from './components/UploadForm';
 import FileList from './components/FileList';
+import AccessGate from './components/AccessGate';
 import axios from 'axios';
 
 function App() {
@@ -54,12 +55,14 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 bg-transparent">
-      <h1 className="text-4xl mb-2 text-red-800 font-vintage drop-shadow-lg">Timeless!</h1>
-<h2 className="text-2xl mb-8 text-yellow-300 inline-block">wsp bro 🥰</h2>
-      <UploadForm refresh={fetchFiles} />
-      <FileList files={files} refresh={fetchFiles} />
-    </div>
+    <AccessGate>
+      <div className="min-h-screen p-4 sm:p-6 bg-transparent">
+        <h1 className="text-4xl mb-2 text-red-800 font-vintage drop-shadow-lg">Timeless!</h1>
+        <h2 className="text-2xl mb-8 text-yellow-300 inline-block">wsp bro 🥰</h2>
+        <UploadForm refresh={fetchFiles} />
+        <FileList files={files} refresh={fetchFiles} />
+      </div>
+    </AccessGate>
   );
 }
 

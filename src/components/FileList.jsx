@@ -20,7 +20,7 @@ const FileList = () => {
 
   return (
     <div>
-      <div className="mb-4 space-x-2 text-sm text-white">
+      <div className="mb-4 flex flex-wrap gap-2 overflow-x-auto text-sm text-white">
         <button onClick={() => setFilter('all')} className="vintage-btn">All</button>
         <button onClick={() => setFilter('image')} className="vintage-btn">Images</button>
         <button onClick={() => setFilter('video')} className="vintage-btn">Videos</button>

@@ -41,9 +41,12 @@ const UploadForm = ({ refresh }) => {
       refresh();
     } catch (err) {
       if (axios.isCancel(err) || err.code === 'ERR_CANCELED') {
-        setMessage('Upload cancelled.');
-      } else {
-        setMessage('Upload failed.');
+  setMessage('Upload cancelled.');
+  setFile(null); // reset file
+  setTimeout(() => setMessage(''), 10000);
+} else {
+  setMessage('Upload failed.');
+  setTimeout(() => setMessage(''), 10000);
       }
     } finally {
       setProgress(0);

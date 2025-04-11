@@ -26,7 +26,7 @@ const FileList = ({ files, refresh }) => {
         <div className="flex-grow">
           <input
             type="text"
-            placeholder="Search files..."
+            placeholder="⌕"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className="w-full sm:max-w-sm px-4 py-2 rounded-lg bg-yellow-200 text-black border-2 border-yellow-400 shadow-inner placeholder:text-gray-700 font-mono"

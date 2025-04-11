@@ -81,7 +81,9 @@ const FileList = ({ files, refresh }) => {
       ) : (
         <div className={`grid gap-4 ${view === 'grid' ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
           {visibleFiles.map((file) => (
-            <FileItem key={file._id} file={file} refresh={refresh} />
+            <div key={file._id} className="w-full">
+              <FileItem file={file} refresh={refresh} />
+            </div>
           ))}
         </div>
       )}

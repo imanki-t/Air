@@ -32,7 +32,7 @@ const AccessGate = ({ children }) => {
   if (unlocked) return children;
 
   return (
-    <div className={`fixed inset-0 bg-black flex items-center justify-center z-50 p-4 transition-all ${fadeOut ? 'animate-fade-out' : ''}`}>
+    <div className={`fixed inset-0 flex items-center justify-center z-50 p-4 transition-all ${fadeOut ? 'animate-fade-out' : ''}`}>
       <form
         onSubmit={handleSubmit}
         className="bg-yellow-100 border-4 border-purple-600 p-6 rounded-xl w-full max-w-md text-center shadow-vintage animate-retro"

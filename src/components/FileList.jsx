@@ -67,13 +67,28 @@ const FileList = ({ files, refresh }) => {
 
       {/* File type filters */}
       <div className="mb-4 flex flex-wrap gap-2 overflow-x-auto text-sm text-white">
-        <button onClick={() => setFilter('all')} className="vintage-btn">All</button>
-        <button onClick={() => setFilter('image')} className="vintage-btn">Images</button>
-        <button onClick={() => setFilter('video')} className="vintage-btn">Videos</button>
-        <button onClick={() => setFilter('audio')} className="vintage-btn">Audio</button>
-        <button onClick={() => setFilter('document')} className="vintage-btn">Docs</button>
-        <button onClick={() => setFilter('other')} className="vintage-btn">Other</button>
-      </div>
+  {['all', 'image', 'video', 'audio', 'document', 'other'].map((type) => (
+    <button
+      key={type}
+      onClick={() => setFilter(type)}
+      className={`vintage-btn ${
+        filter === type ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 hover:bg-gray-700'
+      }`}
+    >
+      {type === 'all'
+        ? 'All'
+        : type === 'image'
+        ? 'Images'
+        : type === 'video'
+        ? 'Videos'
+        : type === 'audio'
+        ? 'Audio'
+        : type === 'document'
+        ? 'Docs'
+        : 'Other'}
+    </button>
+  ))}
+</div>
 
       {/* File list */}
       {visibleFiles.length === 0 ? (

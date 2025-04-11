@@ -9,9 +9,12 @@ const FileItem = ({ file, refresh }) => {
   };
 
   const deleteFile = async () => {
-    await axios.delete(`${backendUrl}/api/files/${file._id}`);
-    refresh();
-  };
+  const confirmDelete = confirm(`Are you sure you want to delete "${file.filename}"?`);
+  if (!confirmDelete) return;
+
+  await axios.delete(`${backendUrl}/api/files/${file._id}`);
+  refresh();
+};
 
   const share = async () => {
     const res = await axios.post(`${backendUrl}/api/files/share/${file._id}`);

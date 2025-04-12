@@ -70,7 +70,7 @@ const UploadForm = ({ refresh }) => {
 
   const getTruncatedFileName = (name) => {    
     if (!name) return '';    
-    return name.length > 10 ? name.slice(0, 10) + '...' : name;    
+    return name.length > 15 ? name.slice(0, 15) + '...' : name;    
   };    
 
   const handleDrop = useCallback((e) => {

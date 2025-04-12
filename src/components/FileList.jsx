@@ -5,7 +5,7 @@ const FileList = ({ files, refresh }) => {
   const [filter, setFilter] = useState('all');
   const [view, setView] = useState('list');
   const [searchInput, setSearchInput] = useState('');
-  const [showMetadata, setShowMetadata] = useState(false); // metadata hidden by default
+  const [showMetadata, setShowMetadata] = useState(false); // Toggle for metadata and buttons visibility
 
   useEffect(() => {
     if (window.innerWidth >= 768) setView('grid');

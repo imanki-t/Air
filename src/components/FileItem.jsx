@@ -125,7 +125,7 @@ const FileItem = ({ file, refresh }) => {
             <input
               value={shareLink}
               readOnly
-              className="w-[90%] px-3 py-2 bg-yellow-600 border border-yellow-400 rounded font-mono text-sm mb-3 text-black"
+              className="w-[90%] px-3 py-2 bg-yellow-300 border border-yellow-400 rounded font-mono text-sm mb-3 text-black"
             />
             <button
               onClick={copyToClipboard}

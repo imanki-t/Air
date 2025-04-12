@@ -93,7 +93,7 @@ const FileItem = ({ file, refresh }) => {
       {/* Share Modal */}
       {showShare && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
-          <div className="bg-red-300 border-4 border-purple-600 p-4 rounded-xl max-w-sm w-full text-center relative shadow-vintage">
+          <div className="bg-red-600 border-4 border-purple-600 p-4 rounded-xl max-w-sm w-full text-center relative shadow-vintage">
             <button
               onClick={() => setShowShare(false)}
               className="absolute top-2 right-2 text-xl font-bold text-red-600 hover:text-red-800"

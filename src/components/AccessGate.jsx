@@ -30,7 +30,7 @@ const AccessGate = ({ children }) => {
     if (unlockedBefore === 'true') {
       setUnlocked(true);
     } else {
-      setTimeout(() => setLoading(false), 2000);
+      setTimeout(() => setLoading(false), 6000); // Updated to 6 seconds
     }
   }, []);
 
@@ -41,7 +41,6 @@ const AccessGate = ({ children }) => {
     }
   }, [error]);
 
-  // Parallax effect for background
   useEffect(() => {
     const handleMouseMove = (e) => {
       const x = (e.clientX / window.innerWidth) * 15;
@@ -103,8 +102,7 @@ const AccessGate = ({ children }) => {
       </div>
 
       {/* JJK Logo */}
-      <div className="mb-8 relative">
-        <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-blue-500 to-purple-600 rounded-lg blur opacity-75 animate-pulse"></div>
+      <div className="mb-12 relative">
         <h1 className="relative px-8 py-4 bg-black bg-opacity-70 border-2 border-purple-600 rounded-lg font-bold text-4xl sm:text-5xl text-white">
           <span className="text-purple-500">TIME</span>
           <span className="text-yellow-400">LESS</span>
@@ -119,7 +117,7 @@ const AccessGate = ({ children }) => {
             <div className="absolute inset-2 border-4 border-t-yellow-400 border-r-yellow-200 border-b-yellow-400 border-l-yellow-200 rounded-full animate-spin-slow"></div>
           </div>
           <div className="text-white font-medium mb-2 text-xl tracking-wide">
-            <span className="text-purple-400">Loading</span> 
+            <span className="text-purple-400">Loading</span>
             <span className="text-yellow-400"> Domain</span>
           </div>
           <div className="text-lg italic text-gray-300">"{quote}"</div>
@@ -131,13 +129,10 @@ const AccessGate = ({ children }) => {
             onSubmit={handleSubmit}
             className="relative bg-gray-900 border-2 border-purple-600 p-8 rounded-xl w-full text-center shadow-2xl"
           >
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 via-blue-500 to-purple-600"></div>
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-purple-600 via-blue-500 to-purple-600"></div>
-            
             <h2 className="font-bold text-2xl mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
               Domain Expansion
             </h2>
-            
+
             <div className="mb-6 relative">
               <input
                 type="password"
@@ -148,13 +143,13 @@ const AccessGate = ({ children }) => {
               />
               <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-blue-500 rounded-lg blur opacity-30 -z-10"></div>
             </div>
-            
+
             {error && (
               <div className="mb-4 p-2 text-red-400 bg-red-900 bg-opacity-30 border border-red-700 rounded-lg animate-pulse">
                 {error}
               </div>
             )}
-            
+
             <button
               type="submit"
               className="w-full px-6 py-3 bg-gradient-to-r from-purple-700 to-blue-700 hover:from-purple-600 hover:to-blue-600 text-white font-bold rounded-lg transition-all duration-200 transform hover:scale-105 hover:shadow-lg active:scale-95 relative overflow-hidden group"
@@ -162,14 +157,14 @@ const AccessGate = ({ children }) => {
               <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-purple-400 to-blue-400 opacity-0 group-hover:opacity-20 transition-opacity duration-200"></span>
               <span className="relative">Unleash</span>
             </button>
-            
+
             <div className="mt-6 text-xs text-gray-400">
               Only the strongest sorcerers may enter
             </div>
           </form>
         </div>
       )}
-      
+
       {/* Ornamental elements */}
       <div className="fixed top-4 left-4 w-16 h-16 opacity-30">
         <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">

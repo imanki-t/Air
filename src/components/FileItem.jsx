@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
 
-const FileItem = ({ file, refresh }) => {
+const FileItem = ({ file, refresh, showMetadata }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   const [showShare, setShowShare] = useState(false);
@@ -52,14 +52,13 @@ const FileItem = ({ file, refresh }) => {
   const formatSize = (bytes) => {
     if (!bytes) return 'Unknown';
     const kb = bytes / 1024;
-    if (kb < 1024) return `${kb.toFixed(1)} KB`;
-    return `${(kb / 1024).toFixed(2)} MB`;
+    return kb < 1024 ? `${kb.toFixed(1)} KB` : `${(kb / 1024).toFixed(2)} MB`;
   };
 
   const renderPreview = () => {
     const url = `${backendUrl}/api/files/download/${file._id}`;
     const type = file.metadata?.type;
-    const previewClass = 'rounded-lg mb-2 w-full max-h-48 object-contain';
+    const previewClass = 'rounded-lg mb-2 w-full h-48 object-contain';
 
     if (type === 'image') return <img src={url} alt={file.filename} className={previewClass} />;
     if (type === 'video') return <video src={url} controls className={previewClass} />;
@@ -75,12 +74,18 @@ const FileItem = ({ file, refresh }) => {
   return (
     <>
       {/* File Card */}
-      <div className="bg-yellow-300 w-full p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-lg border-4 border-dashed border-purple-600 overflow-hidden">
+      <div className="bg-yellow-300 w-full min-h-[310px] flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-lg border-4 border-dashed border-purple-600 overflow-hidden">
         {renderPreview()}
         <h3 className="text-black font-bold truncate">{file.filename}</h3>
-        <p className="text-xs text-gray-600">Type: {file.metadata?.type}</p>
-        <p className="text-xs text-gray-600">Size: {formatSize(file.length)}</p>
-        <p className="text-xs text-gray-500">Uploaded: {new Date(file.uploadDate).toLocaleString()}</p>
+
+        {showMetadata && (
+          <>
+            <p className="text-xs text-gray-600">Type: {file.metadata?.type}</p>
+            <p className="text-xs text-gray-600">Size: {formatSize(file.length)}</p>
+            <p className="text-xs text-gray-500">Uploaded: {new Date(file.uploadDate).toLocaleString()}</p>
+          </>
+        )}
+
         <div className="mt-2 flex flex-wrap gap-2">
           <button onClick={download} className="vintage-btn bg-blue-600 hover:bg-blue-700">Download</button>
           <button onClick={share} className="vintage-btn bg-green-600 hover:bg-green-700" disabled={isLoading}>
@@ -94,18 +99,16 @@ const FileItem = ({ file, refresh }) => {
       {showShare && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
           <div className="bg-yellow-100 border-4 border-red-600 p-6 pt-8 pr-8 rounded-xl max-w-sm w-full text-center relative shadow-vintage">
-            
             <button
               onClick={() => setShowShare(false)}
-              className="absolute top-2 right-2 text-xl font-bold text-red-600 hover:text-red-800 bg-transparent border-none"
+              className="absolute top-2 right-2 text-xl font-bold text-red-600 hover:text-red-800"
               title="Close"
             >
               ×
             </button>
-
             <h2 className="font-bold mb-3 text-lg text-purple-800 vintage-btn border-2 border-yellow-600 rounded px-2 py-1">
-  Shareable URL
-</h2>
+              Shareable URL
+            </h2>
 
             {shareLink ? (
               <div className="flex justify-center mb-4">
@@ -139,7 +142,7 @@ const FileItem = ({ file, refresh }) => {
         </div>
       )}
 
-      {/* Delete Modal */}
+      {/* Delete Confirmation */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
           <div className="bg-yellow-100 border-4 border-red-600 p-4 rounded-xl max-w-sm w-full text-center relative shadow-vintage">

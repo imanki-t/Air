@@ -76,7 +76,8 @@ const UploadForm = ({ refresh }) => {
 
       <label
         htmlFor="fileInput"
-        className="block w-full cursor-pointer bg-yellow-500 text-black px-4 py-2 rounded font-bold text-center mb-4"
+        className="block w-full cursor-pointer bg-yellow-500 text-black px-4 py-2 rounded font-bold text-center mb-4 overflow-hidden whitespace-nowrap truncate"
+        title={file ? file.name : 'Browse file'}
       >
         {file ? file.name : 'Browse file'}
       </label>

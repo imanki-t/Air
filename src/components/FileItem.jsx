@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { QRCode } from 'qrcode.react';
 
 const FileItem = ({ file, refresh }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -56,15 +57,9 @@ const FileItem = ({ file, refresh }) => {
     const type = file.metadata?.type;
     const previewClass = 'rounded-lg mb-2 w-full max-h-48 object-contain';
 
-    if (type === 'image') {
-      return <img src={url} alt={file.filename} className={previewClass} />;
-    }
-    if (type === 'video') {
-      return <video src={url} controls className={previewClass} />;
-    }
-    if (type === 'audio') {
-      return <audio src={url} controls className="w-full mb-2" />;
-    }
+    if (type === 'image') return <img src={url} alt={file.filename} className={previewClass} />;
+    if (type === 'video') return <video src={url} controls className={previewClass} />;
+    if (type === 'audio') return <audio src={url} controls className="w-full mb-2" />;
 
     return (
       <div className="mb-2 p-2 text-sm text-center bg-yellow-200 rounded">
@@ -100,11 +95,29 @@ const FileItem = ({ file, refresh }) => {
             >
               ×
             </button>
-            <h2 className="font-bold mb-2 text-lg text-purple-800">Shareable Link</h2>
+            <h2 className="font-bold mb-3 text-lg text-purple-800 vintage-btn">Shareable URL</h2>
+
+            {/* QR Code */}
+            {shareLink && (
+              <div className="flex justify-center mb-4">
+                <div className="p-2 border-4 border-dashed border-black bg-yellow-100 rounded-xl">
+                  <QRCode
+                    value={shareLink}
+                    size={128}
+                    fgColor="#3b2f2f"     // sepia ink
+                    bgColor="#fdf6e3"     // aged paper
+                    level="H"
+                    style={{ width: '128px', height: '128px', display: 'block' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Link + Copy */}
             <input
               value={shareLink}
               readOnly
-              className="w-full px-3 py-2 bg-yellow-200 border border-yellow-400 rounded font-mono text-sm mb-3"
+              className="w-full px-3 py-2 bg-yellow-200 border border-yellow-400 rounded font-mono text-sm mb-3 text-black"
             />
             <button
               onClick={copyToClipboard}
@@ -116,7 +129,7 @@ const FileItem = ({ file, refresh }) => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
           <div className="bg-yellow-100 border-4 border-red-600 p-4 rounded-xl max-w-sm w-full text-center relative shadow-vintage">

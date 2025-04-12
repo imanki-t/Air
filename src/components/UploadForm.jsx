@@ -75,12 +75,12 @@ const UploadForm = ({ refresh }) => {
       <label className="block mb-2 text-xl text-yellow-200">Choose a file:</label>
 
       <label
-        htmlFor="fileInput"
-        className="block w-full cursor-pointer bg-yellow-500 text-black px-4 py-2 rounded font-bold text-center mb-4 overflow-hidden whitespace-nowrap truncate"
-        title={file ? file.name : 'Browse file'}
-      >
-        {file ? file.name : 'Browse file'}
-      </label>
+  htmlFor="fileInput"
+  className="block w-full max-w-full cursor-pointer bg-yellow-500 text-black px-4 py-2 rounded font-bold text-sm md:text-base mb-4 text-center overflow-hidden whitespace-nowrap truncate"
+  title={file ? file.name : 'Browse file'}
+>
+  {file ? file.name : 'Browse file'}
+</label>
       <input
         id="fileInput"
         type="file"

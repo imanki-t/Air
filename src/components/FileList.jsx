@@ -92,7 +92,7 @@ const FileList = ({ files, refresh }) => {
 
       {/* File list */}
       {visibleFiles.length === 0 ? (
-        <p className="text-yellow-200 text-center">No files found.</p>
+        <p className="text-yellow-100 text-center">No files found.</p>
       ) : (
         <div
           className={`grid gap-4 ${

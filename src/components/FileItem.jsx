@@ -103,7 +103,9 @@ const FileItem = ({ file, refresh }) => {
               ×
             </button>
 
-            <h2 className="font-bold mb-3 text-lg text-purple-800 vintage-btn">Shareable URL</h2>
+            <h2 className="font-bold mb-3 text-lg text-purple-800 vintage-btn border-2 border-yellow-300 rounded px-2 py-1">
+  Shareable URL
+</h2>
 
             {shareLink ? (
               <div className="flex justify-center mb-4">

@@ -58,7 +58,7 @@ function App() {
     <AccessGate>    
       <div className="min-h-screen p-4 sm:p-6 bg-transparent">    
         <h1 className="text-4xl mb-2 text-teal-500 font-vintage drop-shadow-lg">Timeless</h1>    
-        <h2 className="text-2xl text-yellow-300 mt-2 flex items-center justify-center gap-2">    
+        <h2 className="text-2xl text-yellow-300 mt-1 flex items-center justify-center gap-2">    
           wsp bro    
           <img src="/apple-heart-eyes.png" alt="🥰" className="w-6 h-6 inline-block" />    
         </h2>      

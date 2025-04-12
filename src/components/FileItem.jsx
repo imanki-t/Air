@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import QRCode from 'qrcode.react';
+import { QRCode } from 'qrcode.react';
 
 const FileItem = ({ file, refresh }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;

@@ -3,25 +3,14 @@ import FileItem from './FileItem';
 
 const FileList = ({ files, refresh }) => {
   const [filter, setFilter] = useState('all');
-  const [view, setView] = useState('list');
+  const [view, setView] = useState('list'); // default to 'list'
   const [searchInput, setSearchInput] = useState('');
 
-  // Detect screen size on mount and resize
+  // Set initial view based on screen size only on first render
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setView('grid');
-      } else {
-        setView('list');
-      }
-    };
-
-    handleResize(); // Set initial view on mount
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
+    if (window.innerWidth >= 768) {
+      setView('grid');
+    }
   }, []);
 
   const filtered = files.filter(

@@ -75,9 +75,9 @@ const UploadForm = ({ refresh }) => {
 
   return (  
     <form  
-      onSubmit={handleUpload}  
-      className="mb-6 p-4 border-4 border-double border-yellow-300 bg-pink-200 bg-opacity-30 rounded-2xl shadow-vintage"  
-    >  
+  onSubmit={handleUpload}  
+  className="mb-6 p-4 border-4 border-double border-yellow-300 bg-transparent rounded-2xl shadow-vintage"  
+>
       <label className="block mb-2 text-xl text-yellow-200">Choose a file:</label>  
 
       <label  

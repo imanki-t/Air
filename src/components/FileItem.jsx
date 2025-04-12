@@ -95,7 +95,6 @@ const FileItem = ({ file, refresh }) => {
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
           <div className="bg-yellow-600 border-4 border-red-600 p-6 pt-8 pr-8 rounded-xl max-w-sm w-full text-center relative shadow-vintage">
             
-            {/* Close Button inside the box */}
             <button
               onClick={() => setShowShare(false)}
               className="absolute top-2 right-2 text-xl font-bold text-red-600 hover:text-red-800 bg-transparent border-none"
@@ -151,7 +150,11 @@ const FileItem = ({ file, refresh }) => {
             </button>
             <h2 className="font-bold mb-2 text-lg text-red-700">Confirm Delete</h2>
             <p className="text-sm text-gray-700 mb-4">
-              Are you sure you want to delete <span className="font-bold">{file.filename}</span>?
+              Are you sure you want to delete
+              <div className="font-bold max-w-full truncate overflow-hidden whitespace-nowrap">
+                {file.filename}
+              </div>
+              ?
             </p>
             <div className="flex justify-center gap-3">
               <button onClick={deleteFile} className="vintage-btn bg-red-600 hover:bg-red-700">Yes</button>

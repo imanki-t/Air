@@ -93,7 +93,7 @@ const FileItem = ({ file, refresh }) => {
       {/* Share Modal */}
       {showShare && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
-          <div className="bg-red-600 border-4 border-purple-600 p-4 rounded-xl max-w-sm w-full text-center relative shadow-vintage">
+          <div className="bg-green-400 border-4 border-purple-600 p-4 rounded-xl max-w-sm w-full text-center relative shadow-vintage">
             <button
               onClick={() => setShowShare(false)}
               className="absolute top-2 right-2 text-xl font-bold text-red-600 hover:text-red-800"
@@ -123,10 +123,10 @@ const FileItem = ({ file, refresh }) => {
 
             {/* Link + Copy */}
             <input
-              value={shareLink}
-              readOnly
-              className="w-full px-3 py-2 bg-yellow-200 border border-yellow-400 rounded font-mono text-sm mb-3 text-black"
-            />
+  value={shareLink}
+  readOnly
+  className="w-[90%] px-3 py-2 bg-yellow-200 border border-yellow-400 rounded font-mono text-sm mb-3 text-black"
+/>
             <button
               onClick={copyToClipboard}
               className="vintage-btn bg-green-600 hover:bg-green-700"

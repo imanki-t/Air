@@ -11,7 +11,7 @@ const fillerQuotes = [
   "Initiating 8-bit handshake...",
   "Generating terminal session...",
   "Booting from cassette...",
-  "Please insert coin. Just kidding.",
+  "Please insert coin, just kidding.",
   "Decrypting nostalgia..."
 ];
 

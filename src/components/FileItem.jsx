@@ -63,7 +63,6 @@ const FileItem = ({ file, refresh, showMetadata }) => {
     if (type === 'image') return <img src={url} alt={file.filename} className={previewClass} />;
     if (type === 'video') return <video src={url} controls className={previewClass} />;
     if (type === 'audio') return <audio src={url} controls className="w-full mb-2" />;
-
     return (
       <div className="mb-2 p-2 text-sm text-center bg-yellow-200 rounded">
         {file.filename.split('.').pop().toUpperCase()} file
@@ -73,26 +72,27 @@ const FileItem = ({ file, refresh, showMetadata }) => {
 
   return (
     <>
-      {/* File Card */}
-      <div className="bg-yellow-300 w-full min-h-[310px] flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-lg border-4 border-dashed border-purple-600 overflow-hidden">
+      <div className="bg-yellow-300 w-full transition-all duration-300 ease-in-out flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-lg border-4 border-dashed border-purple-600 overflow-hidden">
         {renderPreview()}
         <h3 className="text-black font-bold truncate">{file.filename}</h3>
 
         {showMetadata && (
           <>
-            <p className="text-xs text-gray-600">Type: {file.metadata?.type}</p>
-            <p className="text-xs text-gray-600">Size: {formatSize(file.length)}</p>
-            <p className="text-xs text-gray-500">Uploaded: {new Date(file.uploadDate).toLocaleString()}</p>
+            <div className="mt-2 text-xs text-gray-600 space-y-1">
+              <p>Type: {file.metadata?.type}</p>
+              <p>Size: {formatSize(file.length)}</p>
+              <p className="text-gray-500">Uploaded: {new Date(file.uploadDate).toLocaleString()}</p>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button onClick={download} className="vintage-btn bg-blue-600 hover:bg-blue-700">Download</button>
+              <button onClick={share} className="vintage-btn bg-green-600 hover:bg-green-700" disabled={isLoading}>
+                {isLoading ? 'Generating...' : 'Share'}
+              </button>
+              <button onClick={() => setShowDeleteConfirm(true)} className="vintage-btn bg-red-600 hover:bg-red-700">Delete</button>
+            </div>
           </>
         )}
-
-        <div className="mt-2 flex flex-wrap gap-2">
-          <button onClick={download} className="vintage-btn bg-blue-600 hover:bg-blue-700">Download</button>
-          <button onClick={share} className="vintage-btn bg-green-600 hover:bg-green-700" disabled={isLoading}>
-            {isLoading ? 'Generating...' : 'Share'}
-          </button>
-          <button onClick={() => setShowDeleteConfirm(true)} className="vintage-btn bg-red-600 hover:bg-red-700">Delete</button>
-        </div>
       </div>
 
       {/* Share Modal */}
@@ -132,10 +132,7 @@ const FileItem = ({ file, refresh, showMetadata }) => {
               readOnly
               className="w-[90%] px-3 py-2 bg-yellow-300 border border-yellow-400 rounded font-mono text-sm mb-3 text-black"
             />
-            <button
-              onClick={copyToClipboard}
-              className="vintage-btn bg-green-600 hover:bg-green-700"
-            >
+            <button onClick={copyToClipboard} className="vintage-btn bg-green-600 hover:bg-green-700">
               ⧉ {copied ? 'Copied!' : 'Copy'}
             </button>
           </div>

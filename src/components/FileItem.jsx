@@ -84,7 +84,7 @@ const FileItem = ({ file, refresh }) => {
         <p className="text-xs text-gray-500">Uploaded: {new Date(file.uploadDate).toLocaleString()}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           <button onClick={download} className="vintage-btn bg-blue-600 hover:bg-blue-700">Download</button>
-          <button onClick={share} className="vintage-btn bg-yellow-500 hover:bg-yellow-600">Share</button>
+          <button onClick={share} className="vintage-btn bg-green-600 hover:bg-green-700">Share</button>
           <button onClick={() => setShowDeleteConfirm(true)} className="vintage-btn bg-red-600 hover:bg-red-700">Delete</button>
         </div>
       </div>

@@ -10,6 +10,7 @@ const FileItem = ({ file, refresh, showMetadata }) => {
   const [copied, setCopied] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [buttonsVisible, setButtonsVisible] = useState(false); // Control buttons visibility
 
   const download = () => {
     window.open(`${backendUrl}/api/files/download/${file._id}`, '_blank');
@@ -74,7 +75,7 @@ const FileItem = ({ file, refresh, showMetadata }) => {
   return (
     <>
       {/* File Card */}
-      <div className="bg-yellow-300 w-full min-h-[310px] flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-lg border-4 border-dashed border-purple-600 overflow-hidden">
+      <div className={`bg-yellow-300 w-full min-h-[310px] flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-lg border-4 border-dashed border-purple-600 overflow-hidden ${showMetadata || buttonsVisible ? 'h-auto' : 'h-[250px]'}`}>
         {renderPreview()}
         <h3 className="text-black font-bold truncate">{file.filename}</h3>
 
@@ -86,13 +87,15 @@ const FileItem = ({ file, refresh, showMetadata }) => {
           </>
         )}
 
-        <div className="mt-2 flex flex-wrap gap-2">
-          <button onClick={download} className="vintage-btn bg-blue-600 hover:bg-blue-700">Download</button>
-          <button onClick={share} className="vintage-btn bg-green-600 hover:bg-green-700" disabled={isLoading}>
-            {isLoading ? 'Generating...' : 'Share'}
-          </button>
-          <button onClick={() => setShowDeleteConfirm(true)} className="vintage-btn bg-red-600 hover:bg-red-700">Delete</button>
-        </div>
+        {buttonsVisible && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button onClick={download} className="vintage-btn bg-blue-600 hover:bg-blue-700">Download</button>
+            <button onClick={share} className="vintage-btn bg-green-600 hover:bg-green-700" disabled={isLoading}>
+              {isLoading ? 'Generating...' : 'Share'}
+            </button>
+            <button onClick={() => setShowDeleteConfirm(true)} className="vintage-btn bg-red-600 hover:bg-red-700">Delete</button>
+          </div>
+        )}
       </div>
 
       {/* Share Modal */}

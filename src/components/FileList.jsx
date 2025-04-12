@@ -46,7 +46,7 @@ const FileList = ({ files, refresh }) => {
             placeholder="⌕"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full sm:max-w-sm px-4 py-2 text-2xl placeholder:text-2xl rounded-lg bg-yellow-200 text-black border-2 border-yellow-400 shadow-inner placeholder:text-gray-700 font-mono"
+            className="w-full sm:max-w-sm px-5 py-2 text-2xl placeholder:text-2xl rounded-lg bg-yellow-200 text-black border-2 border-yellow-400 shadow-inner placeholder:text-gray-700 font-mono"
           />
         </div>
 

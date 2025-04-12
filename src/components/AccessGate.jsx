@@ -71,7 +71,7 @@ const AccessGate = ({ children }) => {
       ) : (
         <form
           onSubmit={handleSubmit}
-          className="bg-yellow-100 border-4 border-purple-600 p-6 rounded-xl w-full max-w-md text-center shadow-vintage animate-retro"
+          className="bg-yellow-100 border-4 border-red-600 p-6 rounded-xl w-full max-w-md text-center shadow-vintage animate-retro"
         >
           <h2 className="font-crt text-xl mb-4 text-green-600 drop-shadow-[0_0_3px_#0f0]">
             Enter Passkey

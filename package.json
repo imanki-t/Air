@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "react": "^18.2.0",
-    "qrcode.react": "^4.2.0",
+    "qrcode.react": "",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.23.0",
     "axios": "^1.6.0"

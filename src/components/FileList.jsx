@@ -1,10 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import FileItem from './FileItem';
 
 const FileList = ({ files, refresh }) => {
   const [filter, setFilter] = useState('all');
-  const [view, setView] = useState('list'); // 'list' or 'grid'
+  const [view, setView] = useState('list');
   const [searchInput, setSearchInput] = useState('');
+
+  // Detect screen size on mount and resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setView('grid');
+      } else {
+        setView('list');
+      }
+    };
+
+    handleResize(); // Set initial view on mount
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   const filtered = files.filter(
     (f) => filter === 'all' || f.metadata?.type === filter
@@ -22,7 +40,6 @@ const FileList = ({ files, refresh }) => {
     <div>
       {/* Search + View Toggle */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-        {/* Search bar */}
         <div className="flex-grow">
           <input
             type="text"
@@ -33,7 +50,6 @@ const FileList = ({ files, refresh }) => {
           />
         </div>
 
-        {/* Clear & View buttons */}
         <div className="flex gap-2 items-center">
           {searchInput && (
             <button
@@ -67,28 +83,30 @@ const FileList = ({ files, refresh }) => {
 
       {/* File type filters */}
       <div className="mb-4 flex flex-wrap gap-2 overflow-x-auto text-sm text-white">
-  {['all', 'image', 'video', 'audio', 'document', 'other'].map((type) => (
-    <button
-      key={type}
-      onClick={() => setFilter(type)}
-      className={`vintage-btn ${
-        filter === type ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 hover:bg-gray-700'
-      }`}
-    >
-      {type === 'all'
-        ? 'All'
-        : type === 'image'
-        ? 'Images'
-        : type === 'video'
-        ? 'Videos'
-        : type === 'audio'
-        ? 'Audio'
-        : type === 'document'
-        ? 'Docs'
-        : 'Other'}
-    </button>
-  ))}
-</div>
+        {['all', 'image', 'video', 'audio', 'document', 'other'].map((type) => (
+          <button
+            key={type}
+            onClick={() => setFilter(type)}
+            className={`vintage-btn ${
+              filter === type
+                ? 'bg-blue-600 hover:bg-blue-700'
+                : 'bg-gray-600 hover:bg-gray-700'
+            }`}
+          >
+            {type === 'all'
+              ? 'All'
+              : type === 'image'
+              ? 'Images'
+              : type === 'video'
+              ? 'Videos'
+              : type === 'audio'
+              ? 'Audio'
+              : type === 'document'
+              ? 'Docs'
+              : 'Other'}
+          </button>
+        ))}
+      </div>
 
       {/* File list */}
       {visibleFiles.length === 0 ? (

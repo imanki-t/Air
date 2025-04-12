@@ -33,6 +33,13 @@ const AccessGate = ({ children }) => {
     }
   }, []);
 
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const correct = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone';
@@ -58,7 +65,6 @@ const AccessGate = ({ children }) => {
         fadeOut ? 'animate-fade-out' : 'animate-flicker'
       }`}
     >
-      {/* Global Site Header */}
       <h1 className="text-4xl sm:text-5xl font-vintage text-red-700 drop-shadow-lg mb-6 text-center">
         TIMELESS!!
       </h1>

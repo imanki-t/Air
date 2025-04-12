@@ -3,14 +3,12 @@ import FileItem from './FileItem';
 
 const FileList = ({ files, refresh }) => {
   const [filter, setFilter] = useState('all');
-  const [view, setView] = useState('list'); // default to 'list'
+  const [view, setView] = useState('list');
   const [searchInput, setSearchInput] = useState('');
+  const [showMetadata, setShowMetadata] = useState(false); // metadata hidden by default
 
-  // Set initial view based on screen size only on first render
   useEffect(() => {
-    if (window.innerWidth >= 768) {
-      setView('grid');
-    }
+    if (window.innerWidth >= 768) setView('grid');
   }, []);
 
   const filtered = files.filter(
@@ -21,13 +19,11 @@ const FileList = ({ files, refresh }) => {
     f.filename.toLowerCase().includes(searchInput.toLowerCase())
   );
 
-  const clearSearch = () => {
-    setSearchInput('');
-  };
+  const clearSearch = () => setSearchInput('');
 
   return (
     <div>
-      {/* Search + View Toggle */}
+      {/* Search + View + Metadata Toggle */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         <div className="flex-grow">
           <input
@@ -50,19 +46,22 @@ const FileList = ({ files, refresh }) => {
             </button>
           )}
           <button
+            onClick={() => setShowMetadata(!showMetadata)}
+            className={`vintage-btn px-3 py-1 text-xl ${showMetadata ? 'bg-blue-600' : 'bg-gray-500'}`}
+            title="Toggle Metadata"
+          >
+            ❖
+          </button>
+          <button
             onClick={() => setView('list')}
-            className={`vintage-btn px-3 py-1 text-xl ${
-              view === 'list' ? 'bg-blue-600' : 'bg-gray-500'
-            }`}
+            className={`vintage-btn px-3 py-1 text-xl ${view === 'list' ? 'bg-blue-600' : 'bg-gray-500'}`}
             title="List View"
           >
             ≡
           </button>
           <button
             onClick={() => setView('grid')}
-            className={`vintage-btn px-3 py-1 text-xl ${
-              view === 'grid' ? 'bg-blue-600' : 'bg-gray-500'
-            }`}
+            className={`vintage-btn px-3 py-1 text-xl ${view === 'grid' ? 'bg-blue-600' : 'bg-gray-500'}`}
             title="Grid View"
           >
             ⬚
@@ -70,29 +69,19 @@ const FileList = ({ files, refresh }) => {
         </div>
       </div>
 
-      {/* File type filters */}
+      {/* Filters */}
       <div className="mb-4 flex flex-wrap gap-2 overflow-x-auto text-sm text-white">
         {['all', 'image', 'video', 'audio', 'document', 'other'].map((type) => (
           <button
             key={type}
             onClick={() => setFilter(type)}
-            className={`vintage-btn ${
-              filter === type
-                ? 'bg-blue-600 hover:bg-blue-700'
-                : 'bg-gray-600 hover:bg-gray-700'
-            }`}
+            className={`vintage-btn ${filter === type ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 hover:bg-gray-700'}`}
           >
-            {type === 'all'
-              ? 'All'
-              : type === 'image'
-              ? 'Images'
-              : type === 'video'
-              ? 'Videos'
-              : type === 'audio'
-              ? 'Audio'
-              : type === 'document'
-              ? 'Docs'
-              : 'Other'}
+            {type === 'all' ? 'All' :
+              type === 'image' ? 'Images' :
+              type === 'video' ? 'Videos' :
+              type === 'audio' ? 'Audio' :
+              type === 'document' ? 'Docs' : 'Other'}
           </button>
         ))}
       </div>
@@ -101,16 +90,10 @@ const FileList = ({ files, refresh }) => {
       {visibleFiles.length === 0 ? (
         <p className="text-yellow-100 text-center">No files found.</p>
       ) : (
-        <div
-          className={`grid gap-4 ${
-            view === 'grid'
-              ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
-              : 'grid-cols-1'
-          }`}
-        >
+        <div className={`grid gap-4 ${view === 'grid' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1'}`}>
           {visibleFiles.map((file) => (
             <div key={file._id} className="w-full">
-              <FileItem file={file} refresh={refresh} />
+              <FileItem file={file} refresh={refresh} showMetadata={showMetadata} />
             </div>
           ))}
         </div>

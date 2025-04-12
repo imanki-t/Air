@@ -93,17 +93,19 @@ const FileItem = ({ file, refresh }) => {
       {/* Share Modal */}
       {showShare && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
-          <div className="bg-yellow-600 border-4 border-red-600 p-4 rounded-xl max-w-sm w-full text-center relative shadow-vintage">
+          <div className="bg-yellow-600 border-4 border-red-600 p-6 pt-8 pr-8 rounded-xl max-w-sm w-full text-center relative shadow-vintage">
+            
+            {/* Close Button with offset */}
             <button
               onClick={() => setShowShare(false)}
-              className="absolute top-2 right-2 text-xl font-bold text-red-600 hover:text-red-800"
+              className="absolute -top-4 -right-4 text-xl font-bold text-red-600 hover:text-red-800 bg-yellow-100 border border-red-600 rounded-full w-8 h-8 flex items-center justify-center shadow-md"
               title="Close"
             >
               ×
             </button>
+
             <h2 className="font-bold mb-3 text-lg text-purple-800 vintage-btn">Shareable URL</h2>
 
-            {/* QR Code */}
             {shareLink ? (
               <div className="flex justify-center mb-4">
                 <div className="p-2 border-4 border-dashed border-black bg-yellow-100 rounded-xl">
@@ -121,12 +123,11 @@ const FileItem = ({ file, refresh }) => {
               <p className="text-sm text-red-600 mb-4">Failed to generate QR code.</p>
             )}
 
-            {/* Link + Copy */}
             <input
-  value={shareLink}
-  readOnly
-  className="w-[85%] max-w-[250px] px-3 py-2 pr-8 bg-yellow-200 border border-yellow-400 rounded font-mono text-sm mb-3 text-black mx-auto"
-/>
+              value={shareLink}
+              readOnly
+              className="w-[90%] px-3 py-2 bg-yellow-200 border border-yellow-400 rounded font-mono text-sm mb-3 text-black"
+            />
             <button
               onClick={copyToClipboard}
               className="vintage-btn bg-green-600 hover:bg-green-700"

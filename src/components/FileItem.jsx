@@ -9,6 +9,7 @@ const FileItem = ({ file, refresh }) => {
   const [shareLink, setShareLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const download = () => {
     window.open(`${backendUrl}/api/files/download/${file._id}`, '_blank');
@@ -26,6 +27,7 @@ const FileItem = ({ file, refresh }) => {
   };
 
   const share = async () => {
+    setIsLoading(true);
     try {
       const res = await axios.post(`${backendUrl}/api/files/share/${file._id}`);
       setShareLink(res.data.url);
@@ -33,6 +35,8 @@ const FileItem = ({ file, refresh }) => {
       setShowShare(true);
     } catch (err) {
       console.error('Share failed:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -79,7 +83,9 @@ const FileItem = ({ file, refresh }) => {
         <p className="text-xs text-gray-500">Uploaded: {new Date(file.uploadDate).toLocaleString()}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           <button onClick={download} className="vintage-btn bg-blue-600 hover:bg-blue-700">Download</button>
-          <button onClick={share} className="vintage-btn bg-green-600 hover:bg-green-700">Share</button>
+          <button onClick={share} className="vintage-btn bg-green-600 hover:bg-green-700" disabled={isLoading}>
+            {isLoading ? 'Generating...' : 'Share'}
+          </button>
           <button onClick={() => setShowDeleteConfirm(true)} className="vintage-btn bg-red-600 hover:bg-red-700">Delete</button>
         </div>
       </div>
@@ -98,19 +104,21 @@ const FileItem = ({ file, refresh }) => {
             <h2 className="font-bold mb-3 text-lg text-purple-800 vintage-btn">Shareable URL</h2>
 
             {/* QR Code */}
-            {shareLink && (
+            {shareLink ? (
               <div className="flex justify-center mb-4">
                 <div className="p-2 border-4 border-dashed border-black bg-yellow-100 rounded-xl">
-                  <QRCode
+                  <QRCodeSVG
                     value={shareLink}
                     size={128}
-                    fgColor="#3b2f2f"     // sepia ink
-                    bgColor="#fdf6e3"     // aged paper
+                    fgColor="#3b2f2f"
+                    bgColor="#fdf6e3"
                     level="H"
                     style={{ width: '128px', height: '128px', display: 'block' }}
                   />
                 </div>
               </div>
+            ) : (
+              <p className="text-sm text-red-600 mb-4">Failed to generate QR code.</p>
             )}
 
             {/* Link + Copy */}

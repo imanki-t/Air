@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://timeless-shulker.onrender.com/sitemap.xml

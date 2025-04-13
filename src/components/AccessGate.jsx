@@ -125,8 +125,8 @@ const AccessGate = ({ children }) => {
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: `${ring * 40}%`,
-                height: `${ring * 40}%`,
+                width: `${ring * 60}%`,
+                height: `${ring * 60}%`,
                 animation: `orbital-rotation ${ring * 20 + 40}s linear infinite`
               }}
             />
@@ -266,11 +266,7 @@ const AccessGate = ({ children }) => {
       </div>
         
       {/* Bottom-left Security Badges (desktop only) */}
-      <div className="hidden md:block fixed bottom-16 right-6 text-gray-500 text-sm text-right max-w-xs">
-  <span>256-bit encryption</span><br />
-  <span>Secure Gateway</span><br />
-  <span>Timeless Protection</span>
-</div>
+      <div className="fixed bottom-4 left-6 text-gray-500 text-sm hidden md:flex flex-col items-start">
         
       {/* Copyright Text */}
       {/* Desktop version - moved up to avoid collision */}

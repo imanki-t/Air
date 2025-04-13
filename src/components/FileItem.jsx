@@ -11,12 +11,15 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Escape' || e.key === 'Cancel') {
-      if (showShare) setShowShare(false);
-      if (showDeleteConfirm) setShowDeleteConfirm(false);
-    }
-  }, [showShare, showDeleteConfirm]);
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key === 'Escape' || e.key === 'Cancel') {
+        if (showShare) setShowShare(false);
+        if (showDeleteConfirm) setShowDeleteConfirm(false);
+      }
+    },
+    [showShare, showDeleteConfirm]
+  );
 
   useEffect(() => {
     if (showShare || showDeleteConfirm) {
@@ -108,13 +111,14 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
 
   return (
     <>
-      <div className={`w-full transition-all duration-300 ease-in-out 
-        ${showMetadata ? 'h-auto' : 'h-[180px]'} 
-        flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-md overflow-hidden border 
+      <div className={`w-full transition-all duration-300 ease-in-out
+        ${showMetadata ? 'h-auto' : 'h-[180px]'}
+        flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-md overflow-hidden border
         ${darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
 
         {renderPreview()}
-        <h3 className={`font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+        {/* Tooltip added on filename */}
+        <h3 title={file.filename} className={`font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-800'}`}>
           {file.filename}
         </h3>
 
@@ -127,11 +131,15 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={download} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>Download</button>
-              <button onClick={share} disabled={isLoading} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
-                {isLoading ? 'Generating...' : 'Share'}
+              <button onClick={download} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                Download
               </button>
-              <button onClick={() => setShowDeleteConfirm(true)} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}>Delete</button>
+              <button onClick={share} disabled={isLoading} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+                {isLoading ? 'Generating' : 'Share'}
+              </button>
+              <button onClick={() => setShowDeleteConfirm(true)} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
+                Delete
+              </button>
             </div>
           </>
         )}
@@ -144,6 +152,7 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
               onClick={() => setShowShare(false)}
               className={`absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full ${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
               title="Close"
+              style={{ lineHeight: 0 }}
             >
               ×
             </button>
@@ -177,14 +186,10 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
             <div className="mb-4">
               <button
                 onClick={copyToClipboard}
-                className={`w-full px-3 py-2 rounded font-medium text-sm transition-colors ${
-                  darkMode
-                    ? copied
-                      ? 'bg-green-700 text-white'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : copied
-                    ? 'bg-green-600 text-white'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                className={`w-full px-3 py-2 rounded font-medium text-sm transition-colors ${ 
+                  darkMode 
+                    ? copied ? 'bg-green-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : copied ? 'bg-green-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
                 }`}
               >
                 {copied ? 'Copied!' : 'Copy Link'}
@@ -205,9 +210,13 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
               </div>
               This action cannot be undone.
             </p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowDeleteConfirm(false)} className={`px-4 py-2 rounded-md font-medium ${darkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}>Cancel</button>
-              <button onClick={deleteFile} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium">Delete</button>
+            <div className="flex w-full justify-between gap-3 mt-4">
+              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-4 py-2 rounded-md font-medium transition-colors text-gray-800 bg-gray-200 hover:bg-gray-300">
+                Cancel
+              </button>
+              <button onClick={deleteFile} className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium">
+                Delete
+              </button>
             </div>
           </div>
         </div>

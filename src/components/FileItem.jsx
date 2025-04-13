@@ -74,13 +74,13 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
             {(() => {
               const ext = file.filename.split('.').pop().toLowerCase();
               switch(ext) {
-  case 'pdf': return '[PDF]';
-  case 'doc': case 'docx': return '[DOC]';
-  case 'xls': case 'xlsx': return '[XLS]';
-  case 'ppt': case 'pptx': return '[PPT]';
-  case 'zip': case 'rar': case '7z': return '[ZIP]';
-  case 'txt': return '[TXT]';
-  default: return '[FILE]';
+  case 'pdf': return 'PDF';
+  case 'doc': case 'docx': return 'DOC';
+  case 'xls': case 'xlsx': return 'XLS';
+  case 'ppt': case 'pptx': return 'PPT';
+  case 'zip': case 'rar': case '7z': return 'ZIP';
+  case 'txt': return 'TXT';
+  default: return 'FILE';
               }
             })()}
           </div>

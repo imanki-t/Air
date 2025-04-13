@@ -37,7 +37,7 @@ const FileList = ({ files, refresh, darkMode }) => {
           <div className="relative">
             <input
               type="text"
-              placeholder="Search files..."
+              placeholder="⌕"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               className={`w-full sm:max-w-sm px-4 py-2 pr-10 rounded-lg transition-colors ${

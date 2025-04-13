@@ -49,12 +49,12 @@ function App() {
     // Hide "Hello" and emoji after 15 seconds  
     const timer = setTimeout(() => {  
       setShowHello(false);  
-    }, 15000);  
+    }, 30000);  
 
     // Hide logo after 15 seconds  
     const logoTimer = setTimeout(() => {  
       setShowLogo(false);  
-    }, 15000);  
+    }, 30000);  
 
     return () => {  
       window.onerror = null;  

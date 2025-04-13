@@ -8,7 +8,7 @@ const jjkQuotes = [
   "The strong help the weak.",  
   "I'll kill you... in a flash.",  
   "My brain works differently when I'm having fun.",  
-  "I like tall women with big...personalities.",  
+  "Created by ANKIT!",  
   "The only thing I'm good at is destroying things.",  
   "That which cannot be defeated is not worth fighting.",  
   "When you hit bottom, the only way to go is up.",  

@@ -150,11 +150,10 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
           <div className={`p-6 rounded-xl max-w-sm w-full relative shadow-lg ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
             <button
               onClick={() => setShowShare(false)}
-              className={`absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full ${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+              className={`absolute top-3 right-3 w-8 h-8 flex items-center justify-center ${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
               title="Close"
-              style={{ lineHeight: 0 }}
             >
-              ×
+               ×
             </button>
             <h2 className={`font-bold mb-4 text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>Shareable Link</h2>
 

@@ -9,7 +9,6 @@ function App() {
   const [files, setFiles] = useState([]);
   const [darkMode, setDarkMode] = useState(false);
   const [showHello, setShowHello] = useState(true);
-  const [showLogo, setShowLogo] = useState(true); // To hide logo after 15 seconds
 
   const fetchFiles = async () => {
     try {
@@ -22,49 +21,39 @@ function App() {
   };
 
   useEffect(() => {
-    // Set up global error handling
+    // Global error handling
     window.onerror = (message, source, lineno, colno, error) => {
       console.error('Global error:', message, error);
       setError(`Error: ${message}`);
       return true;
     };
 
-    // Check backend URL
     if (!import.meta.env.VITE_BACKEND_URL) {
       console.warn('Backend URL not configured. API calls will fail.');
       setError('Backend URL not configured.');
     }
 
-    // Detect dark mode preference and set up listener
+    // Check user's dark mode preference and listen for changes
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     setDarkMode(darkModeMediaQuery.matches);
-
-    // Listen for dark mode changes
     const handleDarkModeChange = (e) => setDarkMode(e.matches);
     darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
 
-    // Fetch files
+    // Fetch files once component mounts
     fetchFiles();
 
-    // Hide "Hello" after 30 seconds
+    // Hide "Hello" message after 30 seconds
     const helloTimer = setTimeout(() => {
       setShowHello(false);
-    }, 30000);
-
-    // Hide logo after 30 seconds
-    const logoTimer = setTimeout(() => {
-      setShowLogo(false);
     }, 30000);
 
     return () => {
       window.onerror = null;
       darkModeMediaQuery.removeEventListener('change', handleDarkModeChange);
       clearTimeout(helloTimer);
-      clearTimeout(logoTimer);
     };
   }, []);
 
-  // Uniform error page with a dark theme for both modes
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white p-4">
@@ -89,49 +78,41 @@ function App() {
           darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
         }`}
       >
-        {/* Header Section - Modified for responsive behavior */}
+        {/* Header Section */}
         <header
-          className={`p-6 transition-all duration-300 ${
-            darkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-200'
-          } shadow-md`}
+          className={`p-6 shadow-md transition-all duration-300 ${
+            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}
         >
-          <div className="max-w-6xl mx-auto">
-            <div className="flex items-center justify-center relative">
-              {/* Container with flex for logo and title */}
-              <div className="flex items-center justify-center w-full">
-                {/* Logo container with fixed width that doesn't collapse */}
-                {showLogo && (
-                  <div className="absolute left-0 w-12 h-12 sm:w-12 sm:h-12 rounded-full overflow-hidden shadow-lg">
-                    <img
-                      src="/logo.png"
-                      alt="Logo"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-                
-                {/* Title block always centered regardless of logo presence */}
-                <div className={`text-center transition-all duration-300`}>
-                  <h1
-                    className={`text-4xl font-vintage tracking-wide ${
-                      darkMode ? 'text-white' : 'text-gray-900'
-                    }`}
-                  >
-                    Timeless
-                  </h1>
-                  {showHello && (
-                    <h2 className="text-sm sm:text-base font-vintage tracking-wide mt-2 flex justify-center items-center">
-                      <span>Hello!</span>
-                      <img
-                        src="/apple-heart-eyes.png"
-                        alt="🥰"
-                        className="w-5 h-5 ml-2"
-                      />
-                    </h2>
-                  )}
-                </div>
+          <div className="max-w-6xl mx-auto flex items-center justify-between">
+            {/* Left column: Logo, visible on small devices and up */}
+            <div className="hidden sm:flex items-center">
+              <div className="w-12 h-12 rounded-full overflow-hidden shadow-lg">
+                <img
+                  src="/logo.png"
+                  alt="Logo"
+                  className="w-full h-full object-cover"
+                />
               </div>
             </div>
+            {/* Center column: Title */}
+            <div className="text-center">
+              <h1 className="text-4xl font-vintage tracking-wide">
+                Timeless
+              </h1>
+              {showHello && (
+                <h2 className="text-sm sm:text-base font-vintage tracking-wide mt-2 flex justify-center items-center">
+                  <span>Hello!</span>
+                  <img
+                    src="/apple-heart-eyes.png"
+                    alt="🥰"
+                    className="w-5 h-5 ml-2"
+                  />
+                </h2>
+              )}
+            </div>
+            {/* Right column: Spacer to balance layout, visible on small devices and up */}
+            <div className="hidden sm:block w-12"></div>
           </div>
         </header>
 

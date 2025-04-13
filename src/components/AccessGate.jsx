@@ -30,7 +30,6 @@ const AccessGate = ({ children }) => {
   const [currentPhase, setCurrentPhase] = useState(0);
 
   useEffect(() => {
-    // Pick a random quote and initiate a typing effect (used on the login form)
     const quote = quotes[Math.floor(Math.random() * quotes.length)];
     setCurrentQuote(quote);
     let index = 0;
@@ -40,18 +39,15 @@ const AccessGate = ({ children }) => {
       if (index === quote.length) clearInterval(typeInterval);
     }, 50);
 
-    // Check if already authenticated.
     const unlockedBefore = sessionStorage.getItem('access_granted');
     if (unlockedBefore === 'true') {
       setUnlocked(true);
     } else {
-      // Set loading state duration (8 seconds) then show the login form.
       setTimeout(() => {
         setLoading(false);
       }, 8000);
     }
 
-    // Parallax effect for the background.
     const handleMouseMove = (e) => {
       const x = (e.clientX / window.innerWidth) * 10;
       const y = (e.clientY / window.innerHeight) * 10;
@@ -61,17 +57,15 @@ const AccessGate = ({ children }) => {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // Cycle through the status messages (one at a time) if still loading.
   useEffect(() => {
     if (loading && currentPhase < phases.length - 1) {
       const timer = setTimeout(() => {
         setCurrentPhase(prev => prev + 1);
-      }, 1000); // Show each message for about 1 second.
+      }, 1000);
       return () => clearTimeout(timer);
     }
   }, [currentPhase, loading]);
 
-  // Clear error messages after 5 seconds.
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setError(''), 5000);
@@ -105,7 +99,6 @@ const AccessGate = ({ children }) => {
     setPasswordVisible(!passwordVisible);
   };
 
-  // When already authenticated, render children.
   if (unlocked) return children;
 
   return (
@@ -179,18 +172,16 @@ const AccessGate = ({ children }) => {
       {/* Main Content Area (Loading or Login) */}
       <div className="relative z-10 w-full max-w-md mx-auto px-4 mt-28 sm:mt-32">
         {loading ? (
-          // Loading Screen: Display the loading circle and a single status message at a time.
+          // Loading Screen
           <div className="flex flex-col items-center justify-center p-8">
-            <div className="relative w-24 h-24 mb-6">
-              {/* Loading Circle */}
+            <div className="relative w-24 h-24 md:w-32 md:h-32 mb-6">
               <div className="absolute inset-0">
                 <div className="absolute inset-0 rounded-full border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
                 <div className="absolute inset-3 rounded-full border-4 border-t-transparent border-r-purple-500 border-b-transparent border-l-transparent animate-spin" style={{ animationDuration: '1.5s' }}></div>
                 <div className="absolute inset-6 rounded-full border-4 border-t-transparent border-r-transparent border-b-blue-500 border-l-transparent animate-spin" style={{ animationDuration: '2s' }}></div>
               </div>
-              {/* Centered status message with fade in/out animation */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-gray-300 text-xs animate-fadeInOut">
+                <span className="text-gray-300 text-xs md:text-lg animate-fadeInOut">
                   {phases[currentPhase]}
                 </span>
               </div>
@@ -265,7 +256,6 @@ const AccessGate = ({ children }) => {
                     </button>
                   </form>
                 </div>
-                {/* Quote appears only on the login form */}
                 <div className="p-4 border-t border-gray-800 text-center">
                   <p className="text-gray-400 text-sm italic">{currentQuote}</p>
                 </div>
@@ -283,11 +273,12 @@ const AccessGate = ({ children }) => {
       </div>
         
       {/* Copyright Text */}
-      <div className="hidden md:flex fixed bottom-6 right-6 text-gray-500 text-sm">
+      {/* On desktop, adding extra bottom spacing to avoid collision */}
+      <div className="hidden md:flex fixed bottom-10 right-6 text-gray-500 text-sm">
         <span>© {new Date().getFullYear()} Timeless • All Rights Reserved • End-to-End Encrypted</span>
       </div>
-      <div className="flex md:hidden fixed bottom-6 right-4 text-gray-500 text-sm">
-        <span>© {new Date().getFullYear()} Timeless • All Rights Reserved • End-to-End Encrypted</span>
+      <div className="flex md:hidden fixed bottom-6 right-4 text-gray-500 text-xs">
+        <span>© {new Date().getFullYear()} Timeless • All Rights Reserved • Encrypted</span>
       </div>
         
       {/* Additional Decorative Elements */}

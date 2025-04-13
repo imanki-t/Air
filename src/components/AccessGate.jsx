@@ -6,10 +6,12 @@ const AccessGate = ({ children }) => {
   const [fadeOut, setFadeOut] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [animationPhase, setAnimationPhase] = useState(0);
+  // We'll use a phase variable to trigger status texts
+  const [phase, setPhase] = useState(0);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [mouseMovePosition, setMouseMovePosition] = useState({ x: 0, y: 0 });
-  
+
+  // Quote list remains unchanged.
   const quotes = [
     "Secure your memories for eternity.",
     "The future is private. The future is secure.",
@@ -23,38 +25,42 @@ const AccessGate = ({ children }) => {
     "Privacy is the foundation of digital freedom.",
   ];
   const [currentQuote, setCurrentQuote] = useState('');
-  
-  // For typing animation
   const [typedQuote, setTypedQuote] = useState('');
-  
+
   useEffect(() => {
-    // Pick a random quote on mount
+    // Pick a random quote and initiate the typing effect.
     const quote = quotes[Math.floor(Math.random() * quotes.length)];
     setCurrentQuote(quote);
-    // Typing effect letter by letter
     let index = 0;
     const typeInterval = setInterval(() => {
       setTypedQuote((prev) => prev + quote.charAt(index));
       index++;
       if (index === quote.length) clearInterval(typeInterval);
     }, 50);
-    
-    // Check if access was granted before
+
+    // Check if already authenticated.
     const unlockedBefore = sessionStorage.getItem('access_granted');
     if (unlockedBefore === 'true') {
       setUnlocked(true);
     } else {
-      // Loading phases: total duration set to 8 seconds.
-      setTimeout(() => setAnimationPhase(1), 1600);
-      setTimeout(() => setAnimationPhase(2), 3200);
-      setTimeout(() => setAnimationPhase(3), 4800);
+      // Loading timeline:
+      // 0-2 sec: Loading circle only.
+      // 2-3 sec: First status appears.
+      // 3-4 sec: Second status.
+      // 4-5 sec: Third status.
+      // 5-6 sec: Fourth status.
+      // 6-8 sec: Wait for a smooth transition.
+      setTimeout(() => setPhase(1), 2000); // Start status messages.
+      setTimeout(() => setPhase(2), 3000);
+      setTimeout(() => setPhase(3), 4000);
+      setTimeout(() => setPhase(4), 5000);
       setTimeout(() => {
         setLoading(false);
-        setAnimationPhase(4);
+        setPhase(5);
       }, 8000);
     }
-    
-    // Parallax effect for background
+
+    // Parallax effect for the background.
     const handleMouseMove = (e) => {
       const x = (e.clientX / window.innerWidth) * 10;
       const y = (e.clientY / window.innerHeight) * 10;
@@ -63,14 +69,15 @@ const AccessGate = ({ children }) => {
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
-  
+
   useEffect(() => {
+    // Clear error messages after 5 seconds.
     if (error) {
       const timer = setTimeout(() => setError(''), 5000);
       return () => clearTimeout(timer);
     }
   }, [error]);
-  
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const correct = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone';
@@ -92,19 +99,20 @@ const AccessGate = ({ children }) => {
       }
     }
   };
-  
+
   const togglePasswordVisibility = () => {
     setPasswordVisible(!passwordVisible);
   };
-  
+
+  // When already authenticated, render children.
   if (unlocked) return children;
-  
+
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ease-in-out overflow-hidden ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
       style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}
     >
-      {/* Background Pattern */}
+      {/* Background Grid and Animations */}
       <div className="absolute inset-0 overflow-hidden">
         <div 
           className="absolute inset-0 opacity-10"
@@ -115,7 +123,6 @@ const AccessGate = ({ children }) => {
             transition: 'transform 0.5s ease-out'
           }}
         />
-        {/* Orbital Rings */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none">
           {[1,2,3,4].map(ring => (
             <div key={ring}
@@ -131,7 +138,6 @@ const AccessGate = ({ children }) => {
             />
           ))}
         </div>
-        {/* Floating Particles */}
         <div className="absolute inset-0">
           {Array.from({ length: 30 }).map((_, i) => (
             <div key={i}
@@ -156,7 +162,6 @@ const AccessGate = ({ children }) => {
       {/* App Header */}
       <header className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4">
         <div className="flex items-center space-x-3">
-          {/* Enlarged Lock Icon */}
           <div className="flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-lg">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 sm:h-10 sm:w-10 text-white" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
@@ -170,27 +175,26 @@ const AccessGate = ({ children }) => {
         </div>
       </header>
       
-      {/* Main Content: Loading or Login */}
+      {/* Main Content Area (Loading or Login) */}
       <div className="relative z-10 w-full max-w-md mx-auto px-4 mt-28 sm:mt-32">
         {loading ? (
-          // Loading Screen with sequential statuses and animated quote
           <div className="flex flex-col items-center justify-center p-8">
-            {/* Loading Bar */}
-            <div className={`w-24 h-24 mb-6 relative transition-opacity duration-500 ${animationPhase >= 1 ? 'opacity-100' : 'opacity-0'}`}>
+            {/* Loading Circle (visible during the first 2 seconds) */}
+            <div className={`w-24 h-24 mb-6 transition-opacity duration-500 ${phase === 0 ? 'opacity-100' : 'opacity-0'}`}>
               <div className="absolute inset-0 rounded-full border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
               <div className="absolute inset-3 rounded-full border-4 border-t-transparent border-r-purple-500 border-b-transparent border-l-transparent animate-spin" style={{ animationDuration: '1.5s' }}></div>
               <div className="absolute inset-6 rounded-full border-4 border-t-transparent border-r-transparent border-b-blue-500 border-l-transparent animate-spin" style={{ animationDuration: '2s' }}></div>
             </div>
-            {/* Animated Quote */}
-            <p className="text-gray-300 italic text-center mb-6 whitespace-pre font-mono text-sm">
+            {/* Typing Quote (remains once typed in the same font as before) */}
+            <p className="text-gray-300 italic text-center mb-6 font-mono text-sm whitespace-pre">
               {typedQuote}
             </p>
             {/* Sequential Status Messages */}
             <div className="flex flex-col gap-1">
-              {['Verifying', 'Encrypting', 'Connecting', 'Securing'].map((status, i) => (
+              {["Encrypting", "Securing", "Connecting", "Verifying"].map((status, i) => (
                 <span key={i}
                   className="text-gray-300 text-sm opacity-0 animate-statusFade"
-                  style={{ animationDelay: `${i * 0.5}s`, animationFillMode: 'forwards' }}
+                  style={{ animationDelay: `${2 + i * 1}s`, animationFillMode: 'forwards' }}
                 >
                   {status}
                 </span>
@@ -222,7 +226,7 @@ const AccessGate = ({ children }) => {
                           type={passwordVisible ? "text" : "password"}
                           value={passkey}
                           onChange={(e) => setPasskey(e.target.value)}
-                          placeholder=""  // Empty placeholder as requested
+                          placeholder=""
                           className="w-full px-4 py-3 pr-10 bg-gray-800 text-white border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           autoComplete="off"
                         />
@@ -267,20 +271,28 @@ const AccessGate = ({ children }) => {
                   </form>
                 </div>
                 <div className="p-4 border-t border-gray-800 text-center">
-                  <p className="text-gray-400 text-sm italic">"{currentQuote}"</p>
+                  <p className="text-gray-400 text-sm italic">{currentQuote}</p>
                 </div>
               </div>
             </div>
-            {/* Security Badges are removed from the login box */}
           </div>
         )}
       </div>
       
-      {/* Bottom-left Desktop Security Badges */}
+      {/* Bottom-left Security Badges (desktop only) */}
       <div className="fixed bottom-6 left-6 text-gray-500 text-sm hidden md:flex flex-col items-start">
         <span>256-bit encryption</span>
         <span>Secure Gateway</span>
         <span>Timeless Protection</span>
+      </div>
+      
+      {/* Copyright Text */}
+      {/* For desktop/tablet: bottom-right; for mobile: full width and centered at the bottom */}
+      <div className="hidden md:flex fixed bottom-6 right-6 text-gray-500 text-xs font-mono">
+        <span>© {new Date().getFullYear()} Timeless • All Rights Reserved • End-to-End Encrypted</span>
+      </div>
+      <div className="flex md:hidden fixed bottom-2 w-full justify-center text-gray-500 text-xs font-mono">
+        <span>© {new Date().getFullYear()} Timeless • All Rights Reserved • End-to-End Encrypted</span>
       </div>
       
       {/* Additional Decorative Elements */}
@@ -329,7 +341,7 @@ const AccessGate = ({ children }) => {
         }
         
         .animate-statusFade {
-          animation: statusFade 0.5s forwards;
+          animation: statusFade 1s forwards;
         }
       `}</style>
     </div>

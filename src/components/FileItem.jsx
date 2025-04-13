@@ -150,7 +150,7 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
           <div className={`p-6 rounded-xl max-w-sm w-full relative shadow-lg ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
             <button
               onClick={() => setShowShare(false)}
-              className={`absolute top-3 right-3 w-8 h-8 flex items-center justify-center ${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+              className={`absolute top-3 right-3 p-1 text-lg font-bold hover:text-blue-600 transition-colors ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}
               title="Close"
             >
                ×

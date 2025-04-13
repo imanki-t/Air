@@ -8,6 +8,7 @@ function App() {
   const [error, setError] = useState(null);    
   const [files, setFiles] = useState([]);
   const [darkMode, setDarkMode] = useState(false);
+  const [animationProgress, setAnimationProgress] = useState(0);
     
   const fetchFiles = async () => {    
     try {    
@@ -41,12 +42,18 @@ function App() {
     const handleDarkModeChange = (e) => setDarkMode(e.matches);
     darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
     
+    // Set up color animation
+    const animationInterval = setInterval(() => {
+      setAnimationProgress((prev) => (prev >= 100 ? 0 : prev + 0.2));
+    }, 50);
+    
     // Fetch files
     fetchFiles();      
     
     return () => {      
       window.onerror = null;
       darkModeMediaQuery.removeEventListener('change', handleDarkModeChange);
+      clearInterval(animationInterval);
     };    
   }, []);    
     
@@ -66,6 +73,19 @@ function App() {
       </div>    
     );    
   }    
+  
+  // Calculate gradient colors based on animation progress
+  const calculateGradient = () => {
+    // Oscillate between 0 and 1 using a sine wave
+    const redValue = Math.abs(Math.sin(animationProgress / 15));
+    const blueValue = Math.abs(Math.cos(animationProgress / 20));
+    
+    // Create CSS-compatible color values
+    const color1 = `rgba(${Math.round(redValue * 220)}, 50, ${Math.round(blueValue * 220)}, 1)`;
+    const color2 = `rgba(100, ${Math.round(blueValue * 150)}, ${Math.round(redValue * 200)}, 1)`;
+    
+    return `linear-gradient(135deg, ${color1}, ${color2})`;
+  };
     
   return (    
     <AccessGate>    
@@ -74,37 +94,52 @@ function App() {
           ? 'bg-gray-900 text-white' 
           : 'bg-gray-50 text-gray-900'
       }`}>
-        {/* Header Section */}
-        <header className={`p-6 ${
+        {/* Animated Header Section */}
+        <header className={`p-6 transition-all duration-500 ${
           darkMode 
             ? 'bg-black' 
             : 'bg-white shadow-sm'
-        }`}>
+        }`}
+        style={{ 
+          background: darkMode ? 'black' : calculateGradient()
+        }}>
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col space-y-1">
               <div className="flex items-center gap-3">
                 <img 
                   src="/logo.png" 
                   alt="Logo" 
-                  className="w-12 h-12 object-contain" 
+                  className="w-12 h-12 object-contain animate-pulse" 
                 />
-                <h1 className={`text-4xl font-sans font-black tracking-tight ${
+                <h1 className={`text-4xl font-black tracking-tight ${
                   darkMode
                     ? 'text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500'
                     : 'text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-700'
-                }`}>
+                }`}
+                style={{ 
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: 900,
+                  letterSpacing: '-0.05em',
+                  textShadow: darkMode ? '0 0 20px rgba(129, 140, 248, 0.5)' : 'none' 
+                }}>
                   Timeless
                 </h1>
               </div>
               <div className="ml-14">
                 <h2 className={`text-lg flex items-center gap-2 font-light ${
-                  darkMode ? 'text-gray-300' : 'text-gray-600'
-                }`}>
+                  darkMode ? 'text-gray-300' : 'text-white'
+                }`}
+                style={{ 
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: 300,
+                  letterSpacing: '0.05em',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}>
                   <span className="tracking-wide">wsp bro</span>
                   <img 
                     src="/apple-heart-eyes.png" 
                     alt="🥰" 
-                    className="w-5 h-5 inline-block" 
+                    className="w-5 h-5 inline-block animate-bounce" 
                   />
                 </h2>
               </div>

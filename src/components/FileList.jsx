@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import FileItem from './FileItem';
 
-const FileList = ({ files, refresh }) => {
+const FileList = ({ files, refresh, darkMode }) => {
   const [filter, setFilter] = useState('all');
   const [view, setView] = useState('list');
   const [searchInput, setSearchInput] = useState('');
@@ -22,60 +22,98 @@ const FileList = ({ files, refresh }) => {
   const clearSearch = () => setSearchInput('');
 
   return (
-    <div>
+    <div className={`transition-colors duration-300 rounded-xl ${
+      darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+    } p-6 shadow-md`}>
+      <h2 className={`text-2xl font-semibold mb-6 ${
+        darkMode ? 'text-white' : 'text-gray-800'
+      }`}>
+        Your Files
+      </h2>
+      
       {/* Search + View + Metadata Toggle */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex-grow">
-          <input
-            type="text"
-            placeholder="⌕"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full sm:max-w-sm px-5 py-2 text-2xl placeholder:text-2xl rounded-lg bg-yellow-200 text-black border-2 border-yellow-400 shadow-inner placeholder:text-gray-700 font-mono"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search files..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className={`w-full sm:max-w-sm px-4 py-2 pr-10 rounded-lg transition-colors ${
+                darkMode 
+                  ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400' 
+                  : 'bg-gray-100 text-gray-900 border-gray-200 placeholder-gray-500'
+              } border focus:outline-none focus:ring-2 ${
+                darkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
+              }`}
+            />
+            {searchInput && (
+              <button
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                title="Clear"
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-2 items-center">
-          {searchInput && (
-            <button
-              onClick={clearSearch}
-              className="vintage-btn bg-red-600 hover:bg-red-700 px-2 py-1 text-xl"
-              title="Clear"
-            >
-              ×
-            </button>
-          )}
           <button
             onClick={() => setShowMetadata(!showMetadata)}
-            className={`vintage-btn px-3 py-1 text-xl ${showMetadata ? 'bg-blue-600' : 'bg-gray-500'}`}
+            className={`p-2 rounded-md transition-colors ${
+              showMetadata 
+                ? darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white' 
+                : darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
+            }`}
             title="Toggle Metadata and Buttons"
           >
-            ❖
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </button>
           <button
             onClick={() => setView('list')}
-            className={`vintage-btn px-3 py-1 text-xl ${view === 'list' ? 'bg-blue-600' : 'bg-gray-500'}`}
+            className={`p-2 rounded-md transition-colors ${
+              view === 'list' 
+                ? darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white' 
+                : darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
+            }`}
             title="List View"
           >
-            ≡
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
           </button>
           <button
             onClick={() => setView('grid')}
-            className={`vintage-btn px-3 py-1 text-xl ${view === 'grid' ? 'bg-blue-600' : 'bg-gray-500'}`}
+            className={`p-2 rounded-md transition-colors ${
+              view === 'grid' 
+                ? darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'
+                : darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
+            }`}
             title="Grid View"
           >
-            ⬚
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            </svg>
           </button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="mb-4 flex flex-wrap gap-2 overflow-x-auto text-sm text-white">
+      <div className="mb-6 flex flex-wrap gap-2 overflow-x-auto">
         {['all', 'image', 'video', 'audio', 'document', 'other'].map((type) => (
           <button
             key={type}
             onClick={() => setFilter(type)}
-            className={`vintage-btn ${filter === type ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+              filter === type
+                ? darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'
+                : darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
           >
             {type === 'all' ? 'All' : 
               type === 'image' ? 'Images' : 
@@ -88,12 +126,18 @@ const FileList = ({ files, refresh }) => {
 
       {/* File list */}
       {visibleFiles.length === 0 ? (
-        <p className="text-yellow-100 text-center">No files found.</p>
+        <div className={`text-center py-12 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+          </svg>
+          <p className="text-lg font-medium">No files found</p>
+          <p className="mt-1">Try uploading a file or changing your search criteria</p>
+        </div>
       ) : (
         <div className={`grid gap-4 ${view === 'grid' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1'}`}>
           {visibleFiles.map((file) => (
             <div key={file._id} className="w-full">
-              <FileItem file={file} refresh={refresh} showMetadata={showMetadata} />
+              <FileItem file={file} refresh={refresh} showMetadata={showMetadata} darkMode={darkMode} />
             </div>
           ))}
         </div>

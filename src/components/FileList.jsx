@@ -5,7 +5,7 @@ const FileList = ({ files, refresh, darkMode }) => {
   const [filter, setFilter] = useState('all');
   const [view, setView] = useState('list');
   const [searchInput, setSearchInput] = useState('');
-  const [showMetadata, setShowMetadata] = useState(false); // metadata hidden by default
+  const [showMetadata, setShowMetadata] = useState(false);
 
   useEffect(() => {
     if (window.innerWidth >= 768) setView('grid');
@@ -30,7 +30,7 @@ const FileList = ({ files, refresh, darkMode }) => {
       }`}>
         Your Files
       </h2>
-      
+
       {/* Search + View + Metadata Toggle */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex-grow">
@@ -40,7 +40,7 @@ const FileList = ({ files, refresh, darkMode }) => {
               placeholder="⌕"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className={`w-full sm:max-w-sm px-4 py-2 pr-10 rounded-lg transition-colors ${
+              className={`search-placeholder w-full sm:max-w-sm px-4 py-2 pr-10 rounded-lg transition-colors ${
                 darkMode 
                   ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400' 
                   : 'bg-gray-100 text-gray-900 border-gray-200 placeholder-gray-500'

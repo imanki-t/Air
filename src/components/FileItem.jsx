@@ -58,13 +58,13 @@ const FileItem = ({ file, refresh, showMetadata }) => {
   const renderPreview = () => {
     const url = `${backendUrl}/api/files/download/${file._id}`;
     const type = file.metadata?.type;
-    const previewClass = 'rounded-lg mb-2 w-full h-32 object-contain';
+    const previewClass = 'rounded-md mb-2 w-full h-28 object-contain';
 
     if (type === 'image') return <img src={url} alt={file.filename} className={previewClass} />;
     if (type === 'video') return <video src={url} controls className={previewClass} />;
     if (type === 'audio') return <audio src={url} controls className="w-full mb-2" />;
     return (
-      <div className="mb-2 p-2 text-sm text-center bg-yellow-200 rounded">
+      <div className="mb-2 p-2 text-sm text-center bg-yellow-100 rounded">
         {file.filename.split('.').pop().toUpperCase()} file
       </div>
     );
@@ -72,9 +72,12 @@ const FileItem = ({ file, refresh, showMetadata }) => {
 
   return (
     <>
-      <div className="bg-yellow-300 w-full transition-all duration-300 ease-in-out flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-lg border-4 border-dashed border-purple-600 overflow-hidden h-[350px]">
+      <div className={`bg-yellow-100 w-full transition-all duration-300 ease-in-out 
+        ${showMetadata ? 'h-[340px]' : 'h-[180px]'}
+        flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-md border border-yellow-300 overflow-hidden`}>
+        
         {renderPreview()}
-        <h3 className="text-black font-bold truncate">{file.filename}</h3>
+        <h3 className="text-black font-semibold truncate">{file.filename}</h3>
 
         {showMetadata && (
           <>
@@ -169,4 +172,4 @@ const FileItem = ({ file, refresh, showMetadata }) => {
   );
 };
 
-export default FileItem;axios.post
+export default FileItem;

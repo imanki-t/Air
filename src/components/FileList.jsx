@@ -6,32 +6,57 @@ const FileList = ({ files, refresh, darkMode }) => {
   const [view, setView] = useState('list');
   const [searchInput, setSearchInput] = useState('');
   const [showMetadata, setShowMetadata] = useState(false);
+  // New states for sort option and sort modal
+  const [sortOption, setSortOption] = useState('default');
+  const [showSortOptions, setShowSortOptions] = useState(false);
 
   useEffect(() => {
     if (window.innerWidth >= 768) setView('grid');
   }, []);
 
-  const filtered = files.filter(
-    (f) => filter === 'all' || f.metadata?.type === filter
-  );
+  const filtered = files.filter((f) => filter === 'all' || f.metadata?.type === filter);
 
   const visibleFiles = filtered.filter((f) =>
     f.filename.toLowerCase().includes(searchInput.toLowerCase())
   );
 
+  // Apply sort based on selected option
+  const sortedFiles = [...visibleFiles].sort((a, b) => {
+    switch (sortOption) {
+      case 'size':
+        return (a.length || 0) - (b.length || 0);
+      case 'date':
+        return new Date(a.uploadDate) - new Date(b.uploadDate);
+      case 'name':
+        return a.filename.localeCompare(b.filename);
+      case 'group': {
+        // Grouping order: image, video, document, audio, others
+        const order = { image: 1, video: 2, document: 3, audio: 4 };
+        const getOrder = (file) => order[file.metadata?.type] || 5;
+        return getOrder(a) - getOrder(b);
+      }
+      default:
+        return 0;
+    }
+  });
+
   const clearSearch = () => setSearchInput('');
+
+  // Handler for choosing a sort option
+  const chooseSortOption = (option) => {
+    setSortOption(option);
+    setShowSortOptions(false);
+  };
 
   return (
     <div className={`transition-colors duration-300 rounded-xl ${
       darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
     } p-6 shadow-md`}>
-      <h2 className={`text-2xl font-semibold mb-6 ${
-        darkMode ? 'text-white' : 'text-gray-800'
-      }`}>
+      <h2 className={`text-2xl font-semibold mb-6 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
         Your Files
       </h2>
 
-      {/* Search + View + Metadata Toggle */}
+      {/* Search + View + Metadata Toggle + New Sort/Group Toggle */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex-grow">
           <div className="relative">
@@ -74,11 +99,20 @@ const FileList = ({ files, refresh, darkMode }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </button>
+          {/* New Sort/Group Toggle Button – placed next to metadata toggle */}
+          <button
+            onClick={() => setShowSortOptions(true)}
+            className={`p-2 rounded-md transition-colors ${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+            title="Sort / Group Options"
+          >
+            {/* Using the layout group toggle symbol ⧉ */}
+            <span className="text-lg">⧉</span>
+          </button>
           <button
             onClick={() => setView('list')}
             className={`p-2 rounded-md transition-colors ${
-              view === 'list' 
-                ? darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white' 
+              view === 'list'
+                ? darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'
                 : darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
             }`}
             title="List View"
@@ -90,7 +124,7 @@ const FileList = ({ files, refresh, darkMode }) => {
           <button
             onClick={() => setView('grid')}
             className={`p-2 rounded-md transition-colors ${
-              view === 'grid' 
+              view === 'grid'
                 ? darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'
                 : darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-600'
             }`}
@@ -115,17 +149,23 @@ const FileList = ({ files, refresh, darkMode }) => {
                 : darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
           >
-            {type === 'all' ? 'All' : 
-              type === 'image' ? 'Images' : 
-              type === 'video' ? 'Videos' : 
-              type === 'audio' ? 'Audio' : 
-              type === 'document' ? 'Docs' : 'Other'}
+            {type === 'all'
+              ? 'All'
+              : type === 'image'
+              ? 'Images'
+              : type === 'video'
+              ? 'Videos'
+              : type === 'audio'
+              ? 'Audio'
+              : type === 'document'
+              ? 'Docs'
+              : 'Other'}
           </button>
         ))}
       </div>
 
       {/* File list */}
-      {visibleFiles.length === 0 ? (
+      {sortedFiles.length === 0 ? (
         <div className={`text-center py-12 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
           <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
@@ -135,11 +175,47 @@ const FileList = ({ files, refresh, darkMode }) => {
         </div>
       ) : (
         <div className={`grid gap-4 ${view === 'grid' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1'}`}>
-          {visibleFiles.map((file) => (
+          {sortedFiles.map((file) => (
             <div key={file._id} className="w-full">
               <FileItem file={file} refresh={refresh} showMetadata={showMetadata} darkMode={darkMode} />
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Sort/Group Options Modal */}
+      {showSortOptions && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
+          <div className={`p-6 rounded-xl max-w-sm w-full relative shadow-lg ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+            <button
+              onClick={() => setShowSortOptions(false)}
+              className={`absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full ${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+              title="Close"
+              style={{ lineHeight: 0 }}
+            >
+              ×
+            </button>
+            <h2 className={`font-bold mb-4 text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+              Sort / Group Options
+            </h2>
+            <div className="flex flex-col gap-2">
+              <button onClick={() => chooseSortOption('default')} className={`px-3 py-1 rounded-md transition-colors ${sortOption === 'default' ? (darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white') : (darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300')}`}>
+                Default
+              </button>
+              <button onClick={() => chooseSortOption('size')} className={`px-3 py-1 rounded-md transition-colors ${sortOption === 'size' ? (darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white') : (darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300')}`}>
+                Sort by Size
+              </button>
+              <button onClick={() => chooseSortOption('date')} className={`px-3 py-1 rounded-md transition-colors ${sortOption === 'date' ? (darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white') : (darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300')}`}>
+                Sort by Date
+              </button>
+              <button onClick={() => chooseSortOption('name')} className={`px-3 py-1 rounded-md transition-colors ${sortOption === 'name' ? (darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white') : (darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300')}`}>
+                Sort by Name
+              </button>
+              <button onClick={() => chooseSortOption('group')} className={`px-3 py-1 rounded-md transition-colors ${sortOption === 'group' ? (darkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white') : (darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300')}`}>
+                Group by Type
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

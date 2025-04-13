@@ -89,43 +89,47 @@ function App() {
           darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
         }`}
       >
-        {/* Header Section */}
+        {/* Header Section - Modified for responsive behavior */}
         <header
           className={`p-6 transition-all duration-300 ${
             darkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-white text-gray-900 border-gray-200'
           } shadow-md`}
         >
           <div className="max-w-6xl mx-auto">
-            <div className="relative flex items-center justify-center">
-              {/* Logo positioned to the left */}
-              {showLogo && (
-                <div className="absolute left-0 w-12 h-12 rounded-full overflow-hidden shadow-lg">
-                  <img
-                    src="/logo.png"
-                    alt="Logo"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-              {/* Title block always centered */}
-              <div className="text-center">
-                <h1
-                  className={`text-4xl font-vintage tracking-wide ${
-                    darkMode ? 'text-white' : 'text-gray-900'
-                  }`}
-                >
-                  Timeless
-                </h1>
-                {showHello && (
-                  <h2 className="text-sm sm:text-base font-vintage tracking-wide mt-2 flex justify-center items-center">
-                    <span>Hello!</span>
+            <div className="flex items-center justify-center relative">
+              {/* Container with flex for logo and title */}
+              <div className="flex items-center justify-center w-full">
+                {/* Logo container with fixed width that doesn't collapse */}
+                {showLogo && (
+                  <div className="absolute left-0 w-12 h-12 sm:w-12 sm:h-12 rounded-full overflow-hidden shadow-lg">
                     <img
-                      src="/apple-heart-eyes.png"
-                      alt="🥰"
-                      className="w-5 h-5 ml-2"
+                      src="/logo.png"
+                      alt="Logo"
+                      className="w-full h-full object-cover"
                     />
-                  </h2>
+                  </div>
                 )}
+                
+                {/* Title block always centered regardless of logo presence */}
+                <div className={`text-center transition-all duration-300`}>
+                  <h1
+                    className={`text-4xl font-vintage tracking-wide ${
+                      darkMode ? 'text-white' : 'text-gray-900'
+                    }`}
+                  >
+                    Timeless
+                  </h1>
+                  {showHello && (
+                    <h2 className="text-sm sm:text-base font-vintage tracking-wide mt-2 flex justify-center items-center">
+                      <span>Hello!</span>
+                      <img
+                        src="/apple-heart-eyes.png"
+                        alt="🥰"
+                        className="w-5 h-5 ml-2"
+                      />
+                    </h2>
+                  )}
+                </div>
               </div>
             </div>
           </div>

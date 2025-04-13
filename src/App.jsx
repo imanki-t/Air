@@ -6,7 +6,8 @@ import axios from 'axios';
     
 function App() {    
   const [error, setError] = useState(null);    
-  const [files, setFiles] = useState([]);    
+  const [files, setFiles] = useState([]);
+  const [darkMode, setDarkMode] = useState(false);
     
   const fetchFiles = async () => {    
     try {    
@@ -19,21 +20,33 @@ function App() {
   };    
     
   useEffect(() => {    
+    // Set up error handling
     window.onerror = (message, source, lineno, colno, error) => {    
       console.error('Global error:', message, error);    
       setError(`Error: ${message}`);    
       return true;    
     };    
     
+    // Check backend URL
     if (!import.meta.env.VITE_BACKEND_URL) {      
       console.warn('Backend URL not configured. API calls will fail.');      
       setError('Backend URL not configured.');      
     }    
     
+    // Detect dark mode preference
+    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    setDarkMode(darkModeMediaQuery.matches);
+    
+    // Listen for changes in dark mode preference
+    const handleDarkModeChange = (e) => setDarkMode(e.matches);
+    darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
+    
+    // Fetch files
     fetchFiles();      
     
     return () => {      
-      window.onerror = null;      
+      window.onerror = null;
+      darkModeMediaQuery.removeEventListener('change', handleDarkModeChange);
     };    
   }, []);    
     
@@ -56,14 +69,61 @@ function App() {
     
   return (    
     <AccessGate>    
-      <div className="min-h-screen p-4 sm:p-6 bg-transparent">    
-        <h1 className="text-4xl mb-2 text-yellow-400 font-vintage drop-shadow-lg">Timeless</h1>    
-        <h2 className="text-2xl text-yellow-300 mt-2 flex items-center justify-center gap-2">    
-          wsp bro    
-          <img src="/apple-heart-eyes.png" alt="🥰" className="w-6 h-6 inline-block" />    
-        </h2>      
-        <UploadForm refresh={fetchFiles} />      
-        <FileList files={files} refresh={fetchFiles} />      
+      <div className={`min-h-screen transition-colors duration-300 ${
+        darkMode 
+          ? 'bg-gray-900 text-white' 
+          : 'bg-gray-50 text-gray-900'
+      }`}>
+        {/* Header Section */}
+        <header className={`p-6 ${
+          darkMode 
+            ? 'bg-black' 
+            : 'bg-white shadow-sm'
+        }`}>
+          <div className="max-w-6xl mx-auto">
+            <div className="flex flex-col space-y-1">
+              <div className="flex items-center gap-3">
+                <img 
+                  src="/logo.png" 
+                  alt="Logo" 
+                  className="w-12 h-12 object-contain" 
+                />
+                <h1 className={`text-4xl font-sans font-black tracking-tight ${
+                  darkMode
+                    ? 'text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500'
+                    : 'text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-700'
+                }`}>
+                  Timeless
+                </h1>
+              </div>
+              <div className="ml-14">
+                <h2 className={`text-lg flex items-center gap-2 font-light ${
+                  darkMode ? 'text-gray-300' : 'text-gray-600'
+                }`}>
+                  <span className="tracking-wide">wsp bro</span>
+                  <img 
+                    src="/apple-heart-eyes.png" 
+                    alt="🥰" 
+                    className="w-5 h-5 inline-block" 
+                  />
+                </h2>
+              </div>
+            </div>
+          </div>
+        </header>
+        
+        {/* Main Content */}
+        <main className="max-w-6xl mx-auto p-4 sm:p-6">
+          <UploadForm refresh={fetchFiles} darkMode={darkMode} />      
+          <FileList files={files} refresh={fetchFiles} darkMode={darkMode} />      
+        </main>
+        
+        {/* Footer */}
+        <footer className={`p-4 text-center text-sm ${
+          darkMode ? 'text-gray-400' : 'text-gray-500'
+        }`}>
+          © {new Date().getFullYear()} Timeless • All Rights Reserved
+        </footer>
       </div>      
     </AccessGate>      
   );      

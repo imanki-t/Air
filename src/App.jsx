@@ -95,7 +95,7 @@ function App() {
           } shadow-md`}  
         >  
           <div className="max-w-6xl mx-auto">  
-            <div className="flex items-center justify-center">  
+            <div className={`flex items-center justify-center transition-all duration-300 ${!showLogo && !showHello ? 'justify-center' : 'justify-between'}`}>  
               {/* Logo centered, hidden after 15 seconds */}  
               {showLogo && (  
                 <div className="w-12 h-12 rounded-full overflow-hidden shadow-lg">  
@@ -108,14 +108,9 @@ function App() {
               )}  
               <div className="ml-4 text-center">  
                 <h1  
-                  className={`text-4xl font-vintage tracking-tight ${  
+                  className={`text-4xl font-vintage tracking-wide ${  
                     darkMode ? 'text-white' : 'text-gray-900'  
                   }`}  
-                  style={{  
-                    fontFamily: "'Inter', sans-serif",  
-                    fontWeight: 900,  
-                    letterSpacing: '-0.05em',  
-                  }}  
                 >  
                   Timeless  
                 </h1>  

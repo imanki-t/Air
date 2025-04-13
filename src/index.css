@@ -35,3 +35,10 @@
 .light .modern-btn {
   @apply bg-purple-600 hover:bg-purple-700 focus:ring-purple-500 text-white;
 }
+
+/* Custom placeholder style for search icon */
+.search-placeholder::placeholder {
+  font-size: 1.25rem;
+  position: relative;
+  top: -2px;
+}

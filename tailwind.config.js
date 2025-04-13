@@ -18,11 +18,16 @@ export default {
       animation: {
         'float': 'float 3s ease-in-out infinite',
         'spin-slow': 'spin 3s linear infinite',
+        'fadeInOut': 'fadeInOut 1s ease-in-out',
       },
       keyframes: {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-10px)' },
+        },
+        fadeInOut: {
+          '0%, 100%': { opacity: '0' },
+          '50%': { opacity: '1' },
         },
       },
     },

@@ -63,8 +63,10 @@ const FileItem = ({ file, refresh, showMetadata }) => {
     if (type === 'image') return <img src={url} alt={file.filename} className={previewClass} />;
     if (type === 'video') return <video src={url} controls className={previewClass} />;
     if (type === 'audio') return <audio src={url} controls className="w-full mb-2" />;
+    
+    // Fix white text issue
     return (
-      <div className="mb-2 p-2 text-sm text-center bg-yellow-100 rounded">
+      <div className="mb-2 p-2 text-sm text-center bg-yellow-100 text-black rounded">
         {file.filename.split('.').pop().toUpperCase()} file
       </div>
     );
@@ -75,7 +77,7 @@ const FileItem = ({ file, refresh, showMetadata }) => {
       <div className={`bg-yellow-100 w-full transition-all duration-300 ease-in-out 
         ${showMetadata ? 'h-[340px]' : 'h-[180px]'}
         flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-md border border-yellow-300 overflow-hidden`}>
-        
+
         {renderPreview()}
         <h3 className="text-black font-semibold truncate">{file.filename}</h3>
 
@@ -98,7 +100,6 @@ const FileItem = ({ file, refresh, showMetadata }) => {
         )}
       </div>
 
-      {/* Share Modal */}
       {showShare && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
           <div className="bg-yellow-100 border-4 border-red-600 p-6 pt-8 pr-8 rounded-xl max-w-sm w-full text-center relative shadow-vintage">
@@ -142,7 +143,6 @@ const FileItem = ({ file, refresh, showMetadata }) => {
         </div>
       )}
 
-      {/* Delete Confirmation */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
           <div className="bg-yellow-100 border-4 border-red-600 p-4 rounded-xl max-w-sm w-full text-center relative shadow-vintage">

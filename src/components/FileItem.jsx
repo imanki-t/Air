@@ -58,7 +58,7 @@ const FileItem = ({ file, refresh, showMetadata }) => {
   const renderPreview = () => {
     const url = `${backendUrl}/api/files/download/${file._id}`;
     const type = file.metadata?.type;
-    const previewClass = 'rounded-lg mb-2 w-full h-48 object-contain';
+    const previewClass = 'rounded-lg mb-2 w-full h-32 object-contain';
 
     if (type === 'image') return <img src={url} alt={file.filename} className={previewClass} />;
     if (type === 'video') return <video src={url} controls className={previewClass} />;
@@ -72,7 +72,7 @@ const FileItem = ({ file, refresh, showMetadata }) => {
 
   return (
     <>
-      <div className="bg-yellow-300 w-full transition-all duration-300 ease-in-out flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-lg border-4 border-dashed border-purple-600 overflow-hidden">
+      <div className="bg-yellow-300 w-full transition-all duration-300 ease-in-out flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-lg border-4 border-dashed border-purple-600 overflow-hidden h-[350px]">
         {renderPreview()}
         <h3 className="text-black font-bold truncate">{file.filename}</h3>
 
@@ -169,4 +169,4 @@ const FileItem = ({ file, refresh, showMetadata }) => {
   );
 };
 
-export default FileItem;
+export default FileItem;axios.post

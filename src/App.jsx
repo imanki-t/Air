@@ -3,11 +3,11 @@ import UploadForm from './components/UploadForm';
 import FileList from './components/FileList';    
 import AccessGate from './components/AccessGate';    
 import axios from 'axios';    
-
+    
 function App() {    
   const [error, setError] = useState(null);    
   const [files, setFiles] = useState([]);    
-
+    
   const fetchFiles = async () => {    
     try {    
       const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/files`);    
@@ -17,26 +17,26 @@ function App() {
       setError('Failed to load files');    
     }    
   };    
-
+    
   useEffect(() => {    
     window.onerror = (message, source, lineno, colno, error) => {    
       console.error('Global error:', message, error);    
       setError(`Error: ${message}`);    
       return true;    
     };    
-
+    
     if (!import.meta.env.VITE_BACKEND_URL) {      
       console.warn('Backend URL not configured. API calls will fail.');      
       setError('Backend URL not configured.');      
     }    
-
+    
     fetchFiles();      
-
+    
     return () => {      
       window.onerror = null;      
     };    
   }, []);    
-
+    
   if (error) {    
     return (    
       <div className="min-h-screen p-4 bg-red-900 text-white flex items-center justify-center">    
@@ -53,21 +53,20 @@ function App() {
       </div>    
     );    
   }    
-
+    
   return (    
     <AccessGate>    
-      <div className="min-h-screen p-6 sm:p-8 bg-transparent flex flex-col items-center">    
-        <h1 className="text-4xl mb-2 text-yellow-400 font-vintage drop-shadow-lg text-center">Timeless</h1>    
-        <h2 className="text-2xl text-yellow-300 mb-4 flex items-center justify-center gap-2">    
+      <div className="min-h-screen p-4 sm:p-6 bg-transparent">    
+        <h1 className="text-4xl mb-2 text-yellow-400 font-vintage drop-shadow-lg">Timeless</h1>    
+        <h2 className="text-2xl text-yellow-300 mt-2 flex items-center justify-center gap-2">    
           wsp bro    
           <img src="/apple-heart-eyes.png" alt="🥰" className="w-6 h-6 inline-block" />    
-        </h2>    
-
-        <UploadForm refresh={fetchFiles} />    
-        <FileList files={files} refresh={fetchFiles} />    
-      </div>    
-    </AccessGate>    
-  );    
-}    
-
+        </h2>      
+        <UploadForm refresh={fetchFiles} />      
+        <FileList files={files} refresh={fetchFiles} />      
+      </div>      
+    </AccessGate>      
+  );      
+}  
+    
 export default App;

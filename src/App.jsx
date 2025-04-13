@@ -74,17 +74,25 @@ function App() {
     );    
   }    
   
-  // Calculate gradient colors based on animation progress
-  const calculateGradient = () => {
-    // Oscillate between 0 and 1 using a sine wave
-    const redValue = Math.abs(Math.sin(animationProgress / 15));
-    const blueValue = Math.abs(Math.cos(animationProgress / 20));
+  // Calculate header background colors based on animation progress
+  const calculateHeaderBackground = () => {
+    // Target colors: start with dark/light mode colors and transition to deep red
+    const startRed = darkMode ? 0 : 255;
+    const startGreen = darkMode ? 0 : 255;
+    const startBlue = darkMode ? 0 : 255;
     
-    // Create CSS-compatible color values
-    const color1 = `rgba(${Math.round(redValue * 220)}, 50, ${Math.round(blueValue * 220)}, 1)`;
-    const color2 = `rgba(100, ${Math.round(blueValue * 150)}, ${Math.round(redValue * 200)}, 1)`;
+    const endRed = 150;
+    const endGreen = 30;
+    const endBlue = 30;
     
-    return `linear-gradient(135deg, ${color1}, ${color2})`;
+    // Calculate current color based on progress
+    const factor = Math.sin(animationProgress / 25) * 0.5 + 0.5; // oscillate between 0 and 1
+    
+    const red = Math.round(startRed + (endRed - startRed) * factor);
+    const green = Math.round(startGreen + (endGreen - startGreen) * factor);
+    const blue = Math.round(startBlue + (endBlue - startBlue) * factor);
+    
+    return `rgb(${red}, ${green}, ${blue})`;
   };
     
   return (    
@@ -95,54 +103,72 @@ function App() {
           : 'bg-gray-50 text-gray-900'
       }`}>
         {/* Animated Header Section */}
-        <header className={`p-6 transition-all duration-500 ${
-          darkMode 
-            ? 'bg-black' 
-            : 'bg-white shadow-sm'
-        }`}
-        style={{ 
-          background: darkMode ? 'black' : calculateGradient()
-        }}>
+        <header 
+          className={`p-6 transition-all duration-300 ${
+            darkMode 
+              ? 'text-white' 
+              : 'text-white shadow-sm'
+          }`}
+          style={{ 
+            background: calculateHeaderBackground(),
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+          }}
+        >
           <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col space-y-1">
-              <div className="flex items-center gap-3">
-                <img 
-                  src="/logo.png" 
-                  alt="Logo" 
-                  className="w-12 h-12 object-contain animate-pulse" 
-                />
-                <h1 className={`text-4xl font-black tracking-tight ${
-                  darkMode
-                    ? 'text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500'
-                    : 'text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-700'
-                }`}
-                style={{ 
-                  fontFamily: "'Inter', sans-serif",
-                  fontWeight: 900,
-                  letterSpacing: '-0.05em',
-                  textShadow: darkMode ? '0 0 20px rgba(129, 140, 248, 0.5)' : 'none' 
-                }}>
-                  Timeless
-                </h1>
-              </div>
-              <div className="ml-14">
-                <h2 className={`text-lg flex items-center gap-2 font-light ${
-                  darkMode ? 'text-gray-300' : 'text-white'
-                }`}
-                style={{ 
-                  fontFamily: "'Inter', sans-serif",
-                  fontWeight: 300,
-                  letterSpacing: '0.05em',
-                  textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                }}>
-                  <span className="tracking-wide">wsp bro</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                {/* Circular Logo */}
+                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-purple-500 shadow-lg">
                   <img 
-                    src="/apple-heart-eyes.png" 
-                    alt="🥰" 
-                    className="w-5 h-5 inline-block animate-bounce" 
+                    src="/logo.png" 
+                    alt="Logo" 
+                    className="w-full h-full object-cover" 
                   />
-                </h2>
+                </div>
+                <div>
+                  <h1 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-500"
+                  style={{ 
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 900,
+                    letterSpacing: '-0.05em',
+                    textShadow: darkMode ? '0 0 20px rgba(129, 140, 248, 0.5)' : 'none' 
+                  }}>
+                    Timeless
+                  </h1>
+                  {/* Aligned "Void!" text */}
+                  <h2 className="text-lg font-light text-white flex items-center"
+                  style={{ 
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: 300,
+                    letterSpacing: '0.05em',
+                    textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                  }}>
+                    <span className="tracking-wide">Void!</span>
+                    <img 
+                      src="/apple-heart-eyes.png" 
+                      alt="🥰" 
+                      className="w-5 h-5 ml-2 inline-block" 
+                    />
+                  </h2>
+                </div>
               </div>
+              
+              {/* Optional: Theme toggle button */}
+              <button
+                onClick={() => setDarkMode(!darkMode)}
+                className={`p-2 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-purple-100'}`}
+                aria-label="Toggle theme"
+              >
+                {darkMode ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                )}
+              </button>
             </div>
           </div>
         </header>

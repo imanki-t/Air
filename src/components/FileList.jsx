@@ -120,7 +120,7 @@ const FileList = ({ files, refresh, darkMode }) => {
           <button
             onClick={() => setShowSortOptions(true)}
             className={`p-2 rounded-md transition-colors ${
-              showSortOptions
+              sortOption !== 'default'
                 ? darkMode
                   ? 'bg-blue-600 text-white'
                   : 'bg-blue-600 text-white'
@@ -259,11 +259,10 @@ const FileList = ({ files, refresh, darkMode }) => {
           >
             <button
               onClick={() => setShowSortOptions(false)}
-              className={`absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full ${
-                darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              className={`absolute top-3 right-3 p-1 text-lg font-bold hover:text-blue-600 transition-colors ${
+                darkMode ? 'text-gray-300' : 'text-gray-600'
               }`}
               title="Close"
-              style={{ lineHeight: 0 }}
             >
               ×
             </button>
@@ -276,8 +275,8 @@ const FileList = ({ files, refresh, darkMode }) => {
                 className={`px-3 py-1 rounded-md transition-colors ${
                   sortOption === 'default'
                     ? darkMode
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-blue-600 text-white'
+                      ? 'bg-gray-700 text-gray-300'
+                      : 'bg-gray-200 text-gray-600'
                     : darkMode
                     ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     : 'bg-gray-200 text-gray-600 hover:bg-gray-300'

@@ -1,159 +1,73 @@
-import React, { useState, useEffect } from 'react';
-import UploadForm from './components/UploadForm';
-import FileList from './components/FileList';
-import AccessGate from './components/AccessGate';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';    
+import UploadForm from './components/UploadForm';    
+import FileList from './components/FileList';    
+import AccessGate from './components/AccessGate';    
+import axios from 'axios';    
 
-function App() {
-  const [error, setError] = useState(null);
-  const [files, setFiles] = useState([]);
+function App() {    
+  const [error, setError] = useState(null);    
+  const [files, setFiles] = useState([]);    
 
-  const fetchFiles = async () => {
-    try {
-      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/files`);
-      setFiles(res.data);
-    } catch (err) {
-      console.error('Error fetching files:', err);
-      setError('Failed to load files');
-    }
-  };
+  const fetchFiles = async () => {    
+    try {    
+      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/files`);    
+      setFiles(res.data);    
+    } catch (err) {    
+      console.error('Error fetching files:', err);    
+      setError('Failed to load files');    
+    }    
+  };    
 
-  useEffect(() => {
-    window.onerror = (message, source, lineno, colno, error) => {
-      console.error('Global error:', message, error);
-      setError(`Error: ${message}`);
-      return true;
-    };
+  useEffect(() => {    
+    window.onerror = (message, source, lineno, colno, error) => {    
+      console.error('Global error:', message, error);    
+      setError(`Error: ${message}`);    
+      return true;    
+    };    
 
-    if (!import.meta.env.VITE_BACKEND_URL) {
-      console.warn('Backend URL not configured. API calls will fail.');
-      setError('Backend URL not configured.');
-    }
+    if (!import.meta.env.VITE_BACKEND_URL) {      
+      console.warn('Backend URL not configured. API calls will fail.');      
+      setError('Backend URL not configured.');      
+    }    
 
-    fetchFiles();
+    fetchFiles();      
 
-    return () => {
-      window.onerror = null;
-    };
-  }, []);
+    return () => {      
+      window.onerror = null;      
+    };    
+  }, []);    
 
-  if (error) {
-    return (
-      <div className="min-h-screen p-4 bg-red-900 text-white flex items-center justify-center">
-        <div className="bg-black bg-opacity-50 p-6 rounded-lg max-w-lg">
-          <h1 className="text-2xl mb-4">Something went wrong</h1>
-          <p className="mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
-          >
-            Reload Page
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (error) {    
+    return (    
+      <div className="min-h-screen p-4 bg-red-900 text-white flex items-center justify-center">    
+        <div className="bg-black bg-opacity-50 p-6 rounded-lg max-w-lg">    
+          <h1 className="text-2xl mb-4">Something went wrong</h1>    
+          <p className="mb-4">{error}</p>    
+          <button    
+            onClick={() => window.location.reload()}    
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"    
+          >    
+            Reload Page    
+          </button>    
+        </div>    
+      </div>    
+    );    
+  }    
 
-  return (
-    <AccessGate>
-      <div className="min-h-screen bg-transparent px-4 py-6 sm:px-6 md:px-10 lg:px-16 flex flex-col gap-6">
-        <header className="text-center">
-          <h1 className="text-4xl mb-1 text-yellow-400 font-vintage drop-shadow-lg">Timeless</h1>
-          <h2 className="text-2xl text-yellow-300 mt-1 flex justify-center items-center gap-2">
-            wsp bro
-            <img src="/apple-heart-eyes.png" alt="🥰" className="w-6 h-6 inline-block" />
-          </h2>
-        </header>
+  return (    
+    <AccessGate>    
+      <div className="min-h-screen p-6 sm:p-8 bg-transparent flex flex-col items-center">    
+        <h1 className="text-4xl mb-2 text-yellow-400 font-vintage drop-shadow-lg text-center">Timeless</h1>    
+        <h2 className="text-2xl text-yellow-300 mb-4 flex items-center justify-center gap-2">    
+          wsp bro    
+          <img src="/apple-heart-eyes.png" alt="🥰" className="w-6 h-6 inline-block" />    
+        </h2>    
 
-        <section className="w-full max-w-3xl mx-auto">
-          <UploadForm refresh={fetchFiles} />
-        </section>
+        <UploadForm refresh={fetchFiles} />    
+        <FileList files={files} refresh={fetchFiles} />    
+      </div>    
+    </AccessGate>    
+  );    
+}    
 
-        <section className="w-full max-w-4xl mx-auto">
-          <FileList files={files} refresh={fetchFiles} />
-        </section>
-      </div>
-    </AccessGate>
-  );
-}
-
-export default App;import React, { useState, useEffect } from 'react';
-import UploadForm from './components/UploadForm';
-import FileList from './components/FileList';
-import AccessGate from './components/AccessGate';
-import axios from 'axios';
-
-function App() {
-  const [error, setError] = useState(null);
-  const [files, setFiles] = useState([]);
-
-  const fetchFiles = async () => {
-    try {
-      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/files`);
-      setFiles(res.data);
-    } catch (err) {
-      console.error('Error fetching files:', err);
-      setError('Failed to load files');
-    }
-  };
-
-  useEffect(() => {
-    window.onerror = (message, source, lineno, colno, error) => {
-      console.error('Global error:', message, error);
-      setError(`Error: ${message}`);
-      return true;
-    };
-
-    if (!import.meta.env.VITE_BACKEND_URL) {
-      console.warn('Backend URL not configured. API calls will fail.');
-      setError('Backend URL not configured.');
-    }
-
-    fetchFiles();
-
-    return () => {
-      window.onerror = null;
-    };
-  }, []);
-
-  if (error) {
-    return (
-      <div className="min-h-screen p-4 bg-red-900 text-white flex items-center justify-center">
-        <div className="bg-black bg-opacity-50 p-6 rounded-lg max-w-lg">
-          <h1 className="text-2xl mb-4">Something went wrong</h1>
-          <p className="mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
-          >
-            Reload Page
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <AccessGate>
-      <div className="min-h-screen bg-transparent px-4 py-6 sm:px-6 md:px-10 lg:px-16 flex flex-col gap-6">
-        <header className="text-center">
-          <h1 className="text-4xl mb-1 text-yellow-400 font-vintage drop-shadow-lg">Timeless</h1>
-          <h2 className="text-2xl text-yellow-300 mt-1 flex justify-center items-center gap-2">
-            wsp bro
-            <img src="/apple-heart-eyes.png" alt="🥰" className="w-6 h-6 inline-block" />
-          </h2>
-        </header>
-
-        <section className="w-full max-w-3xl mx-auto">
-          <UploadForm refresh={fetchFiles} />
-        </section>
-
-        <section className="w-full max-w-4xl mx-auto">
-          <FileList files={files} refresh={fetchFiles} />
-        </section>
-      </div>
-    </AccessGate>
-  );
-}
-
-export default
+export default App;

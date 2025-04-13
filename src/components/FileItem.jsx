@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
@@ -171,13 +170,24 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
               <input
                 value={shareLink}
                 readOnly
-                className={`w-full px-3 py-2 pr-24 rounded font-mono text-sm border ${darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-gray-100 border-gray-200 text-gray-800'}`}
+                className={`w-full px-3 py-2 rounded font-mono text-sm border ${darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-gray-100 border-gray-200 text-gray-800'}`}
               />
+            </div>
+
+            <div className="mb-4">
               <button
                 onClick={copyToClipboard}
-                className={`absolute right-1 top-1 px-3 py-1 rounded ${darkMode ? copied ? 'bg-green-700' : 'bg-blue-600 hover:bg-blue-700' : copied ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'} text-white text-sm`}
+                className={`w-full px-3 py-2 rounded font-medium text-sm transition-colors ${
+                  darkMode
+                    ? copied
+                      ? 'bg-green-700 text-white'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : copied
+                    ? 'bg-green-600 text-white'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
               >
-                {copied ? 'Copied!' : 'Copy'}
+                {copied ? 'Copied!' : 'Copy Link'}
               </button>
             </div>
           </div>

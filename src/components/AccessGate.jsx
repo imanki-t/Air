@@ -23,26 +23,26 @@ const AccessGate = ({ children }) => {
     "The key to your digital universe.",
     "Privacy is the foundation of digital freedom.",
   ];
-  
+
   const [currentQuote, setCurrentQuote] = useState('');
 
   useEffect(() => {
     // Set a random quote on component mount
     setCurrentQuote(quotes[Math.floor(Math.random() * quotes.length)]);
-    
+
     // Check if already authenticated
     const unlockedBefore = sessionStorage.getItem('access_granted');
     if (unlockedBefore === 'true') {
       setUnlocked(true);
     } else {
-      // Loading animation sequence
-      setTimeout(() => setAnimationPhase(1), 800);
-      setTimeout(() => setAnimationPhase(2), 1600);
-      setTimeout(() => setAnimationPhase(3), 2400);
+      // Adjusted Loading animation sequence for an 8-second delay
+      setTimeout(() => setAnimationPhase(1), 1600);
+      setTimeout(() => setAnimationPhase(2), 3200);
+      setTimeout(() => setAnimationPhase(3), 4800);
       setTimeout(() => {
         setLoading(false);
         setAnimationPhase(4);
-      }, 3000);
+      }, 8000);
     }
 
     // Mouse move effect for parallax
@@ -67,7 +67,7 @@ const AccessGate = ({ children }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const correct = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone';
-    
+
     if (passkey === correct) {
       // Success animation and sound
       const audio = new Audio('/access-granted.mp3');
@@ -81,7 +81,7 @@ const AccessGate = ({ children }) => {
       // Error animation effect
       setError('Access Denied: Invalid Passkey');
       setPasskey('');
-      
+
       // Shake animation effect
       const form = document.getElementById('access-form');
       if (form) {
@@ -109,7 +109,6 @@ const AccessGate = ({ children }) => {
     >
       {/* Background Grid and Patterns */}
       <div className="absolute inset-0 overflow-hidden">
-        {/* Main Grid Pattern */}
         <div 
           className="absolute inset-0 opacity-10"
           style={{
@@ -119,7 +118,7 @@ const AccessGate = ({ children }) => {
             transition: 'transform 0.5s ease-out'
           }}
         />
-        
+
         {/* Orbital Ring Animation */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none">
           {[1, 2, 3, 4].map((ring) => (
@@ -140,7 +139,7 @@ const AccessGate = ({ children }) => {
             />
           ))}
         </div>
-        
+
         {/* Floating Particles */}
         <div className="absolute inset-0">
           {Array.from({ length: 30 }).map((_, i) => (
@@ -160,7 +159,7 @@ const AccessGate = ({ children }) => {
             />
           ))}
         </div>
-        
+
         {/* Glow Effect Spots */}
         <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl"></div>
         <div className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full bg-purple-500/10 blur-3xl"></div>
@@ -169,8 +168,8 @@ const AccessGate = ({ children }) => {
       {/* App Header */}
       <header className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4">
         <div className="flex items-center space-x-3">
-          <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-lg">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" viewBox="0 0 20 20" fill="currentColor">
+          <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 sm:h-8 sm:w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
             </svg>
           </div>
@@ -180,23 +179,14 @@ const AccessGate = ({ children }) => {
             </span>
           </h1>
         </div>
-        
-        <div className="hidden md:flex items-center space-x-2 text-gray-400 text-sm">
-          <span className="px-3 py-1 rounded-full text-xs bg-gray-800/70 border border-gray-700 backdrop-blur-sm">
-            End-to-End Encrypted
-          </span>
-          <span className="px-3 py-1 rounded-full text-xs bg-gray-800/70 border border-gray-700 backdrop-blur-sm">
-            Secure Gateway
-          </span>
-        </div>
+        {/* Removed header info on right for desktop; it will now appear at the bottom right */}
       </header>
 
       {/* Main Content Area */}
-      <div className="relative z-10 w-full max-w-md mx-auto px-4">
+      <div className="relative z-10 w-full max-w-md mx-auto px-4 mt-24">
         {loading ? (
           /* Loading State */
           <div className="flex flex-col items-center justify-center p-8">
-            {/* Loading Animation */}
             <div className={`w-24 h-24 mb-6 relative transition-opacity duration-500 ${animationPhase >= 1 ? 'opacity-100' : 'opacity-0'}`}>
               <div className="absolute inset-0 rounded-full border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
               <div className="absolute inset-3 rounded-full border-4 border-t-transparent border-r-purple-500 border-b-transparent border-l-transparent animate-spin" style={{ animationDuration: '1.5s' }}></div>
@@ -207,20 +197,14 @@ const AccessGate = ({ children }) => {
                 </div>
               </div>
             </div>
-            
-            {/* Loading Text */}
             <h2 className={`text-xl font-semibold text-white mb-4 transition-opacity duration-500 ${animationPhase >= 1 ? 'opacity-100' : 'opacity-0'}`}>
               <span className="text-blue-400">Initializing</span>
               <span className="text-white"> Secure </span>
               <span className="text-purple-400">Gateway</span>
             </h2>
-            
-            {/* Quote */}
             <p className={`text-gray-300 italic text-center mb-6 transition-opacity duration-500 ${animationPhase >= 2 ? 'opacity-100' : 'opacity-0'}`}>
               "{currentQuote}"
             </p>
-            
-            {/* Status Indicators */}
             <div className={`flex flex-wrap justify-center gap-2 transition-opacity duration-500 ${animationPhase >= 2 ? 'opacity-100' : 'opacity-0'}`}>
               {['Verifying', 'Encrypting', 'Connecting', 'Securing'].map((status, i) => (
                 <span 
@@ -238,28 +222,17 @@ const AccessGate = ({ children }) => {
           /* Login Form State */
           <div className="flex flex-col items-center">
             {/* Authentication Card */}
-            <div className="w-full relative">
+            <div className="w-full relative max-w-xs sm:max-w-md">
               {/* Glowing border effect */}
               <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-2xl opacity-70 blur-sm animate-pulse"></div>
-              
               <div className="relative bg-gray-900/90 backdrop-blur-md rounded-xl overflow-hidden border border-gray-800">
                 {/* Security Elements Design */}
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
                 <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
                 
-                {/* Lock Icon */}
-                <div className="flex justify-center -mt-8">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 p-1 shadow-lg">
-                    <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
+                {/* Removed the overlapping lock icon from the login form */}
                 
                 <div className="p-6 pt-10">
-                  {/* Form Header */}
                   <div className="text-center mb-6">
                     <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-1">
                       Authentication Required
@@ -268,10 +241,7 @@ const AccessGate = ({ children }) => {
                       Enter your passkey to access your secure files
                     </p>
                   </div>
-                  
-                  {/* Login Form */}
                   <form id="access-form" onSubmit={handleSubmit} className="space-y-4">
-                    {/* Password Input with Security Borders */}
                     <div className="relative">
                       <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg blur opacity-30"></div>
                       <div className="relative">
@@ -290,7 +260,7 @@ const AccessGate = ({ children }) => {
                         >
                           {passwordVisible ? (
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59" />
                             </svg>
                           ) : (
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -301,8 +271,6 @@ const AccessGate = ({ children }) => {
                         </button>
                       </div>
                     </div>
-                    
-                    {/* Error Message */}
                     {error && (
                       <div className="py-2 px-3 bg-red-900/50 border border-red-700 rounded-lg text-red-400 text-sm flex items-center space-x-2 animate-pulse">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -311,8 +279,6 @@ const AccessGate = ({ children }) => {
                         <span>{error}</span>
                       </div>
                     )}
-                    
-                    {/* Submit Button */}
                     <button
                       type="submit"
                       className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-medium rounded-lg transition-all duration-200 relative overflow-hidden group"
@@ -326,10 +292,14 @@ const AccessGate = ({ children }) => {
                       </span>
                     </button>
                     
-                    {/* Information Tags */}
+                    {/* Information Tags with sequential fade-in */}
                     <div className="pt-4 flex flex-wrap justify-center gap-2">
                       {['Secure', 'Encrypted', 'Protected', 'Private'].map((tag, i) => (
-                        <span key={i} className="px-2 py-1 rounded-full text-xs bg-gray-800 text-gray-400 border border-gray-700">
+                        <span 
+                          key={i} 
+                          className="px-2 py-1 rounded-full text-xs bg-gray-800 text-gray-400 border border-gray-700 opacity-0 animate-fadeIn"
+                          style={{ animationDelay: `${i * 0.5}s`, animationFillMode: 'forwards' }}
+                        >
                           {tag}
                         </span>
                       ))}
@@ -380,15 +350,13 @@ const AccessGate = ({ children }) => {
         )}
       </div>
 
-      {/* Decorative Elements */}
-      <div className="fixed bottom-6 right-6 text-gray-600/20 text-xs hidden md:block">
-        <div className="flex flex-col items-end space-y-1">
-          <div>TIMELESS v2.0</div>
-          <div>SECURITY GATE</div>
-        </div>
+      {/* New Bottom-Right Info (only on desktop) */}
+      <div className="fixed bottom-6 right-6 text-gray-500 text-sm hidden md:flex flex-col items-end">
+        <span>End-to-End Encrypted</span>
+        <span>Secure Gateway</span>
       </div>
       
-      {/* Additional decorative tech shapes */}
+      {/* Additional decorative elements */}
       <div className="fixed top-10 left-10 w-16 h-16 opacity-10 hidden lg:block">
         <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
           <circle cx="50" cy="50" r="40" fill="none" stroke="#3b82f6" strokeWidth="2" />
@@ -402,7 +370,7 @@ const AccessGate = ({ children }) => {
         </svg>
       </div>
       
-      {/* Add custom animation definitions */}
+      {/* Custom animation definitions */}
       <style jsx>{`
         .bg-grid-pattern {
           background-image: radial-gradient(circle, #3b82f6 1px, transparent 1px);
@@ -429,13 +397,22 @@ const AccessGate = ({ children }) => {
           animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
         }
         
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        
         .animate-pulse {
           animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
         
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        .animate-fadeIn {
+          animation: fadeIn 0.5s forwards;
         }
       `}</style>
     </div>

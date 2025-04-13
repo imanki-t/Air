@@ -6,8 +6,7 @@ const AccessGate = ({ children }) => {
   const [fadeOut, setFadeOut] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const [loading, setLoading] = useState(true);
-  // We'll use a phase variable to trigger status texts
-  const [phase, setPhase] = useState(0);
+  // phase state no longer needed for the quote; we use it for timing status messages.
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [mouseMovePosition, setMouseMovePosition] = useState({ x: 0, y: 0 });
 
@@ -28,7 +27,7 @@ const AccessGate = ({ children }) => {
   const [typedQuote, setTypedQuote] = useState('');
 
   useEffect(() => {
-    // Pick a random quote and initiate the typing effect.
+    // Pick a random quote and initiate typing effect.
     const quote = quotes[Math.floor(Math.random() * quotes.length)];
     setCurrentQuote(quote);
     let index = 0;
@@ -44,23 +43,13 @@ const AccessGate = ({ children }) => {
       setUnlocked(true);
     } else {
       // Loading timeline:
-      // 0-2 sec: Loading circle only.
-      // 2-3 sec: First status appears.
-      // 3-4 sec: Second status.
-      // 4-5 sec: Third status.
-      // 5-6 sec: Fourth status.
-      // 6-8 sec: Wait for a smooth transition.
-      setTimeout(() => setPhase(1), 2000); // Start status messages.
-      setTimeout(() => setPhase(2), 3000);
-      setTimeout(() => setPhase(3), 4000);
-      setTimeout(() => setPhase(4), 5000);
-      setTimeout(() => {
-        setLoading(false);
-        setPhase(5);
-      }, 8000);
+      // 0-2 sec: Only the loading circle.
+      // 2-6 sec: The four status texts appear one by one in the center of the circle.
+      // 8 sec: Transition to login.
+      setTimeout(() => setLoading(false), 8000);
     }
 
-    // Parallax effect for the background.
+    // Parallax effect for background.
     const handleMouseMove = (e) => {
       const x = (e.clientX / window.innerWidth) * 10;
       const y = (e.clientY / window.innerHeight) * 10;
@@ -104,7 +93,6 @@ const AccessGate = ({ children }) => {
     setPasswordVisible(!passwordVisible);
   };
 
-  // When already authenticated, render children.
   if (unlocked) return children;
 
   return (
@@ -112,7 +100,7 @@ const AccessGate = ({ children }) => {
       className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ease-in-out overflow-hidden ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
       style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}
     >
-      {/* Background Grid and Animations */}
+      {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div 
           className="absolute inset-0 opacity-10"
@@ -123,6 +111,7 @@ const AccessGate = ({ children }) => {
             transition: 'transform 0.5s ease-out'
           }}
         />
+        {/* Orbital Rings */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none">
           {[1,2,3,4].map(ring => (
             <div key={ring}
@@ -138,6 +127,7 @@ const AccessGate = ({ children }) => {
             />
           ))}
         </div>
+        {/* Floating Particles */}
         <div className="absolute inset-0">
           {Array.from({ length: 30 }).map((_, i) => (
             <div key={i}
@@ -175,34 +165,31 @@ const AccessGate = ({ children }) => {
         </div>
       </header>
       
-      {/* Main Content Area (Loading or Login) */}
+      {/* Main Content Area */}
       <div className="relative z-10 w-full max-w-md mx-auto px-4 mt-28 sm:mt-32">
         {loading ? (
-          <div className="flex flex-col items-center justify-center p-8">
-            {/* Loading Circle (visible during the first 2 seconds) */}
-            <div className={`w-24 h-24 mb-6 transition-opacity duration-500 ${phase === 0 ? 'opacity-100' : 'opacity-0'}`}>
+          // Loading Screen (loading circle with status texts)
+          <div className="relative flex flex-col items-center justify-center p-8">
+            <div className="relative w-24 h-24 mb-6">
+              {/* Loading Circle */}
               <div className="absolute inset-0 rounded-full border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
               <div className="absolute inset-3 rounded-full border-4 border-t-transparent border-r-purple-500 border-b-transparent border-l-transparent animate-spin" style={{ animationDuration: '1.5s' }}></div>
               <div className="absolute inset-6 rounded-full border-4 border-t-transparent border-r-transparent border-b-blue-500 border-l-transparent animate-spin" style={{ animationDuration: '2s' }}></div>
-            </div>
-            {/* Typing Quote (remains once typed in the same font as before) */}
-            <p className="text-gray-300 italic text-center mb-6 font-mono text-sm whitespace-pre">
-              {typedQuote}
-            </p>
-            {/* Sequential Status Messages */}
-            <div className="flex flex-col gap-1">
-              {["Encrypting", "Securing", "Connecting", "Verifying"].map((status, i) => (
-                <span key={i}
-                  className="text-gray-300 text-sm opacity-0 animate-statusFade"
-                  style={{ animationDelay: `${2 + i * 1}s`, animationFillMode: 'forwards' }}
-                >
-                  {status}
-                </span>
-              ))}
+              {/* Centered Sequential Status Texts */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                {["Encrypting", "Securing", "Connecting", "Verifying"].map((status, i) => (
+                  <span key={i}
+                    className="absolute text-gray-300 text-sm"
+                    style={{ animation: `statusFadeInOut 1s forwards`, animationDelay: `${2 + i}s` }}
+                  >
+                    {status}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         ) : (
-          // Login Form
+          // Login Form Area
           <div className="flex flex-col items-center">
             <div className="w-full relative max-w-xs sm:max-w-sm">
               <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-2xl opacity-70 blur-sm animate-pulse"></div>
@@ -270,6 +257,7 @@ const AccessGate = ({ children }) => {
                     </button>
                   </form>
                 </div>
+                {/* Display the quote only on the login screen */}
                 <div className="p-4 border-t border-gray-800 text-center">
                   <p className="text-gray-400 text-sm italic">{currentQuote}</p>
                 </div>
@@ -287,11 +275,11 @@ const AccessGate = ({ children }) => {
       </div>
       
       {/* Copyright Text */}
-      {/* For desktop/tablet: bottom-right; for mobile: full width and centered at the bottom */}
+      {/* Desktop/Tablet: bottom-right; Mobile: bottom center with extra padding */}
       <div className="hidden md:flex fixed bottom-6 right-6 text-gray-500 text-xs font-mono">
         <span>© {new Date().getFullYear()} Timeless • All Rights Reserved • End-to-End Encrypted</span>
       </div>
-      <div className="flex md:hidden fixed bottom-2 w-full justify-center text-gray-500 text-xs font-mono">
+      <div className="flex md:hidden fixed bottom-2 w-full justify-center px-4 text-gray-500 text-xs font-mono">
         <span>© {new Date().getFullYear()} Timeless • All Rights Reserved • End-to-End Encrypted</span>
       </div>
       
@@ -335,13 +323,11 @@ const AccessGate = ({ children }) => {
           animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
         }
         
-        @keyframes statusFade {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .animate-statusFade {
-          animation: statusFade 1s forwards;
+        @keyframes statusFadeInOut {
+          0% { opacity: 0; }
+          30% { opacity: 1; }
+          70% { opacity: 1; }
+          100% { opacity: 0; }
         }
       `}</style>
     </div>

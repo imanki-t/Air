@@ -105,22 +105,14 @@ function App() {
                 >
                   Timeless
                 </h1>
-                {/* Replaced "Void!" with "Hello!" */}
-                <h2 
-                  className="text-lg font-light flex items-center"
-                  style={{ 
-                    fontFamily: "'Inter', sans-serif",
-                    fontWeight: 300,
-                    letterSpacing: '0.05em'
-                  }}
-                >
-                  <span className="tracking-wide">Hello!</span>
-                  <img 
-                    src="/apple-heart-eyes.png" 
-                    alt="🥰" 
-                    className="w-5 h-5 ml-2 inline-block" 
-                  />
-                </h2>
+<h2 className="text-sm sm:text-base font-vintage flex items-center tracking-wide">
+  <span>Hello!</span>
+  <img 
+    src="/apple-heart-eyes.png" 
+    alt="🥰" 
+    className="w-5 h-5 ml-2 inline-block" 
+  />
+</h2>
               </div>
             </div>
           </div>

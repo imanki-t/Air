@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -10,6 +11,22 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
   const [copied, setCopied] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Escape' || e.key === 'Cancel') {
+      if (showShare) setShowShare(false);
+      if (showDeleteConfirm) setShowDeleteConfirm(false);
+    }
+  }, [showShare, showDeleteConfirm]);
+
+  useEffect(() => {
+    if (showShare || showDeleteConfirm) {
+      window.addEventListener('keydown', handleKeyDown);
+    } else {
+      window.removeEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showShare, showDeleteConfirm, handleKeyDown]);
 
   const download = () => {
     window.open(`${backendUrl}/api/files/download/${file._id}`, '_blank');
@@ -90,24 +107,12 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
     );
   };
 
-  useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape') {
-        setShowShare(false);
-        setShowDeleteConfirm(false);
-      }
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, []);
-
   return (
     <>
       <div className={`w-full transition-all duration-300 ease-in-out 
-        ${showMetadata ? 'h-auto' : 'h-[180px]'}
-        flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-md overflow-hidden border ${darkMode
-          ? 'bg-gray-800 border-gray-700 text-white'
-          : 'bg-white border-gray-200 text-gray-900'}`}>
+        ${showMetadata ? 'h-auto' : 'h-[180px]'} 
+        flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-md overflow-hidden border 
+        ${darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
 
         {renderPreview()}
         <h3 className={`font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-800'}`}>
@@ -123,52 +128,27 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                onClick={download}
-                className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
-              >
-                Download
-              </button>
-              <button
-                onClick={share}
-                className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode
-                  ? 'bg-green-600 hover:bg-green-700 text-white'
-                  : 'bg-green-600 hover:bg-green-700 text-white'}`}
-                disabled={isLoading}
-              >
+              <button onClick={download} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>Download</button>
+              <button onClick={share} disabled={isLoading} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
                 {isLoading ? 'Generating...' : 'Share'}
               </button>
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'bg-red-600 hover:bg-red-700 text-white'}`}
-              >
-                Delete
-              </button>
+              <button onClick={() => setShowDeleteConfirm(true)} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}>Delete</button>
             </div>
           </>
         )}
       </div>
 
-      {/* Share Modal */}
       {showShare && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
           <div className={`p-6 rounded-xl max-w-sm w-full relative shadow-lg ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
             <button
               onClick={() => setShowShare(false)}
-              className={`absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full ${darkMode
-                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+              className={`absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full ${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
               title="Close"
             >
               ×
             </button>
-            <h2 className={`font-bold mb-4 text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-              Shareable Link
-            </h2>
+            <h2 className={`font-bold mb-4 text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>Shareable Link</h2>
 
             {shareLink ? (
               <div className="flex justify-center mb-4">
@@ -191,15 +171,11 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
               <input
                 value={shareLink}
                 readOnly
-                className={`w-full px-3 py-2 pr-24 rounded font-mono text-sm ${darkMode
-                  ? 'bg-gray-700 border-gray-600 text-gray-200'
-                  : 'bg-gray-100 border-gray-200 text-gray-800'} border`}
+                className={`w-full px-3 py-2 pr-24 rounded font-mono text-sm border ${darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-gray-100 border-gray-200 text-gray-800'}`}
               />
               <button
                 onClick={copyToClipboard}
-                className={`absolute right-1 top-1 px-3 py-1 rounded ${darkMode
-                  ? copied ? 'bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
-                  : copied ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'} text-white text-sm`}
+                className={`absolute right-1 top-1 px-3 py-1 rounded ${darkMode ? copied ? 'bg-green-700' : 'bg-blue-600 hover:bg-blue-700' : copied ? 'bg-green-600' : 'bg-blue-600 hover:bg-blue-700'} text-white text-sm`}
               >
                 {copied ? 'Copied!' : 'Copy'}
               </button>
@@ -208,13 +184,10 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
           <div className={`p-6 rounded-xl max-w-sm w-full relative shadow-lg ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
-            <h2 className={`font-bold mb-4 text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-              Confirm Delete
-            </h2>
+            <h2 className={`font-bold mb-4 text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>Confirm Delete</h2>
             <p className={`text-sm mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               Are you sure you want to delete
               <div className="font-bold max-w-full truncate overflow-hidden whitespace-nowrap my-1">
@@ -223,20 +196,8 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
               This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className={`px-4 py-2 rounded-md font-medium ${darkMode
-                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={deleteFile}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium"
-              >
-                Delete
-              </button>
+              <button onClick={() => setShowDeleteConfirm(false)} className={`px-4 py-2 rounded-md font-medium ${darkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}>Cancel</button>
+              <button onClick={deleteFile} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium">Delete</button>
             </div>
           </div>
         </div>

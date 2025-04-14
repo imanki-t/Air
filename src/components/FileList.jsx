@@ -211,7 +211,7 @@ const FileList = ({ files, refresh, darkMode }) => {
               : type === 'video'
               ? 'Videos'
               : type === 'audio'
-              ? 'Audio'
+              ? 'Audios'
               : type === 'document'
               ? 'Docs'
               : 'Other'}

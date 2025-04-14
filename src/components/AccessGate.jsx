@@ -206,10 +206,11 @@ const AccessGate = ({ children }) => {
       <header className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4">
         <div className="flex items-center space-x-3">
           <div className="flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-lg">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 sm:h-10 sm:w-10 text-white" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-            </svg>
-          </div>
+  <img 
+    src="/cat-bg.jpg" 
+    className="h-8 w-8 sm:h-10 sm:w-10"
+  />
+</div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
               TIMELESS

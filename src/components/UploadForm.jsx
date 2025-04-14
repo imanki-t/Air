@@ -157,17 +157,7 @@ const UploadForm = ({ refresh, darkMode }) => {
             >
               Cancel Upload
             </button>
-            <button
-              type="button"
-              onClick={handleRemove}
-              className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                darkMode
-                  ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
-              }`}
-            >
-              Remove File
-            </button>
+            {/* Removed the Remove button while uploading */}
           </div>
         </>
       )}

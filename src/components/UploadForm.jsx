@@ -157,13 +157,12 @@ const UploadForm = ({ refresh, darkMode }) => {
             >
               Cancel Upload
             </button>
-            {/* Removed the Remove button while uploading */}
           </div>
         </>
       )}
 
       {!isUploading && file && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex justify-between items-center w-full mt-4">
           <button
             type="submit"
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"

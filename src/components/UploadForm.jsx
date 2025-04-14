@@ -162,7 +162,7 @@ const UploadForm = ({ refresh, darkMode }) => {
       )}
 
       {!isUploading && file && (
-        <div className="flex justify-between items-center w-full mt-4">
+        <div className="flex gap-2">
           <button
             type="submit"
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"

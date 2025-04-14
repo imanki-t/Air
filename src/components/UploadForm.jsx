@@ -149,11 +149,11 @@ const UploadForm = ({ refresh, darkMode }) => {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="flex justify-center flex-wrap gap-2 mb-3">
+          <div className="flex justify-between gap-2 mb-3">
             <button
               type="button"
               onClick={handleCancel}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors"
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors w-full"
             >
               Cancel Upload
             </button>
@@ -162,21 +162,17 @@ const UploadForm = ({ refresh, darkMode }) => {
       )}
 
       {!isUploading && file && (
-        <div className="flex gap-2">
+        <div className="flex justify-between gap-2">
           <button
             type="submit"
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors w-full"
           >
             Upload
           </button>
           <button
             type="button"
             onClick={handleRemove}
-            className={`px-4 py-2 rounded-md font-medium transition-colors ${
-              darkMode
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-red-500 hover:bg-red-600 text-white'
-            }`}
+            className={`px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors w-full`}
           >
             Remove
           </button>

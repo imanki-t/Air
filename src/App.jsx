@@ -56,7 +56,7 @@ function App() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 text-white p-4">
         <div className="bg-gray-800 bg-opacity-90 p-6 rounded-lg max-w-lg text-center shadow-lg">
           <h1 className="text-2xl font-semibold mb-4">Something went wrong</h1>
           <p className="mb-6">{error}</p>

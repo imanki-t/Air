@@ -12,16 +12,16 @@ const AccessGate = ({ children }) => {
 
   // For the login form quote (appears only on the login screen)
   const quotes = [
-    "Secure your memories for eternity.",
-    "The future is private. The future is secure.",
-    "Your digital sanctuary awaits.",
-    "Some treasures deserve the strongest protection.",
-    "Beyond this gate lies your digital legacy.",
-    "Security is not just a feature, it's a promise.",
-    "Memories beyond time, files beyond space.",
-    "Every file tells a story worth protecting.",
-    "The key to your digital universe.",
-    "Privacy is the foundation of digital freedom.",
+    "Built a dirt house for the nostalgia. Would die for it.",
+"The future got drip, like me?",
+"Home is where the creeper didn’t explode.",
+"Diamond hoe? In a locked chest. Respect it.",
+"Walk through that nether portal like it’s a runway.",
+"Trust issues? I cover my redstone with obsidian.",
+"Built this world in 2012. Still better than real life.",
+"Every dog I tamed has a name and a backstory.",
+"It all started with one tree punch. Now I run the realm.",
+"I built a secret base under my friend’s base. He still doesn’t know.",
   ];
   const [currentQuote, setCurrentQuote] = useState('');
   const [typedQuote, setTypedQuote] = useState('');

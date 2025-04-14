@@ -354,7 +354,7 @@ const AccessGate = ({ children }) => {
                 <div className="p-6 pt-10">
                   <div className="text-center mb-6">
                     <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-1">
-                      Authentication Required
+                      SECURE ACCESS 
                     </h2>
                     <p className="text-gray-400 text-sm">
                       Enter your passkey to access your secure files!

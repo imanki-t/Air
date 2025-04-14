@@ -61,32 +61,33 @@ const FileList = ({ files, refresh, darkMode }) => {
       </h2>
 
       {/* Search, View, Metadata Toggle, and Sort/Group Toggle */}
-      <div className="flex-grow">
-  <div className="relative">
-    <input
-      type="text"
-      placeholder="⌕"
-      value={searchInput}
-      onChange={(e) => setSearchInput(e.target.value)}
-      className={`font-light search-placeholder w-full sm:max-w-sm px-4 py-2 pr-10 rounded-lg transition-colors ${
-        darkMode
-          ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400'
-          : 'bg-gray-100 text-gray-900 border-gray-200 placeholder-gray-500'
-      } border focus:outline-none focus:ring-2 ${
-        darkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
-      }`}
-    />
-    {searchInput && (
-      <button
-        onClick={clearSearch}
-        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-        title="Clear"
-      >
-        ×
-      </button>
-    )}
-  </div>
-</div>
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex-grow">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="⌕"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className={`font-light search-placeholder w-full sm:max-w-sm px-4 py-2 pr-10 rounded-lg transition-colors ${
+                darkMode
+                  ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400'
+                  : 'bg-gray-100 text-gray-900 border-gray-200 placeholder-gray-500'
+              } border focus:outline-none focus:ring-2 ${
+                darkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
+              }`}
+            />
+            {searchInput && (
+              <button
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                title="Clear"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
 
         <div className="flex gap-2 items-center">
           {/* Metadata Toggle - Updated with consistent text color */}

@@ -47,6 +47,9 @@ const FileList = ({ files, refresh, darkMode }) => {
     setShowSortOptions(false);
   };
 
+  // Define consistent text color for utility buttons (metadata toggle, view toggles, sort)
+  const buttonTextColor = darkMode ? 'text-white' : 'text-gray-600';
+
   return (
     <div
       className={`transition-colors duration-300 rounded-xl ${
@@ -87,18 +90,16 @@ const FileList = ({ files, refresh, darkMode }) => {
         </div>
 
         <div className="flex gap-2 items-center">
-          {/* Metadata Toggle */}
+          {/* Metadata Toggle - Updated with consistent text color */}
           <button
             onClick={() => setShowMetadata(!showMetadata)}
             className={`p-2 rounded-md transition-colors ${
               showMetadata
-                ? darkMode
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-blue-600 text-white'
+                ? 'bg-blue-600 text-white'
                 : darkMode
-                ? 'bg-gray-700 text-gray-300'
-                : 'bg-gray-200 text-gray-600'
-            }`}
+                ? 'bg-gray-700'
+                : 'bg-gray-200'
+            } ${!showMetadata ? buttonTextColor : ''}`}
             title="Toggle Metadata and Buttons"
           >
             <svg
@@ -116,34 +117,30 @@ const FileList = ({ files, refresh, darkMode }) => {
               />
             </svg>
           </button>
-          {/* Sort / Group Toggle */}
+          {/* Sort / Group Toggle - Updated with consistent text color */}
           <button
             onClick={() => setShowSortOptions(true)}
             className={`p-2 rounded-md transition-colors ${
               sortOption !== 'default'
-                ? darkMode
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-blue-600 text-white'
+                ? 'bg-blue-600 text-white'
                 : darkMode
-                ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-            }`}
+                ? 'bg-gray-700 hover:bg-gray-600'
+                : 'bg-gray-200 hover:bg-gray-300'
+            } ${sortOption === 'default' ? buttonTextColor : ''}`}
             title="Sort Options"
           >
             <span className="block h-5 w-5 text-center leading-none font-bold">⧉</span>
           </button>
-          {/* List View */}
+          {/* List View - Updated with consistent text color */}
           <button
             onClick={() => setView('list')}
             className={`p-2 rounded-md transition-colors ${
               view === 'list'
-                ? darkMode
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-blue-600 text-white'
+                ? 'bg-blue-600 text-white'
                 : darkMode
-                ? 'bg-gray-700 text-gray-300'
-                : 'bg-gray-200 text-gray-600'
-            }`}
+                ? 'bg-gray-700'
+                : 'bg-gray-200'
+            } ${view !== 'list' ? buttonTextColor : ''}`}
             title="List View"
           >
             <svg
@@ -156,18 +153,16 @@ const FileList = ({ files, refresh, darkMode }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          {/* Grid View */}
+          {/* Grid View - Updated with consistent text color */}
           <button
             onClick={() => setView('grid')}
             className={`p-2 rounded-md transition-colors ${
               view === 'grid'
-                ? darkMode
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-blue-600 text-white'
+                ? 'bg-blue-600 text-white'
                 : darkMode
-                ? 'bg-gray-700 text-gray-300'
-                : 'bg-gray-200 text-gray-600'
-            }`}
+                ? 'bg-gray-700'
+                : 'bg-gray-200'
+            } ${view !== 'grid' ? buttonTextColor : ''}`}
             title="Grid View"
           >
             <svg
@@ -196,9 +191,7 @@ const FileList = ({ files, refresh, darkMode }) => {
             onClick={() => setFilter(type)}
             className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
               filter === type
-                ? darkMode
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-blue-600 text-white'
+                ? 'bg-blue-600 text-white'
                 : darkMode
                 ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -288,9 +281,7 @@ const FileList = ({ files, refresh, darkMode }) => {
                 onClick={() => chooseSortOption('size')}
                 className={`px-3 py-1 rounded-md transition-colors ${
                   sortOption === 'size'
-                    ? darkMode
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-blue-600 text-white'
+                    ? 'bg-blue-600 text-white'
                     : darkMode
                     ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
@@ -302,9 +293,7 @@ const FileList = ({ files, refresh, darkMode }) => {
                 onClick={() => chooseSortOption('date')}
                 className={`px-3 py-1 rounded-md transition-colors ${
                   sortOption === 'date'
-                    ? darkMode
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-blue-600 text-white'
+                    ? 'bg-blue-600 text-white'
                     : darkMode
                     ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
@@ -316,9 +305,7 @@ const FileList = ({ files, refresh, darkMode }) => {
                 onClick={() => chooseSortOption('name')}
                 className={`px-3 py-1 rounded-md transition-colors ${
                   sortOption === 'name'
-                    ? darkMode
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-blue-600 text-white'
+                    ? 'bg-blue-600 text-white'
                     : darkMode
                     ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
@@ -330,9 +317,7 @@ const FileList = ({ files, refresh, darkMode }) => {
                 onClick={() => chooseSortOption('group')}
                 className={`px-3 py-1 rounded-md transition-colors ${
                   sortOption === 'group'
-                    ? darkMode
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-blue-600 text-white'
+                    ? 'bg-blue-600 text-white'
                     : darkMode
                     ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     : 'bg-gray-200 text-gray-600 hover:bg-gray-300'

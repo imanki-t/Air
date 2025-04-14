@@ -149,7 +149,7 @@ const UploadForm = ({ refresh, darkMode }) => {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="flex flex-wrap gap-2 mb-3">
+          <div className="flex justify-center flex-wrap gap-2 mb-3">
             <button
               type="button"
               onClick={handleCancel}

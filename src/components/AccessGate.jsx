@@ -8,6 +8,7 @@ const AccessGate = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [mouseMovePosition, setMouseMovePosition] = useState({ x: 0, y: 0 });
+  const [showPhases, setShowPhases] = useState(false);
 
   // For the login form quote (appears only on the login screen)
   const quotes = [
@@ -28,6 +29,7 @@ const AccessGate = ({ children }) => {
   // Array for the status messages
   const phases = ["Encrypting", "Securing", "Connecting", "Verifying"];
   const [currentPhase, setCurrentPhase] = useState(0);
+  const [phaseVisible, setPhaseVisible] = useState(false);
 
   useEffect(() => {
     const quote = quotes[Math.floor(Math.random() * quotes.length)];
@@ -43,9 +45,15 @@ const AccessGate = ({ children }) => {
     if (unlockedBefore === 'true') {
       setUnlocked(true);
     } else {
+      // First wait 3 seconds with just the rings
+      setTimeout(() => {
+        setShowPhases(true);
+      }, 3000);
+
+      // Then set the total loading time to 3s + (1s * number of phases)
       setTimeout(() => {
         setLoading(false);
-      }, 8000);
+      }, 3000 + (phases.length * 1000));
     }
 
     const handleMouseMove = (e) => {
@@ -58,13 +66,28 @@ const AccessGate = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    if (loading && currentPhase < phases.length - 1) {
-      const timer = setTimeout(() => {
-        setCurrentPhase(prev => prev + 1);
+    if (loading && showPhases) {
+      // Show the current phase with animation
+      setPhaseVisible(true);
+      
+      // Hide after 0.8s to create a smooth transition
+      const hideTimer = setTimeout(() => {
+        setPhaseVisible(false);
+      }, 800);
+      
+      // After 1s total, move to the next phase
+      const nextTimer = setTimeout(() => {
+        if (currentPhase < phases.length - 1) {
+          setCurrentPhase(prev => prev + 1);
+        }
       }, 1000);
-      return () => clearTimeout(timer);
+      
+      return () => {
+        clearTimeout(hideTimer);
+        clearTimeout(nextTimer);
+      };
     }
-  }, [currentPhase, loading]);
+  }, [currentPhase, loading, showPhases]);
 
   useEffect(() => {
     if (error) {
@@ -180,11 +203,13 @@ const AccessGate = ({ children }) => {
                 <div className="absolute inset-6 rounded-full border-4 border-t-transparent border-r-purple-500 border-b-transparent border-l-transparent animate-spin" style={{ animationDuration: '1.5s' }}></div>
                 <div className="absolute inset-12 rounded-full border-4 border-t-transparent border-r-transparent border-b-blue-500 border-l-transparent animate-spin" style={{ animationDuration: '2s' }}></div>
               </div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-gray-300 text-xl md:text-2xl animate-fadeInOut">
-                  {phases[currentPhase]}
-                </span>
-              </div>
+              {showPhases && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className={`text-gray-300 text-xl md:text-2xl transition-opacity duration-300 ${phaseVisible ? 'opacity-100' : 'opacity-0'}`}>
+                    {phases[currentPhase]}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -333,16 +358,6 @@ const AccessGate = ({ children }) => {
           
         .animate-shake {
           animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-        }
-        
-        @keyframes fadeInOut {
-          0% { opacity: 0; transform: translateY(0.25rem); }
-          20% { opacity: 1; transform: translateY(0); }
-          80% { opacity: 1; transform: translateY(0); }
-          100% { opacity: 0; transform: translateY(-0.25rem); }
-        }
-        .animate-fadeInOut {
-          animation: fadeInOut 1s ease-in-out;
         }
       `}</style>
     </div>

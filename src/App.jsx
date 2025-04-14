@@ -74,7 +74,7 @@ function App() {
   return (
     <AccessGate>
       <div
-        className={`min-h-screen transition-colors duration-300 ${
+        className={`w-full min-h-screen flex flex-col transition-colors duration-300 ${
           darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
         }`}
       >
@@ -117,7 +117,7 @@ function App() {
         </header>
 
         {/* Main Content */}
-        <main className="max-w-6xl mx-auto p-4 sm:p-6">
+        <main className="flex-grow max-w-6xl mx-auto p-4 sm:p-6">
           <UploadForm refresh={fetchFiles} darkMode={darkMode} />
           <FileList files={files} refresh={fetchFiles} darkMode={darkMode} />
         </main>

@@ -117,9 +117,14 @@ function App() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-grow max-w-6xl mx-auto p-4 sm:p-6">
+        <main className="flex-grow w-full max-w-6xl mx-auto p-4 sm:p-6 flex flex-col">
+          {/* The `UploadForm` component */}
           <UploadForm refresh={fetchFiles} darkMode={darkMode} />
-          <FileList files={files} refresh={fetchFiles} darkMode={darkMode} />
+          
+          {/* FileList is shown only if files are present */}
+          <div className={`flex-grow ${files.length === 0 ? 'flex justify-center items-center' : ''}`}>
+            <FileList files={files} refresh={fetchFiles} darkMode={darkMode} />
+          </div>
         </main>
 
         {/* Footer */}

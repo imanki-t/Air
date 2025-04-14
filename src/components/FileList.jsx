@@ -130,7 +130,7 @@ const FileList = ({ files, refresh, darkMode }) => {
             }`}
             title="Sort Options"
           >
-            <span className="block h-5 w-5 text-center leading-none">⧉</span>
+            <span className="block h-5 w-5 text-center leading-none font-bold">⧉</span>
           </button>
           {/* List View */}
           <button

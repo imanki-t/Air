@@ -104,7 +104,7 @@ const UploadForm = ({ refresh, darkMode }) => {
         darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
       }`}
     >
-      <h3 className={`text-xl font-medium mb-4 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+      <h3 className={`text-xl font-medium mb-4 text-center ${darkMode ? 'text-white' : 'text-gray-800'}`}>
         Upload File
       </h3>
 

@@ -135,7 +135,7 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
                 Download
               </button>
               <button onClick={share} disabled={isLoading} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
-                {isLoading ? 'Generating' : 'Share'}
+                {isLoading ? 'Creating' : 'Share'}
               </button>
               <button onClick={() => setShowDeleteConfirm(true)} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
                 Delete

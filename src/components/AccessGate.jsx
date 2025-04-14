@@ -30,6 +30,7 @@ const AccessGate = ({ children }) => {
   const phases = ["Encrypting", "Securing", "Connecting", "Verifying"];
   const [currentPhase, setCurrentPhase] = useState(0);
   const [phaseVisible, setPhaseVisible] = useState(false);
+  const [phaseOpacity, setPhaseOpacity] = useState(0);
 
   useEffect(() => {
     const quote = quotes[Math.floor(Math.random() * quotes.length)];
@@ -67,13 +68,37 @@ const AccessGate = ({ children }) => {
 
   useEffect(() => {
     if (loading && showPhases) {
-      // Show the current phase with animation
+      // Flag that we want to show a phase
       setPhaseVisible(true);
       
-      // Hide after 0.8s to create a smooth transition
-      const hideTimer = setTimeout(() => {
-        setPhaseVisible(false);
-      }, 800);
+      // Gradually increase opacity over 300ms for smoother appearance
+      setPhaseOpacity(0);
+      const fadeInSteps = 10;
+      const fadeInInterval = 300 / fadeInSteps;
+      
+      let step = 0;
+      const fadeInTimer = setInterval(() => {
+        step++;
+        setPhaseOpacity(step / fadeInSteps);
+        if (step >= fadeInSteps) clearInterval(fadeInTimer);
+      }, fadeInInterval);
+      
+      // Start fading out after 600ms (giving 400ms of full visibility)
+      const fadeOutTimer = setTimeout(() => {
+        const fadeOutSteps = 8;
+        const fadeOutInterval = 300 / fadeOutSteps;
+        
+        let outStep = 0;
+        const intervalId = setInterval(() => {
+          outStep++;
+          setPhaseOpacity(1 - (outStep / fadeOutSteps));
+          
+          if (outStep >= fadeOutSteps) {
+            clearInterval(intervalId);
+            setPhaseVisible(false);
+          }
+        }, fadeOutInterval);
+      }, 600);
       
       // After 1s total, move to the next phase
       const nextTimer = setTimeout(() => {
@@ -83,7 +108,8 @@ const AccessGate = ({ children }) => {
       }, 1000);
       
       return () => {
-        clearTimeout(hideTimer);
+        clearInterval(fadeInTimer);
+        clearTimeout(fadeOutTimer);
         clearTimeout(nextTimer);
       };
     }
@@ -203,9 +229,15 @@ const AccessGate = ({ children }) => {
                 <div className="absolute inset-6 rounded-full border-4 border-t-transparent border-r-purple-500 border-b-transparent border-l-transparent animate-spin" style={{ animationDuration: '1.5s' }}></div>
                 <div className="absolute inset-12 rounded-full border-4 border-t-transparent border-r-transparent border-b-blue-500 border-l-transparent animate-spin" style={{ animationDuration: '2s' }}></div>
               </div>
-              {showPhases && (
+              {showPhases && phaseVisible && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className={`text-gray-300 text-xl md:text-2xl transition-opacity duration-300 ${phaseVisible ? 'opacity-100' : 'opacity-0'}`}>
+                  <span 
+                    className="text-gray-300 text-xl md:text-2xl"
+                    style={{ 
+                      opacity: phaseOpacity,
+                      transition: 'opacity 100ms ease-in-out',
+                    }}
+                  >
                     {phases[currentPhase]}
                   </span>
                 </div>

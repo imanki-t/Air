@@ -174,8 +174,8 @@ const UploadForm = ({ refresh, darkMode }) => {
             onClick={handleRemove}
             className={`px-4 py-2 rounded-md font-medium transition-colors ${
               darkMode
-                ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                ? 'bg-red-600 hover:bg-red-700 text-white'
+                : 'bg-red-500 hover:bg-red-600 text-white'
             }`}
           >
             Remove

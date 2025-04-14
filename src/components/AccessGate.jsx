@@ -12,7 +12,7 @@ const AccessGate = ({ children }) => {
 
   // For the login form quote (appears only on the login screen)
   const quotes = [
-    "Built a dirt house for the nostalgia. Would die for it.",
+"Built a dirt house for the nostalgia. Would die for it.",
 "The future got drip, like me?",
 "Home is where the creeper didn’t explode.",
 "Diamond hoe? In a locked chest. Respect it.",
@@ -118,7 +118,7 @@ const AccessGate = ({ children }) => {
 "I put the 'craft' in 'outcrafted'",
 "This world is powered by redstone and dreams",
 "Placing blocks is therapy",
-"I fear no man, but baby zombies terrify me"
+"I fear no man, but baby zombies terrify me",
 "I built a secret base under my friend’s base. He still doesn’t know.",
   ];
   const [currentQuote, setCurrentQuote] = useState('');

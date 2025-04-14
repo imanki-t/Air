@@ -40,5 +40,5 @@
 .search-placeholder::placeholder {
   font-size: 1.5rem;
   position: relative;
-  top: -2px;
+  top: -1px;
 }

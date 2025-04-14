@@ -68,7 +68,7 @@ const FileList = ({ files, refresh, darkMode }) => {
       placeholder="⌕"
       value={searchInput}
       onChange={(e) => setSearchInput(e.target.value)}
-      className={`font-normal search-placeholder w-full sm:max-w-sm px-4 py-2 pr-10 rounded-lg transition-colors ${
+      className={`font-light search-placeholder w-full sm:max-w-sm px-4 py-2 pr-10 rounded-lg transition-colors ${
         darkMode
           ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400'
           : 'bg-gray-100 text-gray-900 border-gray-200 placeholder-gray-500'

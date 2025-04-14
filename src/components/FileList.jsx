@@ -267,7 +267,7 @@ const FileList = ({ files, refresh, darkMode }) => {
               ×
             </button>
             <h2 className={`font-bold mb-4 text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-              Sort / Group Options
+              Sort Options
             </h2>
             <div className="flex flex-col gap-2">
               <button
@@ -338,7 +338,7 @@ const FileList = ({ files, refresh, darkMode }) => {
                     : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                 }`}
               >
-                Group by Type
+                Sort by Type
               </button>
             </div>
           </div>

@@ -207,7 +207,7 @@ const AccessGate = ({ children }) => {
         <div className="flex items-center space-x-3">
           <div className="flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-lg">
   <img 
-    src="/cat-bg.jpg" 
+    src="/android-chrome-512x512.png" 
     className="h-8 w-8 sm:h-10 sm:w-10"
   />
 </div>

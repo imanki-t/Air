@@ -155,7 +155,7 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
             >
                ×
             </button>
-            <h2 className={`font-bold mb-4 text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>Shareable Link</h2>
+            <h2 className={`font-bold mb-4 text-lg text-center ${darkMode ? 'text-white' : 'text-gray-800'}`}>Shareable Link</h2>
 
             {shareLink ? (
               <div className="flex justify-center mb-4">

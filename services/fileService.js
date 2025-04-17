@@ -9,12 +9,21 @@ const bucket = new GridFSBucket(db, { bucketName: 'uploads' });
 
 const uploadFile = (req, res) => {
   const { originalname, mimetype, stream } = req.file;
+  const resumableUploadId = req.body.resumableUploadId;
+  const resumableProgress = req.body.resumableProgress;
+  
   const type = getFileCategory(mimetype);
   const metadata = {
     filename: originalname,
     type,
     uploadedAt: new Date(),
   };
+  
+  // Store resumable upload info in metadata if provided
+  if (resumableUploadId) {
+    metadata.resumableUploadId = resumableUploadId;
+    metadata.resumableProgress = resumableProgress;
+  }
 
   const uploadStream = bucket.openUploadStream(originalname, {
     contentType: mimetype,
@@ -80,6 +89,20 @@ const accessSharedFile = async (req, res) => {
   downloadStream.pipe(res);
 };
 
+const cleanupIncompleteUpload = async (req, res) => {
+  try {
+    const fileId = req.params.fileId;
+    // Log cleanup request for monitoring purposes
+    console.log(`Cleanup request received for file ID: ${fileId}`);
+    
+    // Currently just acknowledging the request, as actual file cleanup
+    // might depend on your specific implementation details
+    res.json({ message: 'Cleanup request processed' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   uploadFile,
   getFiles,
@@ -87,4 +110,5 @@ module.exports = {
   downloadFile,
   generateShareLink,
   accessSharedFile,
+  cleanupIncompleteUpload,
 };

@@ -17,6 +17,7 @@ const UploadForm = ({ refresh, darkMode }) => {
   const [resumePromptTimer, setResumePromptTimer] = useState(null);
   const controllerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const originalFileRef = useRef(null); // Store the actual file reference
 
   // Check for saved upload state on component mount
   useEffect(() => {
@@ -145,12 +146,15 @@ const UploadForm = ({ refresh, darkMode }) => {
     if (uploadRate <= 0) return null;
     
     const remainingTimeMs = remainingBytes / uploadRate;
-    return formatTimeRemaining(remainingTimeMs / V1000);
+    return formatTimeRemaining(remainingTimeMs / 1000); // Fixed: Changed V1000 to 1000
   };
 
   const handleUpload = async (e) => {
     if (e) e.preventDefault();
-    if (!file) return;
+    
+    // Use the original file if we're resuming, otherwise use the current file
+    const fileToUpload = originalFileRef.current || file;
+    if (!fileToUpload) return;
     
     // Clear the auto-dismiss timer if it exists
     if (resumePromptTimer) {
@@ -159,7 +163,7 @@ const UploadForm = ({ refresh, darkMode }) => {
     }
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', fileToUpload);
     
     // Add metadata to help with resumable uploads on the server side
     if (resumableUpload) {
@@ -172,7 +176,7 @@ const UploadForm = ({ refresh, darkMode }) => {
 
     try {
       setMessage('');
-      setProgress(0);
+      setProgress(resumableUpload ? resumableUpload.progress : 0); // Start from saved progress if resuming
       setIsUploading(true);
       setUploadStartTime(Date.now());
       setEstimatedTime(null);
@@ -203,6 +207,7 @@ const UploadForm = ({ refresh, darkMode }) => {
       // Clear any saved upload state on successful upload
       localStorage.removeItem(STORAGE_KEY);
       setResumableUpload(null);
+      originalFileRef.current = null;
       
       setMessage('File uploaded successfully.');
       setTimeout(() => setMessage(''), 10000);
@@ -231,6 +236,7 @@ const UploadForm = ({ refresh, darkMode }) => {
     // Clean up the stored upload state
     localStorage.removeItem(STORAGE_KEY);
     setResumableUpload(null);
+    originalFileRef.current = null;
     
     if (resumePromptTimer) {
       clearTimeout(resumePromptTimer);
@@ -248,6 +254,7 @@ const UploadForm = ({ refresh, darkMode }) => {
     setMessage('');
     setProgress(0);
     setResumableUpload(null);
+    originalFileRef.current = null;
     
     if (resumePromptTimer) {
       clearTimeout(resumePromptTimer);
@@ -265,6 +272,7 @@ const UploadForm = ({ refresh, darkMode }) => {
       // Clear any existing messages when a new file is selected
       setMessage('');
       setFile(droppedFile);
+      originalFileRef.current = droppedFile; // Store the actual file reference
       
       // If this file matches our saved upload, keep the resumable state
       if (resumableUpload && 
@@ -295,6 +303,7 @@ const UploadForm = ({ refresh, darkMode }) => {
       // Clear any existing messages when a new file is selected
       setMessage('');
       setFile(selectedFile);
+      originalFileRef.current = selectedFile; // Store the actual file reference
       
       // If this file matches our saved upload, keep the resumable state
       if (resumableUpload && 
@@ -315,6 +324,17 @@ const UploadForm = ({ refresh, darkMode }) => {
   };
   
   const handleResumeUpload = () => {
+    // To resume an upload, we need the actual file
+    // Tell the user to select the file again if it's just a placeholder
+    if (!originalFileRef.current) {
+      setMessage('Please select the same file again to resume upload');
+      // Focus on the file input to encourage the user to select the file
+      if (fileInputRef.current) {
+        fileInputRef.current.click();
+      }
+      return;
+    }
+    
     // Clear the auto-dismiss timer if it exists
     if (resumePromptTimer) {
       clearTimeout(resumePromptTimer);
@@ -334,6 +354,7 @@ const UploadForm = ({ refresh, darkMode }) => {
     localStorage.removeItem(STORAGE_KEY);
     setResumableUpload(null);
     setFile(null);
+    originalFileRef.current = null;
     
     // If we had a file ID, request cleanup on the server
     if (resumableUpload?.fileId) {

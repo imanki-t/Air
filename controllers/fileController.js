@@ -6,6 +6,7 @@ module.exports = {
   getFiles: fileService.getFiles,
   deleteFile: fileService.deleteFile,
   downloadFile: fileService.downloadFile,
+  cleanupIncompleteUpload: fileService.cleanupIncompleteUpload,
   generateShareLink: fileService.generateShareLink,
   accessSharedFile: fileService.accessSharedFile,
 };

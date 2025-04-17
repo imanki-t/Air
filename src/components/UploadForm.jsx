@@ -384,31 +384,28 @@ const UploadForm = ({ refresh, darkMode }) => {
     }
   };
 
-  // Handle file upload with delay
-  const handleUpload = async (e) => {
-    if (e) e.preventDefault();
-    
-    // Use the file ref for upload
-    const fileToUpload = uploadFileRef.current || file;
-    if (!fileToUpload) {
-      setMessage('Error: Please select a file to upload');
-      return;
-    }
+  // Find the handleUpload function and fix it - around line 375
+const handleUpload = async (e) => {
+  if (e) e.preventDefault();
+  
+  // Use the file ref for upload
+  const fileToUpload = uploadFileRef.current || file;
+  if (!fileToUpload) {
+    setMessage('Error: Please select a file to upload');
+    return;
+  }
 
-    // Set uploading state immediately so UI shows upload progress
-    setIsUploading(true);
-    setMessage('');
-    setProgress(pendingResume ? pendingResume.progress : 0);
-    
-    // Set a timeout for the actual upload - this happens in the background
-    // The user already sees the uploading UI state
-    uploadTimeoutRef.current = setTimeout(() => {
-      // Only proceed if we're still in uploading state
-      if (isUploading) {
-        performUpload(fileToUpload);
-      }
-    }, UPLOAD_DELAY); // 2 second delay
-  };
+  // Set uploading state immediately so UI shows upload progress
+  setIsUploading(true);
+  setMessage('');
+  setProgress(pendingResume ? pendingResume.progress : 0);
+  
+  // Set a timeout for the actual upload - this happens in the background
+  // The user already sees the uploading UI state
+  uploadTimeoutRef.current = setTimeout(() => {
+    performUpload(fileToUpload);
+  }, UPLOAD_DELAY); // 2 second delay
+};
 
   // Handle cancel upload
   const handleCancel = () => {

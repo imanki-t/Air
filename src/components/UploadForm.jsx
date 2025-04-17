@@ -35,6 +35,8 @@ const UploadForm = ({ refresh, darkMode }) => {
           const timer = setTimeout(() => {
             setResumableUpload(null);
             localStorage.removeItem(STORAGE_KEY);
+            // Clear file state when resume prompt disappears
+            setFile(null);
           }, RESUME_PROMPT_TIMEOUT);
           
           setResumePromptTimer(timer);
@@ -146,7 +148,7 @@ const UploadForm = ({ refresh, darkMode }) => {
     if (uploadRate <= 0) return null;
     
     const remainingTimeMs = remainingBytes / uploadRate;
-    return formatTimeRemaining(remainingTimeMs / 1000); // Fixed: Changed V1000 to 1000
+    return formatTimeRemaining(remainingTimeMs / 1000);
   };
 
   const handleUpload = async (e) => {
@@ -419,13 +421,8 @@ const UploadForm = ({ refresh, darkMode }) => {
           
           <div className="flex justify-between items-center mb-3">
             <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              {progress}%
+              {progress}% {estimatedTime && <span className="ml-1">- {estimatedTime === 'Finalizing' ? estimatedTime : estimatedTime}</span>}
             </div>
-            {estimatedTime && (
-              <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                {estimatedTime === 'Finalizing' ? estimatedTime : `Estimated time: ${estimatedTime}`}
-              </div>
-            )}
           </div>
           
           <div className="flex justify-between gap-2 mb-3">
@@ -440,10 +437,10 @@ const UploadForm = ({ refresh, darkMode }) => {
         </>
       )}
 
-      {/* Resume upload prompt */}
+      {/* Resume upload prompt - Changed from yellow to blue to match site theme */}
       {!isUploading && resumableUpload && (
         <div className="mb-4">
-          <div className={`p-3 rounded ${darkMode ? 'bg-yellow-800 text-yellow-200' : 'bg-yellow-100 text-yellow-800'}`}>
+          <div className={`p-3 rounded ${darkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'}`}>
             <p className="mb-2">Previous upload was interrupted. Would you like to resume from {resumableUpload.progress}%?</p>
             <div className="flex justify-between gap-2">
               <button
@@ -456,7 +453,7 @@ const UploadForm = ({ refresh, darkMode }) => {
               <button
                 type="button"
                 onClick={handleCancelResume}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md font-medium transition-colors w-full"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors w-full"
               >
                 Cancel
               </button>
@@ -484,14 +481,14 @@ const UploadForm = ({ refresh, darkMode }) => {
         </div>
       )}
 
-      {/* Status messages */}
+      {/* Status messages - Changed cancelled text to red */}
       {message && <p className={`mt-3 ${
         message.includes('success')
           ? 'text-green-500'
           : message.includes('failed')
             ? 'text-red-500'
             : message.includes('cancel')
-              ? 'text-yellow-500'
+              ? 'text-red-500'  // Changed from yellow to red
               : 'text-blue-500'
       }`}>{message}</p>}
     </form>

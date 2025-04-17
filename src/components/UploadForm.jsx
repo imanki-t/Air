@@ -7,6 +7,8 @@ const UploadForm = ({ refresh, darkMode }) => {
   const [progress, setProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [truncateLength, setTruncateLength] = useState(15);
+  const [estimatedTime, setEstimatedTime] = useState(null);
+  const [uploadStartTime, setUploadStartTime] = useState(null);
   const controllerRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -24,6 +26,31 @@ const UploadForm = ({ refresh, darkMode }) => {
     return name.length > truncateLength ? name.slice(0, truncateLength) + '...' : name;
   };
 
+  const formatTimeRemaining = (seconds) => {
+    if (seconds < 60) {
+      return `${Math.round(seconds)} second${seconds !== 1 ? 's' : ''}`;
+    } else if (seconds < 3600) {
+      const minutes = Math.floor(seconds / 60);
+      return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+    }
+  };
+
+  const calculateTimeRemaining = (loaded, total, elapsedTime) => {
+    if (progress === 0) return null;
+    
+    const uploadRate = loaded / elapsedTime; // bytes per millisecond
+    const remainingBytes = total - loaded;
+    
+    if (uploadRate <= 0) return null;
+    
+    const remainingTimeMs = remainingBytes / uploadRate;
+    return formatTimeRemaining(remainingTimeMs / 1000);
+  };
+
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!file) return;
@@ -38,6 +65,8 @@ const UploadForm = ({ refresh, darkMode }) => {
       setMessage('');
       setProgress(0);
       setIsUploading(true);
+      setUploadStartTime(Date.now());
+      setEstimatedTime(null);
 
       await axios.post(
         `${import.meta.env.VITE_BACKEND_URL}/api/files/upload`,
@@ -47,6 +76,17 @@ const UploadForm = ({ refresh, darkMode }) => {
           onUploadProgress: (event) => {
             const percent = Math.round((event.loaded * 100) / event.total);
             setProgress(percent);
+            
+            // Calculate estimated time remaining
+            if (uploadStartTime && percent > 0 && percent < 100) {
+              const elapsedTime = Date.now() - uploadStartTime;
+              const timeRemaining = calculateTimeRemaining(event.loaded, event.total, elapsedTime);
+              setEstimatedTime(timeRemaining);
+            }
+            
+            if (percent === 100) {
+              setEstimatedTime('Finalizing...');
+            }
           }
         }
       );
@@ -67,6 +107,8 @@ const UploadForm = ({ refresh, darkMode }) => {
     } finally {
       setProgress(0);
       setIsUploading(false);
+      setEstimatedTime(null);
+      setUploadStartTime(null);
       controllerRef.current = null;
     }
   };
@@ -143,12 +185,24 @@ const UploadForm = ({ refresh, darkMode }) => {
 
       {isUploading && (
         <>
-          <div className={`w-full rounded-full h-4 mb-3 overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+          <div className={`w-full rounded-full h-4 mb-1 overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
             <div
               className="bg-blue-600 h-full transition-all duration-200 ease-in-out"
               style={{ width: `${progress}%` }}
             />
           </div>
+          
+          <div className="flex justify-between items-center mb-3">
+            <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              {progress}%
+            </div>
+            {estimatedTime && (
+              <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                {estimatedTime === 'Finalizing...' ? estimatedTime : `Estimated time: ${estimatedTime}`}
+              </div>
+            )}
+          </div>
+          
           <div className="flex justify-between gap-2 mb-3">
             <button
               type="button"

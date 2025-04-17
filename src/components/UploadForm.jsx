@@ -1,6 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import axios from 'axios';
 
+const UPLOAD_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
+const STORAGE_KEY = 'fileUploadState';
+
 const UploadForm = ({ refresh, darkMode }) => {
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState('');
@@ -9,8 +12,49 @@ const UploadForm = ({ refresh, darkMode }) => {
   const [truncateLength, setTruncateLength] = useState(15);
   const [estimatedTime, setEstimatedTime] = useState(null);
   const [uploadStartTime, setUploadStartTime] = useState(null);
+  const [resumableUpload, setResumableUpload] = useState(null);
   const controllerRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // Check for saved upload state on component mount
+  useEffect(() => {
+    const savedUploadState = localStorage.getItem(STORAGE_KEY);
+    if (savedUploadState) {
+      try {
+        const parsedState = JSON.parse(savedUploadState);
+        const now = Date.now();
+        
+        // Check if the saved state is still valid (within 5 minutes)
+        if (parsedState.timestamp && (now - parsedState.timestamp) < UPLOAD_EXPIRY_TIME) {
+          setResumableUpload(parsedState);
+          setMessage('Upload interrupted. You can resume your previous upload.');
+        } else {
+          // Clear expired upload state
+          localStorage.removeItem(STORAGE_KEY);
+          
+          // If there's a stored file ID, request cleanup on the server
+          if (parsedState.fileId) {
+            cleanupIncompleteUpload(parsedState.fileId);
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing saved upload state:', error);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+  }, []);
+
+  // Cleanup function to remove incomplete uploads on the server
+  const cleanupIncompleteUpload = async (fileId) => {
+    try {
+      await axios.delete(
+        `${import.meta.env.VITE_BACKEND_URL}/api/files/cleanup/${fileId}`
+      );
+      console.log('Cleaned up incomplete upload');
+    } catch (error) {
+      console.error('Error cleaning up incomplete upload:', error);
+    }
+  };
 
   useEffect(() => {
     const updateTruncateLength = () => {
@@ -18,8 +62,30 @@ const UploadForm = ({ refresh, darkMode }) => {
     };
     updateTruncateLength();
     window.addEventListener('resize', updateTruncateLength);
-    return () => window.removeEventListener('resize', updateTruncateLength);
-  }, []);
+    
+    // Add beforeunload event listener to detect page refresh/close
+    const handleBeforeUnload = () => {
+      if (isUploading && file) {
+        // Save current upload state to localStorage before page unloads
+        const uploadState = {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+          progress: progress,
+          timestamp: Date.now(),
+          fileId: file.name.replace(/[^a-zA-Z0-9]/g, '_') + Date.now() // Create a unique file ID
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(uploadState));
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('resize', updateTruncateLength);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isUploading, file, progress]);
 
   const getTruncatedFileName = (name) => {
     if (!name) return '';
@@ -52,11 +118,17 @@ const UploadForm = ({ refresh, darkMode }) => {
   };
 
   const handleUpload = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!file) return;
 
     const formData = new FormData();
     formData.append('file', file);
+    
+    // Add metadata to help with resumable uploads on the server side
+    if (resumableUpload) {
+      formData.append('resumableUploadId', resumableUpload.fileId);
+      formData.append('resumableProgress', resumableUpload.progress.toString());
+    }
 
     const controller = new AbortController();
     controllerRef.current = controller;
@@ -91,6 +163,10 @@ const UploadForm = ({ refresh, darkMode }) => {
         }
       );
 
+      // Clear any saved upload state on successful upload
+      localStorage.removeItem(STORAGE_KEY);
+      setResumableUpload(null);
+      
       setMessage('File uploaded successfully!');
       setTimeout(() => setMessage(''), 10000);
       setFile(null);
@@ -117,12 +193,23 @@ const UploadForm = ({ refresh, darkMode }) => {
     if (controllerRef.current) {
       controllerRef.current.abort();
     }
+    
+    // Clean up the stored upload state
+    localStorage.removeItem(STORAGE_KEY);
+    setResumableUpload(null);
+    
+    // If we had a file ID, request cleanup on the server
+    if (file && resumableUpload?.fileId) {
+      cleanupIncompleteUpload(resumableUpload.fileId);
+    }
   };
 
   const handleRemove = () => {
     setFile(null);
     setMessage('');
     setProgress(0);
+    setResumableUpload(null);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const handleDrop = useCallback((e) => {
@@ -131,13 +218,42 @@ const UploadForm = ({ refresh, darkMode }) => {
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
       setFile(droppedFile);
+      
+      // If this file matches our saved upload, keep the resumable state
+      if (resumableUpload && 
+          resumableUpload.fileName === droppedFile.name && 
+          resumableUpload.fileSize === droppedFile.size) {
+        setMessage('You can resume your previous upload.');
+      } else {
+        setResumableUpload(null);
+      }
     }
-  }, []);
+  }, [resumableUpload]);
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
   }, []);
+  
+  const handleFileInputChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      
+      // If this file matches our saved upload, keep the resumable state
+      if (resumableUpload && 
+          resumableUpload.fileName === selectedFile.name && 
+          resumableUpload.fileSize === selectedFile.size) {
+        setMessage('You can resume your previous upload.');
+      } else {
+        setResumableUpload(null);
+      }
+    }
+  };
+  
+  const handleResumeUpload = () => {
+    handleUpload();
+  };
 
   return (
     <form
@@ -179,7 +295,7 @@ const UploadForm = ({ refresh, darkMode }) => {
         id="fileInput"
         type="file"
         ref={fileInputRef}
-        onChange={(e) => setFile(e.target.files[0])}
+        onChange={handleFileInputChange}
         className="hidden"
       />
 
@@ -215,7 +331,35 @@ const UploadForm = ({ refresh, darkMode }) => {
         </>
       )}
 
-      {!isUploading && file && (
+      {!isUploading && resumableUpload && file && 
+       file.name === resumableUpload.fileName && 
+       file.size === resumableUpload.fileSize && (
+        <div className="mb-4">
+          <div className={`p-3 rounded ${darkMode ? 'bg-yellow-800 text-yellow-200' : 'bg-yellow-100 text-yellow-800'}`}>
+            <p className="mb-2">Previous upload was interrupted at {resumableUpload.progress}%</p>
+            <div className="flex justify-between gap-2">
+              <button
+                type="button"
+                onClick={handleResumeUpload}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors w-full"
+              >
+                Resume Upload
+              </button>
+              <button
+                type="button"
+                onClick={handleRemove}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md font-medium transition-colors w-full"
+              >
+                Start New Upload
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isUploading && file && (!resumableUpload || 
+                               file.name !== resumableUpload.fileName || 
+                               file.size !== resumableUpload.fileSize) && (
         <div className="flex justify-between gap-2">
           <button
             type="submit"
@@ -238,7 +382,9 @@ const UploadForm = ({ refresh, darkMode }) => {
           ? 'text-green-500'
           : message.includes('failed')
             ? 'text-red-500'
-            : 'text-blue-500'
+            : message.includes('resume')
+              ? darkMode ? 'text-blue-400' : 'text-blue-600'
+              : 'text-blue-500'
       }`}>{message}</p>}
     </form>
   );

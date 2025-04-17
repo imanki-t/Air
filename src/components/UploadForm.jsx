@@ -3,6 +3,7 @@ import axios from 'axios';
 
 const UPLOAD_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
 const STORAGE_KEY = 'fileUploadState';
+const RESUME_PROMPT_TIMEOUT = 10 * 1000; // 10 seconds in milliseconds
 
 const UploadForm = ({ refresh, darkMode }) => {
   const [file, setFile] = useState(null);
@@ -13,6 +14,7 @@ const UploadForm = ({ refresh, darkMode }) => {
   const [estimatedTime, setEstimatedTime] = useState(null);
   const [uploadStartTime, setUploadStartTime] = useState(null);
   const [resumableUpload, setResumableUpload] = useState(null);
+  const [resumePromptTimer, setResumePromptTimer] = useState(null);
   const controllerRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -27,7 +29,30 @@ const UploadForm = ({ refresh, darkMode }) => {
         // Check if the saved state is still valid (within 5 minutes)
         if (parsedState.timestamp && (now - parsedState.timestamp) < UPLOAD_EXPIRY_TIME) {
           setResumableUpload(parsedState);
-          setMessage('Upload interrupted. You can resume your previous upload.');
+          
+          // Start the auto-dismiss timer for resume prompt
+          const timer = setTimeout(() => {
+            setResumableUpload(null);
+            localStorage.removeItem(STORAGE_KEY);
+          }, RESUME_PROMPT_TIMEOUT);
+          
+          setResumePromptTimer(timer);
+          
+          // Also set the file if we have it saved
+          if (parsedState.fileName && parsedState.fileSize && parsedState.fileType) {
+            // Create a File object from the saved data (we can't recreate the actual file content)
+            // This is for display purposes only - the actual resumption will happen server-side
+            const placeholderFile = new File(
+              [new ArrayBuffer(0)], // Empty content as placeholder
+              parsedState.fileName,
+              { type: parsedState.fileType }
+            );
+            Object.defineProperty(placeholderFile, 'size', {
+              value: parsedState.fileSize,
+              writable: false
+            });
+            setFile(placeholderFile);
+          }
         } else {
           // Clear expired upload state
           localStorage.removeItem(STORAGE_KEY);
@@ -42,6 +67,12 @@ const UploadForm = ({ refresh, darkMode }) => {
         localStorage.removeItem(STORAGE_KEY);
       }
     }
+    
+    return () => {
+      if (resumePromptTimer) {
+        clearTimeout(resumePromptTimer);
+      }
+    };
   }, []);
 
   // Cleanup function to remove incomplete uploads on the server
@@ -114,12 +145,18 @@ const UploadForm = ({ refresh, darkMode }) => {
     if (uploadRate <= 0) return null;
     
     const remainingTimeMs = remainingBytes / uploadRate;
-    return formatTimeRemaining(remainingTimeMs / 1000);
+    return formatTimeRemaining(remainingTimeMs / V1000);
   };
 
   const handleUpload = async (e) => {
     if (e) e.preventDefault();
     if (!file) return;
+    
+    // Clear the auto-dismiss timer if it exists
+    if (resumePromptTimer) {
+      clearTimeout(resumePromptTimer);
+      setResumePromptTimer(null);
+    }
 
     const formData = new FormData();
     formData.append('file', file);
@@ -157,7 +194,7 @@ const UploadForm = ({ refresh, darkMode }) => {
             }
             
             if (percent === 100) {
-              setEstimatedTime('Finalizing...');
+              setEstimatedTime('Finalizing');
             }
           }
         }
@@ -167,18 +204,15 @@ const UploadForm = ({ refresh, darkMode }) => {
       localStorage.removeItem(STORAGE_KEY);
       setResumableUpload(null);
       
-      setMessage('File uploaded successfully!');
+      setMessage('File uploaded successfully.');
       setTimeout(() => setMessage(''), 10000);
       setFile(null);
       refresh();
     } catch (err) {
       if (axios.isCancel(err) || err.code === 'ERR_CANCELED') {
         setMessage('Upload cancelled.');
-        setFile(null);
-        setTimeout(() => setMessage(''), 10000);
       } else {
-        setMessage('Upload failed.');
-        setTimeout(() => setMessage(''), 10000);
+        setMessage('Upload failed. Please try again.');
       }
     } finally {
       setProgress(0);
@@ -198,6 +232,11 @@ const UploadForm = ({ refresh, darkMode }) => {
     localStorage.removeItem(STORAGE_KEY);
     setResumableUpload(null);
     
+    if (resumePromptTimer) {
+      clearTimeout(resumePromptTimer);
+      setResumePromptTimer(null);
+    }
+    
     // If we had a file ID, request cleanup on the server
     if (file && resumableUpload?.fileId) {
       cleanupIncompleteUpload(resumableUpload.fileId);
@@ -209,6 +248,12 @@ const UploadForm = ({ refresh, darkMode }) => {
     setMessage('');
     setProgress(0);
     setResumableUpload(null);
+    
+    if (resumePromptTimer) {
+      clearTimeout(resumePromptTimer);
+      setResumePromptTimer(null);
+    }
+    
     localStorage.removeItem(STORAGE_KEY);
   };
 
@@ -217,18 +262,27 @@ const UploadForm = ({ refresh, darkMode }) => {
     e.stopPropagation();
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
+      // Clear any existing messages when a new file is selected
+      setMessage('');
       setFile(droppedFile);
       
       // If this file matches our saved upload, keep the resumable state
       if (resumableUpload && 
           resumableUpload.fileName === droppedFile.name && 
           resumableUpload.fileSize === droppedFile.size) {
-        setMessage('You can resume your previous upload.');
+        // Do nothing, keep the resumable state
       } else {
+        // New file selected, clear resumable state
         setResumableUpload(null);
+        localStorage.removeItem(STORAGE_KEY);
+        
+        if (resumePromptTimer) {
+          clearTimeout(resumePromptTimer);
+          setResumePromptTimer(null);
+        }
       }
     }
-  }, [resumableUpload]);
+  }, [resumableUpload, resumePromptTimer]);
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
@@ -238,21 +292,53 @@ const UploadForm = ({ refresh, darkMode }) => {
   const handleFileInputChange = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
+      // Clear any existing messages when a new file is selected
+      setMessage('');
       setFile(selectedFile);
       
       // If this file matches our saved upload, keep the resumable state
       if (resumableUpload && 
           resumableUpload.fileName === selectedFile.name && 
           resumableUpload.fileSize === selectedFile.size) {
-        setMessage('You can resume your previous upload.');
+        // Do nothing, keep the resumable state
       } else {
+        // New file selected, clear resumable state
         setResumableUpload(null);
+        localStorage.removeItem(STORAGE_KEY);
+        
+        if (resumePromptTimer) {
+          clearTimeout(resumePromptTimer);
+          setResumePromptTimer(null);
+        }
       }
     }
   };
   
   const handleResumeUpload = () => {
+    // Clear the auto-dismiss timer if it exists
+    if (resumePromptTimer) {
+      clearTimeout(resumePromptTimer);
+      setResumePromptTimer(null);
+    }
     handleUpload();
+  };
+  
+  const handleCancelResume = () => {
+    // Clear the auto-dismiss timer if it exists
+    if (resumePromptTimer) {
+      clearTimeout(resumePromptTimer);
+      setResumePromptTimer(null);
+    }
+    
+    // Clean up the stored upload state
+    localStorage.removeItem(STORAGE_KEY);
+    setResumableUpload(null);
+    setFile(null);
+    
+    // If we had a file ID, request cleanup on the server
+    if (resumableUpload?.fileId) {
+      cleanupIncompleteUpload(resumableUpload.fileId);
+    }
   };
 
   return (
@@ -266,6 +352,7 @@ const UploadForm = ({ refresh, darkMode }) => {
         Upload File
       </h3>
 
+      {/* Upload area */}
       <label
         htmlFor="fileInput"
         className={`block w-full cursor-pointer px-4 py-6 rounded-lg mb-4 text-center transition-colors ${
@@ -299,6 +386,7 @@ const UploadForm = ({ refresh, darkMode }) => {
         className="hidden"
       />
 
+      {/* Upload progress */}
       {isUploading && (
         <>
           <div className={`w-full rounded-full h-4 mb-1 overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
@@ -314,7 +402,7 @@ const UploadForm = ({ refresh, darkMode }) => {
             </div>
             {estimatedTime && (
               <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                {estimatedTime === 'Finalizing...' ? estimatedTime : `Estimated time: ${estimatedTime}`}
+                {estimatedTime === 'Finalizing' ? estimatedTime : `Estimated time: ${estimatedTime}`}
               </div>
             )}
           </div>
@@ -331,12 +419,11 @@ const UploadForm = ({ refresh, darkMode }) => {
         </>
       )}
 
-      {!isUploading && resumableUpload && file && 
-       file.name === resumableUpload.fileName && 
-       file.size === resumableUpload.fileSize && (
+      {/* Resume upload prompt */}
+      {!isUploading && resumableUpload && (
         <div className="mb-4">
           <div className={`p-3 rounded ${darkMode ? 'bg-yellow-800 text-yellow-200' : 'bg-yellow-100 text-yellow-800'}`}>
-            <p className="mb-2">Previous upload was interrupted at {resumableUpload.progress}%</p>
+            <p className="mb-2">Previous upload was interrupted. Would you like to resume from {resumableUpload.progress}%?</p>
             <div className="flex justify-between gap-2">
               <button
                 type="button"
@@ -347,19 +434,18 @@ const UploadForm = ({ refresh, darkMode }) => {
               </button>
               <button
                 type="button"
-                onClick={handleRemove}
+                onClick={handleCancelResume}
                 className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md font-medium transition-colors w-full"
               >
-                Start New Upload
+                Cancel
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {!isUploading && file && (!resumableUpload || 
-                               file.name !== resumableUpload.fileName || 
-                               file.size !== resumableUpload.fileSize) && (
+      {/* Regular upload/remove controls */}
+      {!isUploading && file && !resumableUpload && (
         <div className="flex justify-between gap-2">
           <button
             type="submit"
@@ -377,13 +463,14 @@ const UploadForm = ({ refresh, darkMode }) => {
         </div>
       )}
 
+      {/* Status messages */}
       {message && <p className={`mt-3 ${
         message.includes('success')
           ? 'text-green-500'
           : message.includes('failed')
             ? 'text-red-500'
-            : message.includes('resume')
-              ? darkMode ? 'text-blue-400' : 'text-blue-600'
+            : message.includes('cancel')
+              ? 'text-yellow-500'
               : 'text-blue-500'
       }`}>{message}</p>}
     </form>

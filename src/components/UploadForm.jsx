@@ -15,9 +15,11 @@ const UploadForm = ({ refresh, darkMode }) => {
   const [uploadStartTime, setUploadStartTime] = useState(null);
   const [resumableUpload, setResumableUpload] = useState(null);
   const [resumePromptTimer, setResumePromptTimer] = useState(null);
+  const [uploadSpeed, setUploadSpeed] = useState(0); // Track upload speed in bytes/second
   const controllerRef = useRef(null);
   const fileInputRef = useRef(null);
   const originalFileRef = useRef(null); // Store the actual file reference
+  const lastProgressUpdateRef = useRef({ time: 0, loaded: 0 }); // For speed calculation
 
   // Check for saved upload state on component mount
   useEffect(() => {
@@ -41,10 +43,8 @@ const UploadForm = ({ refresh, darkMode }) => {
           
           setResumePromptTimer(timer);
           
-          // Also set the file if we have it saved
+          // Create a File-like object for display purposes
           if (parsedState.fileName && parsedState.fileSize && parsedState.fileType) {
-            // Create a File object from the saved data (we can't recreate the actual file content)
-            // This is for display purposes only - the actual resumption will happen server-side
             const placeholderFile = new File(
               [new ArrayBuffer(0)], // Empty content as placeholder
               parsedState.fileName,
@@ -55,6 +55,22 @@ const UploadForm = ({ refresh, darkMode }) => {
               writable: false
             });
             setFile(placeholderFile);
+
+            // Store file blob in IndexedDB for resumable uploads
+            if (parsedState.fileBlob) {
+              // Convert Base64 string back to blob if it exists
+              try {
+                const fetchResp = fetch(parsedState.fileBlob);
+                fetchResp.then(res => res.blob()).then(blob => {
+                  const file = new File([blob], parsedState.fileName, { type: parsedState.fileType });
+                  originalFileRef.current = file;
+                }).catch(err => {
+                  console.error('Error restoring file from blob:', err);
+                });
+              } catch (error) {
+                console.error('Error parsing file blob:', error);
+              }
+            }
           }
         } else {
           // Clear expired upload state
@@ -109,7 +125,18 @@ const UploadForm = ({ refresh, darkMode }) => {
           timestamp: Date.now(),
           fileId: file.name.replace(/[^a-zA-Z0-9]/g, '_') + Date.now() // Create a unique file ID
         };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(uploadState));
+        
+        // Save file blob data if available and if original file exists
+        if (originalFileRef.current) {
+          const reader = new FileReader();
+          reader.onload = function(event) {
+            uploadState.fileBlob = event.target.result;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(uploadState));
+          };
+          reader.readAsDataURL(originalFileRef.current);
+        } else {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(uploadState));
+        }
       }
     };
     
@@ -128,7 +155,7 @@ const UploadForm = ({ refresh, darkMode }) => {
 
   const formatTimeRemaining = (seconds) => {
     if (seconds < 60) {
-      return `${Math.round(seconds)} second${seconds !== 1 ? 's' : ''}`;
+      return `${Math.round(seconds)} second${Math.round(seconds) !== 1 ? 's' : ''}`;
     } else if (seconds < 3600) {
       const minutes = Math.floor(seconds / 60);
       return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
@@ -139,16 +166,13 @@ const UploadForm = ({ refresh, darkMode }) => {
     }
   };
 
-  const calculateTimeRemaining = (loaded, total, elapsedTime) => {
-    if (progress === 0) return null;
+  const calculateTimeRemaining = (loaded, total, uploadSpeed) => {
+    if (progress === 0 || uploadSpeed <= 0) return null;
     
-    const uploadRate = loaded / elapsedTime; // bytes per millisecond
     const remainingBytes = total - loaded;
+    const remainingTimeSeconds = remainingBytes / uploadSpeed;
     
-    if (uploadRate <= 0) return null;
-    
-    const remainingTimeMs = remainingBytes / uploadRate;
-    return formatTimeRemaining(remainingTimeMs / 1000);
+    return formatTimeRemaining(remainingTimeSeconds);
   };
 
   const handleUpload = async (e) => {
@@ -156,7 +180,10 @@ const UploadForm = ({ refresh, darkMode }) => {
     
     // Use the original file if we're resuming, otherwise use the current file
     const fileToUpload = originalFileRef.current || file;
-    if (!fileToUpload) return;
+    if (!fileToUpload) {
+      setMessage('Error: File not available. Please select the file again.');
+      return;
+    }
     
     // Clear the auto-dismiss timer if it exists
     if (resumePromptTimer) {
@@ -182,6 +209,8 @@ const UploadForm = ({ refresh, darkMode }) => {
       setIsUploading(true);
       setUploadStartTime(Date.now());
       setEstimatedTime(null);
+      setUploadSpeed(0);
+      lastProgressUpdateRef.current = { time: Date.now(), loaded: 0 };
 
       await axios.post(
         `${import.meta.env.VITE_BACKEND_URL}/api/files/upload`,
@@ -192,11 +221,20 @@ const UploadForm = ({ refresh, darkMode }) => {
             const percent = Math.round((event.loaded * 100) / event.total);
             setProgress(percent);
             
-            // Calculate estimated time remaining
-            if (uploadStartTime && percent > 0 && percent < 100) {
-              const elapsedTime = Date.now() - uploadStartTime;
-              const timeRemaining = calculateTimeRemaining(event.loaded, event.total, elapsedTime);
-              setEstimatedTime(timeRemaining);
+            // Calculate upload speed
+            const now = Date.now();
+            const timeDiff = now - lastProgressUpdateRef.current.time;
+            if (timeDiff > 500) { // Update speed every 500ms for stability
+              const loadedDiff = event.loaded - lastProgressUpdateRef.current.loaded;
+              const speedBps = (loadedDiff / timeDiff) * 1000; // bytes per second
+              setUploadSpeed(speedBps);
+              lastProgressUpdateRef.current = { time: now, loaded: event.loaded };
+              
+              // Calculate estimated time remaining based on current speed
+              if (percent > 0 && percent < 100 && speedBps > 0) {
+                const remaining = calculateTimeRemaining(event.loaded, event.total, speedBps);
+                setEstimatedTime(remaining);
+              }
             }
             
             if (percent === 100) {
@@ -219,13 +257,41 @@ const UploadForm = ({ refresh, darkMode }) => {
       if (axios.isCancel(err) || err.code === 'ERR_CANCELED') {
         setMessage('Upload cancelled.');
       } else {
+        console.error('Upload error:', err);
         setMessage('Upload failed. Please try again.');
+        
+        // Save upload state for possible resume
+        if (file) {
+          const uploadState = {
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            progress: progress,
+            timestamp: Date.now(),
+            fileId: file.name.replace(/[^a-zA-Z0-9]/g, '_') + Date.now()
+          };
+          
+          // Save file blob data if available
+          if (originalFileRef.current) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+              uploadState.fileBlob = event.target.result;
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(uploadState));
+              setResumableUpload(uploadState);
+            };
+            reader.readAsDataURL(originalFileRef.current);
+          } else {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(uploadState));
+            setResumableUpload(uploadState);
+          }
+        }
       }
     } finally {
       setProgress(0);
       setIsUploading(false);
       setEstimatedTime(null);
       setUploadStartTime(null);
+      setUploadSpeed(0);
       controllerRef.current = null;
     }
   };
@@ -326,23 +392,45 @@ const UploadForm = ({ refresh, darkMode }) => {
   };
   
   const handleResumeUpload = () => {
-    // To resume an upload, we need the actual file
-    // Tell the user to select the file again if it's just a placeholder
-    if (!originalFileRef.current) {
+    // Check if we have the file data stored (either as original file or in localStorage)
+    if (!originalFileRef.current && resumableUpload?.fileBlob) {
+      // Try to restore the file from the stored blob
+      try {
+        fetch(resumableUpload.fileBlob)
+          .then(res => res.blob())
+          .then(blob => {
+            const restoredFile = new File(
+              [blob], 
+              resumableUpload.fileName, 
+              { type: resumableUpload.fileType }
+            );
+            originalFileRef.current = restoredFile;
+            handleUpload();
+          })
+          .catch(err => {
+            console.error('Failed to restore file from blob:', err);
+            setMessage('Please select the same file again to resume upload');
+            if (fileInputRef.current) {
+              fileInputRef.current.click();
+            }
+          });
+      } catch (error) {
+        console.error('Error restoring file:', error);
+        setMessage('Please select the same file again to resume upload');
+        if (fileInputRef.current) {
+          fileInputRef.current.click();
+        }
+      }
+    } else if (!originalFileRef.current) {
       setMessage('Please select the same file again to resume upload');
       // Focus on the file input to encourage the user to select the file
       if (fileInputRef.current) {
         fileInputRef.current.click();
       }
-      return;
+    } else {
+      // We have the original file, proceed with upload
+      handleUpload();
     }
-    
-    // Clear the auto-dismiss timer if it exists
-    if (resumePromptTimer) {
-      clearTimeout(resumePromptTimer);
-      setResumePromptTimer(null);
-    }
-    handleUpload();
   };
   
   const handleCancelResume = () => {
@@ -362,6 +450,19 @@ const UploadForm = ({ refresh, darkMode }) => {
     if (resumableUpload?.fileId) {
       cleanupIncompleteUpload(resumableUpload.fileId);
     }
+  };
+
+  // Format bytes to readable size
+  const formatBytes = (bytes, decimals = 2) => {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   };
 
   return (
@@ -392,9 +493,16 @@ const UploadForm = ({ refresh, darkMode }) => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
           {file
-            ? <span className={`font-medium break-words ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                {getTruncatedFileName(file.name)}
-              </span>
+            ? <div>
+                <span className={`font-medium break-words ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                  {getTruncatedFileName(file.name)}
+                </span>
+                {file.size && (
+                  <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {formatBytes(file.size)}
+                  </p>
+                )}
+              </div>
             : <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
                 Drag and drop file or click to browse
               </span>}
@@ -421,8 +529,18 @@ const UploadForm = ({ refresh, darkMode }) => {
           
           <div className="flex justify-between items-center mb-3">
             <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              {progress}% {estimatedTime && <span className="ml-1">- {estimatedTime === 'Finalizing' ? estimatedTime : estimatedTime}</span>}
+              {progress}% 
+              {uploadSpeed > 0 && (
+                <span className="ml-1">at {formatBytes(uploadSpeed)}/s</span>
+              )}
             </div>
+            {estimatedTime && (
+              <div className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                {estimatedTime === 'Finalizing' 
+                  ? 'Finalizing...' 
+                  : `Remaining: ${estimatedTime}`}
+              </div>
+            )}
           </div>
           
           <div className="flex justify-between gap-2 mb-3">
@@ -437,62 +555,4 @@ const UploadForm = ({ refresh, darkMode }) => {
         </>
       )}
 
-      {/* Resume upload prompt - Changed from yellow to blue to match site theme */}
-      {!isUploading && resumableUpload && (
-        <div className="mb-4">
-          <div className={`p-3 rounded ${darkMode ? 'bg-blue-900 text-blue-200' : 'bg-blue-100 text-blue-800'}`}>
-            <p className="mb-2">Previous upload was interrupted. Would you like to resume from {resumableUpload.progress}%?</p>
-            <div className="flex justify-between gap-2">
-              <button
-                type="button"
-                onClick={handleResumeUpload}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors w-full"
-              >
-                Resume Upload
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelResume}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors w-full"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Regular upload/remove controls */}
-      {!isUploading && file && !resumableUpload && (
-        <div className="flex justify-between gap-2">
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors w-full"
-          >
-            Upload
-          </button>
-          <button
-            type="button"
-            onClick={handleRemove}
-            className={`px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors w-full`}
-          >
-            Remove
-          </button>
-        </div>
-      )}
-
-      {/* Status messages - Changed cancelled text to red */}
-      {message && <p className={`mt-3 ${
-        message.includes('success')
-          ? 'text-green-500'
-          : message.includes('failed')
-            ? 'text-red-500'
-            : message.includes('cancel')
-              ? 'text-red-500'  // Changed from yellow to red
-              : 'text-blue-500'
-      }`}>{message}</p>}
-    </form>
-  );
-};
-
-export default UploadForm;
+      {/* 

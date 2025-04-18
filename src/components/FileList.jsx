@@ -38,6 +38,7 @@ const FileList = ({ files, refresh, darkMode, isLoading }) => {
   const [batchShareLink, setBatchShareLink] = useState('');
   const [showBatchShareModal, setShowBatchShareModal] = useState(false);
   const [batchDownloadProgress, setBatchDownloadProgress] = useState(0);
+  const [qrCodeLoading, setQrCodeLoading] = useState(true);
   const [showBatchDownloadProgress, setShowBatchDownloadProgress] = useState(false);
   const [copied, setCopied] = useState(false);
   
@@ -655,63 +656,80 @@ const FileList = ({ files, refresh, darkMode, isLoading }) => {
       )}
       
       {/* Batch Share Modal */}
-      {showBatchShareModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
-          <div className={`p-6 rounded-xl max-w-sm w-full relative shadow-lg ${
-            darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-          }`}>
-             <button
-              onClick={() => setShowBatchShareModal(false)}
-              className={`absolute top-3 right-3 p-1 text-lg font-bold hover:text-blue-600 transition-colors ${
-                darkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}
-              title="Close"
-            >
-              ×
-            </button>
-            <h2 className={`font-bold mb-4 text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-              Share Files
-            </h2>
-            <p className={`text-sm mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              Use this link to share {selectedFiles.length} selected file{selectedFiles.length !== 1 ? 's' : ''}:
-            </p>
-            <div className={`flex items-center mb-4 p-2 rounded-md ${
-              darkMode ? 'bg-gray-700' : 'bg-gray-100'
-            }`}>
-              <input 
-                type="text" 
-                value={batchShareLink} 
-                readOnly 
-                className={`flex-grow text-sm font-medium p-1 bg-transparent outline-none ${
-                  darkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}
-              />
-              <button 
-                onClick={copyToClipboard} 
-                className={`ml-2 p-2 rounded-md transition-colors ${
-                  copied 
-                    ? 'bg-green-600 text-white' 
-                    : darkMode 
-                      ? 'bg-gray-600 hover:bg-gray-500 text-white' 
-                      : 'bg-gray-300 hover:bg-gray-400 text-gray-800'
-                }`}
-              >
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
+{showBatchShareModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
+    <div className={`p-6 rounded-xl max-w-sm w-full relative shadow-lg ${
+      darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+    }`}>
+      <button
+        onClick={() => setShowBatchShareModal(false)}
+        className={`absolute top-3 right-3 p-1 text-lg font-bold hover:text-blue-600 transition-colors ${
+          darkMode ? 'text-gray-300' : 'text-gray-600'
+        }`}
+        title="Close"
+      >
+        ×
+      </button>
+      <h2 className={`font-bold mb-4 text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+        Share Files
+      </h2>
+      <p className={`text-sm mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+        Use this link to share {selectedFiles.length} selected file{selectedFiles.length !== 1 ? 's' : ''}:
+      </p>
+      
+      {/* Share link with copy button */}
+      <div className={`flex items-center mb-4 p-2 rounded-md ${
+        darkMode ? 'bg-gray-700' : 'bg-gray-100'
+      }`}>
+        <input 
+          type="text" 
+          value={batchShareLink} 
+          readOnly 
+          className={`flex-grow text-sm font-medium p-1 bg-transparent outline-none ${
+            darkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}
+        />
+        <button 
+          onClick={copyToClipboard} 
+          className={`ml-2 p-2 rounded-md transition-colors ${
+            copied 
+              ? 'bg-green-600 text-white' 
+              : darkMode 
+                ? 'bg-gray-600 hover:bg-gray-500 text-white' 
+                : 'bg-gray-300 hover:bg-gray-400 text-gray-800'
+          }`}
+        >
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+      
+      {/* QR Code with loading state */}
+      <div className="flex justify-center my-4">
+        <div className={`p-2 rounded-lg ${darkMode ? 'bg-white' : 'bg-gray-100'}`}>
+          {qrCodeLoading ? (
+            <div className="h-[150px] w-[150px] flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
             </div>
-            <div className="flex justify-center mt-4">
-              <button 
-                onClick={() => setShowBatchShareModal(false)} 
-                className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                  darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                }`}
-              >
-                Close
-              </button>
-            </div>
-          </div>
+          ) : (
+            <QRCode value={batchShareLink} size={150} renderAs="svg" />
+          )}
         </div>
-      )}
+      </div>
+      
+      {/* Close button */}
+      <div className="flex justify-center mt-4">
+        <button 
+          onClick={() => setShowBatchShareModal(false)} 
+          className={`px-4 py-2 rounded-md font-medium transition-colors ${
+            darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+          }`}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       
       {/* Batch Download Progress Modal */}
       {showBatchDownloadProgress && (

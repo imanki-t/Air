@@ -764,3 +764,8 @@ const FileList = ({ files, refresh, darkMode, isLoading }) => {
     </div>
   </div>
 )}
+      </div>
+  );
+};
+
+export default FileList

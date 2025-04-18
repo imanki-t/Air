@@ -13,7 +13,7 @@
     "react-router-dom": "^6.23.0",
     "axios": "^1.6.0",
     "qrcode.react": "4.2.0",
-    "zszip": "^3.10.1"
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
     "vite": "^5.0.0",

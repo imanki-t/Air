@@ -3,6 +3,7 @@ import FileItem from './FileItem';
 import axios from 'axios';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import QRCode from 'qrcode.react'; 
 
 // Skeleton Loading Component for FileItem
 const FileItemSkeleton = ({ darkMode }) => (

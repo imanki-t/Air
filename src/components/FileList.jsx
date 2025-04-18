@@ -662,3 +662,89 @@ const FileList = ({ files, refresh, darkMode, isLoading }) => {
             <button
               onClick={() => setShowBatchShareModal(false)}
               className={`absolute top-3
+              <button
+              onClick={() => setShowBatchShareModal(false)}
+              className={`absolute top-3 right-3 p-1 text-lg font-bold hover:text-blue-600 transition-colors ${
+                darkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}
+              title="Close"
+            >
+              ×
+            </button>
+            <h2 className={`font-bold mb-4 text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+              Share Files
+            </h2>
+            <p className={`text-sm mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              Use this link to share {selectedFiles.length} selected file{selectedFiles.length !== 1 ? 's' : ''}:
+            </p>
+            <div className={`flex items-center mb-4 p-2 rounded-md ${
+              darkMode ? 'bg-gray-700' : 'bg-gray-100'
+            }`}>
+              <input 
+                type="text" 
+                value={batchShareLink} 
+                readOnly 
+                className={`flex-grow text-sm font-medium p-1 bg-transparent outline-none ${
+                  darkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}
+              />
+              <button 
+                onClick={copyToClipboard} 
+                className={`ml-2 p-2 rounded-md transition-colors ${
+                  copied 
+                    ? 'bg-green-600 text-white' 
+                    : darkMode 
+                      ? 'bg-gray-600 hover:bg-gray-500 text-white' 
+                      : 'bg-gray-300 hover:bg-gray-400 text-gray-800'
+                }`}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <div className="flex justify-center mt-4">
+              <button 
+                onClick={() => setShowBatchShareModal(false)} 
+                className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                  darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                }`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Batch Download Progress Modal */}
+      {showBatchDownloadProgress && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
+          <div className={`p-6 rounded-xl max-w-sm w-full relative shadow-lg ${
+            darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+          }`}>
+            <h2 className={`font-bold mb-4 text-lg ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+              Preparing Download
+            </h2>
+            <div className="mb-2">
+              <div className="relative pt-1">
+                <div className="overflow-hidden h-2 mb-2 text-xs flex rounded-full bg-gray-300">
+                  <div 
+                    style={{ width: `${batchDownloadProgress}%` }} 
+                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-600"
+                  ></div>
+                </div>
+                <p className={`text-center text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                  {batchDownloadProgress}% complete
+                </p>
+              </div>
+            </div>
+            <p className={`text-sm mt-4 text-center ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Creating ZIP file with {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}...
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default FileList;

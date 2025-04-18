@@ -3,7 +3,7 @@ import FileItem from './FileItem'; // Assuming FileItem component exists
 import axios from 'axios';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { QRCode } from 'qrcode.react';
+import { QRCodeSVG } from 'qrcode.react';
 
 // --- UI Enhancement Helper ---
 // Utility function to generate conditional class names

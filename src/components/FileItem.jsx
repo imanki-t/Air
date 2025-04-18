@@ -1,8 +1,9 @@
+// FileItem.jsx - Updated with kebab menu
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
 
-const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
+const FileItem = ({ file, refresh, showMetadata, darkMode, isSelected, onSelect, selectionMode }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   const [showShare, setShowShare] = useState(false);
@@ -10,28 +11,78 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
   const [copied, setCopied] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  
+  const menuRef = React.useRef(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false);
+      }
+    };
+    
+    if (showMenu) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [showMenu]);
 
   const handleKeyDown = useCallback(
     (e) => {
       if (e.key === 'Escape' || e.key === 'Cancel') {
         if (showShare) setShowShare(false);
         if (showDeleteConfirm) setShowDeleteConfirm(false);
+        if (showMenu) setShowMenu(false);
       }
     },
-    [showShare, showDeleteConfirm]
+    [showShare, showDeleteConfirm, showMenu]
   );
 
   useEffect(() => {
-    if (showShare || showDeleteConfirm) {
+    if (showShare || showDeleteConfirm || showMenu) {
       window.addEventListener('keydown', handleKeyDown);
     } else {
       window.removeEventListener('keydown', handleKeyDown);
     }
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showShare, showDeleteConfirm, handleKeyDown]);
+  }, [showShare, showDeleteConfirm, showMenu, handleKeyDown]);
 
-  const download = () => {
-    window.open(`${backendUrl}/api/files/download/${file._id}`, '_blank');
+  const download = async () => {
+    setShowMenu(false);
+    setIsLoading(true);
+    setDownloadProgress(0);
+    
+    try {
+      const response = await axios({
+        url: `${backendUrl}/api/files/download/${file._id}`,
+        method: 'GET',
+        responseType: 'blob',
+        onDownloadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setDownloadProgress(percentCompleted);
+        },
+      });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', file.filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Download failed:', err);
+    } finally {
+      setIsLoading(false);
+      setDownloadProgress(0);
+    }
   };
 
   const deleteFile = async () => {
@@ -46,6 +97,7 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
   };
 
   const share = async () => {
+    setShowMenu(false);
     setIsLoading(true);
     try {
       const res = await axios.post(`${backendUrl}/api/files/share/${file._id}`);
@@ -109,12 +161,93 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
     );
   };
 
+  // For file selection in batch operations
+  const handleItemClick = (e) => {
+    if (selectionMode) {
+      e.preventDefault();
+      onSelect(file._id);
+    }
+  };
+
   return (
     <>
-      <div className={`w-full transition-all duration-300 ease-in-out
-        ${showMetadata ? 'h-auto' : 'h-[180px]'}
-        flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-md overflow-hidden border
-        ${darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}>
+      <div 
+        className={`w-full relative transition-all duration-300 ease-in-out
+          ${showMetadata ? 'h-auto' : 'h-[180px]'}
+          flex flex-col justify-between p-3 sm:p-4 text-sm sm:text-base rounded-xl shadow-md overflow-hidden border
+          ${isSelected ? 'ring-2 ring-blue-500 border-blue-500' : ''}
+          ${darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-200 text-gray-900'}`}
+        onClick={handleItemClick}
+      >
+        {/* Selection Checkbox (Shown only in selection mode) */}
+        {selectionMode && (
+          <div className="absolute top-2 left-2 z-10">
+            <input 
+              type="checkbox" 
+              checked={isSelected} 
+              onChange={() => onSelect(file._id)}
+              className="w-4 h-4 accent-blue-600"
+            />
+          </div>
+        )}
+
+        {/* Loading Progress Indicator */}
+        {isLoading && downloadProgress > 0 && (
+          <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center z-10">
+            <div className="w-4/5 bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+              <div 
+                className="bg-blue-600 h-2.5 rounded-full" 
+                style={{ width: `${downloadProgress}%` }}
+              ></div>
+            </div>
+          </div>
+        )}
+
+        {/* Kebab Menu Button (Always visible in top-right) */}
+        <div className="absolute top-2 right-2 z-10">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation(); 
+              setShowMenu(!showMenu);
+            }} 
+            className={`p-1 rounded-full hover:bg-opacity-20 ${darkMode ? 'hover:bg-gray-400' : 'hover:bg-gray-300'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+            </svg>
+          </button>
+          
+          {/* Dropdown Menu */}
+          {showMenu && (
+            <div 
+              ref={menuRef}
+              className={`absolute right-0 mt-1 py-1 w-36 rounded-md shadow-lg z-50 ${darkMode ? 'bg-gray-700' : 'bg-white'} border ${darkMode ? 'border-gray-600' : 'border-gray-200'}`}
+            >
+              <button 
+                onClick={download}
+                className={`w-full text-left px-4 py-2 text-sm ${darkMode ? 'hover:bg-gray-600 text-white' : 'hover:bg-gray-100 text-gray-700'}`}
+              >
+                Download
+              </button>
+              <button 
+                onClick={share}
+                className={`w-full text-left px-4 py-2 text-sm ${darkMode ? 'hover:bg-gray-600 text-white' : 'hover:bg-gray-100 text-gray-700'}`}
+              >
+                Share
+              </button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMenu(false);
+                  setShowDeleteConfirm(true);
+                }}
+                className={`w-full text-left px-4 py-2 text-sm ${darkMode ? 'hover:bg-gray-600 text-red-400' : 'hover:bg-gray-100 text-red-600'}`}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
 
         {renderPreview()}
         {/* Tooltip added on filename */}
@@ -123,25 +256,11 @@ const FileItem = ({ file, refresh, showMetadata, darkMode }) => {
         </h3>
 
         {showMetadata && (
-          <>
-            <div className={`mt-2 text-xs space-y-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              <p>Type: {file.metadata?.type || 'Unknown'}</p>
-              <p>Size: {formatSize(file.length)}</p>
-              <p>Uploaded: {new Date(file.uploadDate).toLocaleString()}</p>
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={download} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
-                Download
-              </button>
-              <button onClick={share} disabled={isLoading} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
-                {isLoading ? 'Making' : 'Share'}
-              </button>
-              <button onClick={() => setShowDeleteConfirm(true)} className={`px-3 py-1 rounded-md font-medium transition-colors ${darkMode ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`}>
-                Delete
-              </button>
-            </div>
-          </>
+          <div className={`mt-2 text-xs space-y-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <p>Type: {file.metadata?.type || 'Unknown'}</p>
+            <p>Size: {formatSize(file.length)}</p>
+            <p>Uploaded: {new Date(file.uploadDate).toLocaleString()}</p>
+          </div>
         )}
       </div>
 

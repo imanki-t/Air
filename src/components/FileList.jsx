@@ -1,17 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import FileItem from './FileItem';
+import axios from 'axios';
 
-const FileList = ({ files, refresh, darkMode }) => {
+// Skeleton Loading Component for FileItem
+const FileItemSkeleton = ({ darkMode }) => (
+  <div className={`w-full h-[180px] flex flex-col justify-between p-3 sm:p-4 rounded-xl shadow-md border ${
+    darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+  } animate-pulse`}>
+    <div className={`h-28 mb-2 rounded-md ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+    <div className={`h-4 w-3/4 rounded-md ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+    <div className="mt-2 space-y-2">
+      <div className={`h-3 w-1/2 rounded-md ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+      <div className={`h-3 w-2/3 rounded-md ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}></div>
+    </div>
+  </div>
+);
+
+const FileList = ({ files, refresh, darkMode, isLoading }) => {
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
   const [filter, setFilter] = useState('all');
   const [view, setView] = useState('list');
   const [searchInput, setSearchInput] = useState('');
   const [showMetadata, setShowMetadata] = useState(false);
   const [sortOption, setSortOption] = useState('default');
   const [showSortOptions, setShowSortOptions] = useState(false);
-
+  
+  // Batch operations states
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [batchOperationLoading, setBatchOperationLoading] = useState(false);
+  
   useEffect(() => {
     if (window.innerWidth >= 768) setView('grid');
   }, []);
+  
+  // Clear selection when files change
+  useEffect(() => {
+    setSelectedFiles([]);
+  }, [files]);
 
   const filtered = files.filter((f) => filter === 'all' || f.metadata?.type === filter);
 
@@ -46,6 +72,77 @@ const FileList = ({ files, refresh, darkMode }) => {
     setSortOption(option);
     setShowSortOptions(false);
   };
+  
+  // Toggle selection mode
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+    setSelectedFiles([]);
+  };
+  
+  // Handle file selection
+  const handleSelectFile = (fileId) => {
+    setSelectedFiles(prev => {
+      if (prev.includes(fileId)) {
+        return prev.filter(id => id !== fileId);
+      } else {
+        return [...prev, fileId];
+      }
+    });
+  };
+  
+  // Select all visible files
+  const selectAll = () => {
+    if (selectedFiles.length === sortedFiles.length) {
+      setSelectedFiles([]);
+    } else {
+      setSelectedFiles(sortedFiles.map(file => file._id));
+    }
+  };
+  
+  // Batch delete operation
+  const batchDelete = async () => {
+    if (selectedFiles.length === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedFiles.length} file(s)?`)) {
+      return;
+    }
+    
+    setBatchOperationLoading(true);
+    try {
+      await Promise.all(selectedFiles.map(fileId => 
+        axios.delete(`${backendUrl}/api/files/${fileId}`)
+      ));
+      refresh();
+      setSelectedFiles([]);
+      setSelectionMode(false);
+    } catch (err) {
+      console.error('Batch delete failed:', err);
+      alert('Some files could not be deleted.');
+    } finally {
+      setBatchOperationLoading(false);
+    }
+  };
+  
+  // Batch download operation
+  const batchDownload = async () => {
+    if (selectedFiles.length === 0) return;
+    
+    setBatchOperationLoading(true);
+    try {
+      // In a real implementation, you might want to create a zip file server-side
+      // For simplicity, we'll initiate multiple downloads here
+      selectedFiles.forEach(fileId => {
+        window.open(`${backendUrl}/api/files/download/${fileId}`, '_blank');
+      });
+    } catch (err) {
+      console.error('Batch download failed:', err);
+    } finally {
+      setBatchOperationLoading(false);
+    }
+  };
+
+  // Generate skeleton items for loading state
+  const skeletonArray = Array(8).fill(0);
 
   // Define consistent text color for utility buttons (metadata toggle, view toggles, sort)
   const buttonTextColor = darkMode ? 'text-white' : 'text-gray-600';
@@ -56,27 +153,35 @@ const FileList = ({ files, refresh, darkMode }) => {
         darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
       } p-6 shadow-md`}
     >
-      <h2 className={`text-2xl font-semibold mb-6 ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-        Your Files
-      </h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className={`text-2xl font-semibold ${darkMode ? 'text-white' : 'text-gray-800'}`}>
+          Your Files
+        </h2>
+        
+        {/* File count indicator */}
+        <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          {visibleFiles.length} file{visibleFiles.length !== 1 ? 's' : ''}
+          {filter !== 'all' ? ` (${filter})` : ''}
+        </div>
+      </div>
 
       {/* Search, View, Metadata Toggle, and Sort/Group Toggle */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="flex-grow">
           <div className="relative">
             <input
-  type="text"
-  placeholder="⌕"
-  value={searchInput}
-  onChange={(e) => setSearchInput(e.target.value)}
-  className={`!font-normal text-base search-placeholder w-full sm:max-w-sm px-4 py-2 pr-10 rounded-lg transition-colors ${
-    darkMode
-      ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400'
-      : 'bg-gray-100 text-gray-900 border-gray-200 placeholder-gray-500'
-  } border focus:outline-none focus:ring-2 ${
-    darkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
-  }`}
-/>
+              type="text"
+              placeholder="⌕"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className={`!font-normal text-base search-placeholder w-full sm:max-w-sm px-4 py-2 pr-10 rounded-lg transition-colors ${
+                darkMode
+                  ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400'
+                  : 'bg-gray-100 text-gray-900 border-gray-200 placeholder-gray-500'
+              } border focus:outline-none focus:ring-2 ${
+                darkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
+              }`}
+            />
             {searchInput && (
               <button
                 onClick={clearSearch}
@@ -90,7 +195,30 @@ const FileList = ({ files, refresh, darkMode }) => {
         </div>
 
         <div className="flex gap-2 items-center">
-          {/* Metadata Toggle - Updated with consistent text color */}
+          {/* Multi-select button */}
+          <button
+            onClick={toggleSelectionMode}
+            className={`p-2 rounded-md transition-colors ${
+              selectionMode
+                ? 'bg-blue-600 text-white'
+                : darkMode
+                ? 'bg-gray-700 hover:bg-gray-600'
+                : 'bg-gray-200 hover:bg-gray-300'
+            } ${!selectionMode ? buttonTextColor : ''}`}
+            title="Selection Mode"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </button>
+          
+          {/* Metadata Toggle */}
           <button
             onClick={() => setShowMetadata(!showMetadata)}
             className={`p-2 rounded-md transition-colors ${
@@ -117,7 +245,8 @@ const FileList = ({ files, refresh, darkMode }) => {
               />
             </svg>
           </button>
-          {/* Sort / Group Toggle - Updated with consistent text color */}
+          
+          {/* Sort / Group Toggle */}
           <button
             onClick={() => setShowSortOptions(true)}
             className={`p-2 rounded-md transition-colors ${
@@ -131,7 +260,8 @@ const FileList = ({ files, refresh, darkMode }) => {
           >
             <span className="block h-5 w-5 text-center leading-none font-bold">⧉</span>
           </button>
-          {/* List View - Updated with consistent text color */}
+          
+          {/* List View */}
           <button
             onClick={() => setView('list')}
             className={`p-2 rounded-md transition-colors ${
@@ -153,7 +283,8 @@ const FileList = ({ files, refresh, darkMode }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          {/* Grid View - Updated with consistent text color */}
+          
+          {/* Grid View */}
           <button
             onClick={() => setView('grid')}
             className={`p-2 rounded-md transition-colors ${
@@ -182,6 +313,59 @@ const FileList = ({ files, refresh, darkMode }) => {
           </button>
         </div>
       </div>
+
+      {/* Batch Operations Bar (Shown when in selection mode) */}
+      {selectionMode && (
+        <div className={`flex items-center justify-between mb-4 p-3 rounded-lg ${
+          darkMode ? 'bg-gray-700' : 'bg-gray-100'
+        }`}>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={selectAll}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                darkMode ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'
+              }`}
+            >
+              {selectedFiles.length === sortedFiles.length ? 'Deselect All' : 'Select All'}
+            </button>
+            <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              {selectedFiles.length} selected
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={batchDownload}
+              disabled={selectedFiles.length === 0 || batchOperationLoading}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                selectedFiles.length === 0 
+                  ? `${darkMode ? 'bg-gray-600 text-gray-400' : 'bg-gray-300 text-gray-500'}`
+                  : `${darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`
+              }`}
+            >
+              Download
+            </button>
+            <button
+              onClick={batchDelete}
+              disabled={selectedFiles.length === 0 || batchOperationLoading}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                selectedFiles.length === 0 
+                  ? `${darkMode ? 'bg-gray-600 text-gray-400' : 'bg-gray-300 text-gray-500'}`
+                  : `${darkMode ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'}`
+              }`}
+            >
+              Delete
+            </button>
+            <button
+              onClick={toggleSelectionMode}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                darkMode ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-300 hover:bg-gray-400 text-gray-800'
+              }`}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="mb-6 flex flex-wrap gap-2 overflow-x-auto">
@@ -212,8 +396,18 @@ const FileList = ({ files, refresh, darkMode }) => {
         ))}
       </div>
 
-      {/* File list */}
-      {sortedFiles.length === 0 ? (
+      {/* File list with loading skeletons */}
+      {isLoading ? (
+        // Skeleton loading grid/list
+        <div className={`grid gap-4 ${view === 'grid' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1'}`}>
+          {skeletonArray.map((_, index) => (
+            <div key={index} className="w-full">
+              <FileItemSkeleton darkMode={darkMode} />
+            </div>
+          ))}
+        </div>
+      ) : sortedFiles.length === 0 ? (
+        // Empty state
         <div className={`text-center py-12 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -233,10 +427,19 @@ const FileList = ({ files, refresh, darkMode }) => {
           <p className="mt-1">Try uploading a file or changing your search criteria</p>
         </div>
       ) : (
+        // Files grid/list
         <div className={`grid gap-4 ${view === 'grid' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1'}`}>
           {sortedFiles.map((file) => (
             <div key={file._id} className="w-full">
-              <FileItem file={file} refresh={refresh} showMetadata={showMetadata} darkMode={darkMode} />
+              <FileItem 
+                file={file} 
+                refresh={refresh} 
+                showMetadata={showMetadata} 
+                darkMode={darkMode}
+                isSelected={selectedFiles.includes(file._id)}
+                onSelect={handleSelectFile}
+                selectionMode={selectionMode}
+              />
             </div>
           ))}
         </div>

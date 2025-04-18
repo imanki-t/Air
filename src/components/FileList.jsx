@@ -561,4 +561,22 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
           >
             <h2 className="font-semibold text-xl mb-4">Preparing Files</h2>
             <div className="my-6">
-              <div className="flex justify-between mb-1 text-
+              <div className="flex justify-between mb-1 text-sm">
+                <span>Compressing files...</span>
+                <span>{batchDownloadProgress}%</span>
+              </div>
+              <div className={`h-2 rounded-full overflow-hidden ${darkMode ? "bg-gray-700" : "bg-gray-200"}`}>
+                <div className="h-full bg-blue-600 transition-all duration-300 ease-out" style={{ width: `${batchDownloadProgress}%` }}></div>
+              </div>
+            </div>
+            <p className={`text-sm text-center ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Creating ZIP archive with {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default FileList;

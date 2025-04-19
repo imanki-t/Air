@@ -552,4 +552,89 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
             )}
           >
             <button
-              onClick={() => !batchOper
+              onClick={() => !batchOperationLoading && setShowBatchShareModal(false)}
+              className={cn("absolute top-2 right-2 p-1 rounded-full transition-colors", 
+                batchOperationLoading ? "opacity-50 cursor-not-allowed" : 
+                darkMode ? "hover:bg-gray-700 text-gray-400" : "hover:bg-gray-100 text-gray-500")}
+              disabled={batchOperationLoading}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" clipRule="evenodd"
+                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 
+                  111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 
+                  11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 
+                  1 0 010-1.414z" />
+              </svg>
+            </button>
+            <h2 className="text-center font-semibold text-xl mb-2">Share Files</h2>
+            <h3 className="text-center font-medium mb-4">QR Code</h3>
+            <div className={cn("flex justify-center mb-4 p-4 rounded", 
+              darkMode ? "bg-white" : "bg-gray-50")}>
+              {batchShareLink ? (
+                <QRCodeSVG value={batchShareLink} size={150} level="H" includeMargin />
+              ) : (
+                <div className={cn("w-[150px] h-[150px] flex items-center justify-center", 
+                  darkMode ? "bg-gray-700" : "bg-gray-200")}>
+                  <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+              )}
+            </div>
+            <div className={cn('flex items-center p-2 rounded-md border',
+              darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-300')}>
+              <input
+                type="text"
+                value={batchShareLink || 'Generating link...'}
+                readOnly
+                className={cn('flex-grow p-1 bg-transparent outline-none text-sm',
+                  darkMode ? 'text-gray-300' : 'text-gray-700')}
+              />
+              <button
+                onClick={copyToClipboard}
+                disabled={!batchShareLink || copied}
+                className={cn('ml-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200',
+                  copied
+                    ? 'bg-green-600 text-white'
+                    : !batchShareLink
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : darkMode ? 'bg-gray-600 hover:bg-gray-500 text-gray-200' : 'bg-gray-200 hover:bg-gray-300 text-gray-800')}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            {batchShareLink && (
+              <div className="mt-4 text-center">
+                <p className={cn("text-sm", darkMode ? "text-gray-300" : "text-gray-600")}>
+                  This link will allow anyone to access {selectedFiles.length} selected file{selectedFiles.length !== 1 ? 's' : ''}.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* Add CSS animations */}
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-in-out;
+        }
+        
+        @keyframes modalIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-modalIn {
+          animation: modalIn 0.2s ease-out;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default FileList;

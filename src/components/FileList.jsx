@@ -48,6 +48,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   const sortOptionsRef = useRef(null);
   const deleteConfirmModalRef = useRef(null);
   const batchShareModalRef = useRef(null);
+  const sortButtonRef = useRef(null);
   const batchDownloadModalRef = useRef(null);
 
   // Reset selections when files list changes or selection mode exits
@@ -64,8 +65,12 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   // Click-outside handler for dropdowns/modals
   useEffect(() => {
     const handleClickOutside = e => {
-      if (sortOptionsRef.current && !sortOptionsRef.current.contains(e.target)) {
-        setShowSortOptions(false);
+      if (
+  sortOptionsRef.current &&
+  !sortOptionsRef.current.contains(e.target) &&
+  !sortButtonRef.current?.contains(e.target)
+) {
+  setShowSortOptions(false);
       }
       if (deleteConfirmModalRef.current && !deleteConfirmModalRef.current.contains(e.target)) {
         setShowDeleteConfirmModal(false);
@@ -365,7 +370,8 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
           {/* Sort & Filter Dropdown */}
           <div className="relative">
             <button
-              onClick={() => setShowSortOptions(prev => !prev)} // Toggle
+  ref={sortButtonRef}
+  onClick={() => setShowSortOptions(prev => !prev)}
               className={cn(
                 'p-2 rounded-md transition-colors duration-200',
                 sortOption !== 'default' || filter !== 'all' // Highlight if sort or filter is active

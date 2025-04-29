@@ -393,7 +393,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                 ref={sortOptionsRef}
                 className={cn(
                   'absolute right-0 mt-2 w-56 rounded-lg shadow-xl z-20 border overflow-hidden', // Kept width fixed for consistency
-                  'max-h-[50vh] sm:max-h-[75vh] overflow-y-auto', // **FIX 1: Adjusted max-h for mobile**
+                  'max-h-[40vh] sm:max-h-[75vh] overflow-y-auto', // **FIX 1: Adjusted max-h for mobile**
                   darkMode ? 'bg-gray-800 border-gray-700 divide-gray-700' : 'bg-white border-gray-200 divide-gray-200',
                   'divide-y' // Adds separators between sections
                 )}

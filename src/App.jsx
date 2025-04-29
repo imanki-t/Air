@@ -82,7 +82,7 @@ function App() {
         >
           <div className="max-w-6xl mx-auto flex items-center justify-center">
             <div className="text-center">
-              <h1 className="text-4xl font-vintage tracking-wide">TIMELESS</h1>
+              <h1 className="text-4xl font-vintage tracking-wide">KUWUTEN</h1>
               {showHello && (
                 <h2 className="text-sm sm:text-base font-vintage tracking-wide mt-2 flex justify-center items-center">
                   <span>Hello!</span>
@@ -111,7 +111,7 @@ function App() {
             darkMode ? 'text-gray-400' : 'text-gray-500'
           }`}
         >
-          © {new Date().getFullYear()} Timeless • All Rights Reserved
+          © {new Date().getFullYear()} KuwuteN • All Rights Reserved
         </footer>
       </div>
     </AccessGate>

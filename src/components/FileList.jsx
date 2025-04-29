@@ -94,7 +94,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     switch (sortOption) {
       case 'name': return a.filename.localeCompare(b.filename);
       case 'size': return (a.length || 0) - (b.length || 0);
-      case 'date': return new Date(b.uploadDate) - new Date(a.uploadDate);
+      case 'date': return new Date(a.uploadDate) - new Date(b.uploadDate);
       case 'default':
       default:    // Default sort (Latest First)
         return new Date(b.uploadDate) - new Date(a.uploadDate);

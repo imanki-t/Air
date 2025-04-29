@@ -174,42 +174,51 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   };
 
   const batchShare = async () => {
-     if (selectedFiles.length === 0) return;
-    setBatchOperationLoading(true);
-    setShowBatchShareModal(true);
-    setBatchShareLink('');
-    setCopied(false);
-    try {
-      // This assumes the backend can handle generating links for multiple IDs
-      // or returns individual links. The logic here combines them.
-      // A dedicated backend endpoint `/api/files/share-batch` might be better.
-      const responses = await Promise.all(
-        selectedFiles.map(id =>
-          axios.post(`${backendUrl}/api/files/share/${id}`) // Assuming this creates/returns a share link
-        )
-      );
-      const urls = responses.map(r => r.data.url).filter(Boolean);
+  if (selectedFiles.length === 0) return;
+  setBatchOperationLoading(true);
+  setShowBatchShareModal(true);
+  setBatchShareLink('');
+  setCopied(false);
 
-      if (urls.length === 0) {
-          throw new Error("No share links generated");
-      }
+  const zip = new JSZip();
+  const toDownload = selectedFiles
+    .map(id => files.find(f => f._id === id))
+    .filter(Boolean);
 
-      // Use a simple client-side combination for demonstration
-      // A backend generated batch link ID is preferable.
-      const combinedLinks = urls.join('\n'); // Or create a simple text list
-      // For QR code, maybe just use the first link or a message?
-      // Using the first link for QR simplicity here:
-      setBatchShareLink(urls[0]);
-      // Or generate a placeholder link like `${window.location.origin}/shared?ids=${selectedFiles.join(',')}` if backend supports it
-
-    } catch (err) {
-       console.error('Error creating batch share link:', err);
-       alert('Error creating batch share link. Please ensure files can be shared.');
-       setShowBatchShareModal(false);
-    } finally {
-      setBatchOperationLoading(false);
+  try {
+    let done = 0;
+    for (const file of toDownload) {
+      const res = await axios.get(`${backendUrl}/api/files/download/${file._id}`, {
+        responseType: 'blob'
+      });
+      zip.file(file.filename, res.data);
+      done++;
+      setBatchDownloadProgress(Math.round((done / toDownload.length) * 100));
     }
-  };
+
+    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    const zipFile = new File([zipBlob], `shared_${Date.now()}.zip`, { type: 'application/zip' });
+
+    const formData = new FormData();
+    formData.append('file', zipFile);
+
+    // Upload ZIP to backend
+    const uploadRes = await axios.post(`${backendUrl}/api/files/upload`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    // Set the share link
+    const { url } = uploadRes.data;
+    if (!url) throw new Error("No shareable URL returned.");
+    setBatchShareLink(url);
+  } catch (err) {
+    console.error('Error sharing ZIP:', err);
+    alert('Error sharing ZIP. Please try again.');
+    setShowBatchShareModal(false);
+  } finally {
+    setBatchOperationLoading(false);
+  }
+};
 
   const copyToClipboard = async () => {
     if (!batchShareLink) return;

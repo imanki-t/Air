@@ -362,7 +362,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                         'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
                         darkMode ? 'text-white' : 'text-gray-700' // Default text color
                       )} role="menuitem">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> Download
+                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg> Download 
                       </button>
 
                       {/* Divider between Download and Share */}

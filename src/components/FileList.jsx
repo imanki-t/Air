@@ -226,8 +226,8 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   // --- Render ---
   return (
     <div className={cn(
-      'transition-colors duration-300 rounded-lg p-4 shadow-lg w-full mx-auto max-w-7xl my-4', // Added margin-y
-      darkMode ? 'bg-gray-900 text-gray-200' : 'bg-white text-gray-800' // Adjusted dark bg slightly
+      'transition-colors duration-300 rounded-lg p-4 shadow-lg w-full mx-auto max-w-7xl my-4 border', // Added margin-y and base 'border' class
+      darkMode ? 'bg-gray-900 text-gray-200 border-gray-700' : 'bg-white text-gray-800 border-gray-200' // Added theme-specific border colors
     )}>
       {/* Header */}
       <div className="text-center mb-6">

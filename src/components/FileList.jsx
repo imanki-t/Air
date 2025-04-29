@@ -693,14 +693,18 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
           >
             {/* Close Button */}
             <button
-              onClick={() => !batchOperationLoading && setShowBatchShareModal(false)}
+              onClick={() => {
+                  !batchOperationLoading && setShowBatchShareModal(false);
+                  refresh(); // Add this line
+              }}
               className={cn(
                   "absolute top-3 right-3 p-1.5 rounded-full transition-colors disabled:opacity-50",
                    batchOperationLoading ? "cursor-not-allowed" : (darkMode ? "hover:bg-gray-700 text-gray-400" : "hover:bg-gray-100 text-gray-500")
-               )}
+
+)}
               disabled={batchOperationLoading} aria-label="Close share dialog"
             >
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"> <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /> </svg>
+               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"> <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /> </svg>
             </button>
 
             {/* MODIFIED: Changed title text */}

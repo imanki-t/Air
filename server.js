@@ -20,7 +20,7 @@ app.use('/api/files', fileRoutes);
 
 // Root route
 app.get('/', (req, res) => {
-  res.send('Vintage File Storage API');
+  res.send('Storage API');
 });
 
 const PORT = process.env.PORT || 5000;

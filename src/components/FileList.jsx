@@ -173,52 +173,100 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     }
   };
 
+    // Replace the existing batchShare function in FileList.jsx with this:
   const batchShare = async () => {
-  if (selectedFiles.length === 0) return;
-  setBatchOperationLoading(true);
-  setShowBatchShareModal(true);
-  setBatchShareLink('');
-  setCopied(false);
+     if (selectedFiles.length === 0) return;
+    setBatchOperationLoading(true);
+    setShowBatchShareModal(true); // Show the modal early
+    setBatchShareLink('');
+    setCopied(false);
+    // Optional: Add progress state if zipping/uploading takes time
+    // const [batchShareProgress, setBatchShareProgress] = useState(0); // Add this near other state hooks if using progress
 
-  const zip = new JSZip();
-  const toDownload = selectedFiles
-    .map(id => files.find(f => f._id === id))
-    .filter(Boolean);
+    try {
+      // 1. Create a ZIP file like in batchDownload
+      const zip = new JSZip(); // 
+      let done = 0;
+      const filesToZip = selectedFiles
+        .map(id => files.find(f => f._id === id))
+        .filter(Boolean); // Ensure we only process found files
 
-  try {
-    let done = 0;
-    for (const file of toDownload) {
-      const res = await axios.get(`${backendUrl}/api/files/download/${file._id}`, {
-        responseType: 'blob'
+      if (filesToZip.length === 0) {
+          throw new Error("No valid files selected for zipping.");
+      }
+
+      console.log('Starting batch share zip process...'); // Debug log
+      for (const file of filesToZip) {
+        console.log(`Fetching file: ${file.filename} (${file._id})`); // Debug log
+        // Fetch file data using the download endpoint
+        const res = await axios.get(`${backendUrl}/api/files/download/${file._id}`, { // 
+          responseType: 'blob'
+        });
+        console.log(`Adding ${file.filename} to zip`); // Debug log
+        // Add file to zip
+        zip.file(file.filename, res.data); // 
+        done++;
+        // Optional: Update progress state for zipping
+        // setBatchShareProgress(Math.round((done / filesToZip.length) * 50));
+      }
+
+      console.log('Generating ZIP blob...'); // Debug log
+      // Generate the ZIP blob
+      const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }); // 
+      console.log('ZIP blob generated, size:', zipBlob.size); // Debug log
+      // Optional: Update progress state
+      // setBatchShareProgress(50);
+
+      // 2. Upload the ZIP blob to the new backend endpoint
+      const formData = new FormData();
+      const zipFilename = `shared_files_${Date.now()}.zip`;
+      // *** Use 'zipFile' as the field name, matching the backend route ***
+      formData.append('zipFile', zipBlob, zipFilename);
+
+      console.log(`Uploading ${zipFilename} to ${backendUrl}/api/files/share-zip`); // Debug log
+
+      // **NEW**: Call the backend endpoint to upload the zip and get a link
+      const uploadResponse = await axios.post(`${backendUrl}/api/files/share-zip`, formData, { // Use the new backend endpoint 
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        // Optional: Add progress tracking for upload
+        // onUploadProgress: (progressEvent) => {
+        //   const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        //   setBatchShareProgress(50 + percentCompleted * 0.5); // Example: 50% allocated for upload
+        // }
       });
-      zip.file(file.filename, res.data);
-      done++;
-      setBatchDownloadProgress(Math.round((done / toDownload.length) * 100));
+
+      console.log('Upload response received:', uploadResponse.data); // Debug log
+
+      // Check if the backend returned a URL in the expected format
+      const shareUrl = uploadResponse.data?.url; // 
+      if (!shareUrl) {
+        console.error("Backend response missing URL:", uploadResponse.data); // Debug log
+        throw new Error("Failed to generate the link.");
+      }
+
+      // 3. Set the link for the modal
+      setBatchShareLink(shareUrl); // 
+      console.log('Batch share link set:', shareUrl); // Debug log
+      // Optional: Final progress update
+      // setBatchShareProgress(100);
+
+    } catch (err) {
+       // Log the detailed error
+       console.error('Error creating or sharing ZIP file:', err.response ? err.response.data : err.message, err.stack);
+       // Provide a user-friendly message
+       const errorMessage = err.response?.data?.error || err.message || 'Please try again.';
+       alert(`Error sharing files: ${errorMessage}`);
+       setShowBatchShareModal(false); // Close modal on error
+    } finally {
+      setBatchOperationLoading(false); // 
+      // Optional: Reset progress state after a delay
+      // setTimeout(() => setBatchShareProgress(0), 1500);
+      console.log('Batch share operation finished.'); // Debug log
     }
-
-    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
-    const zipFile = new File([zipBlob], `shared_${Date.now()}.zip`, { type: 'application/zip' });
-
-    const formData = new FormData();
-    formData.append('file', zipFile);
-
-    // Upload ZIP to backend
-    const uploadRes = await axios.post(`${backendUrl}/api/files/upload`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-
-    // Set the share link
-    const { url } = uploadRes.data;
-    if (!url) throw new Error("No shareable URL returned.");
-    setBatchShareLink(url);
-  } catch (err) {
-    console.error('Error sharing ZIP:', err);
-    alert('Error sharing ZIP. Please try again.');
-    setShowBatchShareModal(false);
-  } finally {
-    setBatchOperationLoading(false);
-  }
-};
+  };
+  
 
   const copyToClipboard = async () => {
     if (!batchShareLink) return;

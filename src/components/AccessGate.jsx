@@ -311,7 +311,7 @@ const AccessGate = ({ children }) => {
 </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-              TIMELESS
+              KUWUTEN
             </span>
           </h1>
         </div>

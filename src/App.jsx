@@ -21,7 +21,6 @@ function App() {
   };
 
   useEffect(() => {
-    // Global error handling
     window.onerror = (message, source, lineno, colno, error) => {
       console.error('Global error:', message, error);
       setError(`Error: ${message}`);
@@ -33,16 +32,13 @@ function App() {
       setError('Backend URL not configured.');
     }
 
-    // Check user's dark mode preference and listen for changes
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     setDarkMode(darkModeMediaQuery.matches);
     const handleDarkModeChange = (e) => setDarkMode(e.matches);
     darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
 
-    // Fetch files once component mounts
     fetchFiles();
 
-    // Hide "Hello" message after 30 seconds
     const helloTimer = setTimeout(() => {
       setShowHello(false);
     }, 30000);
@@ -84,44 +80,26 @@ function App() {
             darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
           }`}
         >
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
-            {/* Left column: Logo, visible on small devices and up */}
-            <div className="hidden sm:flex items-center">
-              <div className="w-12 h-12 rounded-full overflow-hidden shadow-lg">
-                <img
-                  src="/logo.png"
-                  alt="Logo"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </div>
-            {/* Center column: Title */}
+          <div className="max-w-6xl mx-auto flex items-center justify-center">
             <div className="text-center">
-              <h1 className="text-4xl font-vintage tracking-wide">
-                Timeless
-              </h1>
+              <h1 className="text-4xl font-vintage tracking-wide">TIMELESS</h1>
               {showHello && (
                 <h2 className="text-sm sm:text-base font-vintage tracking-wide mt-2 flex justify-center items-center">
                   <span>Hello!</span>
                   <img
                     src="/apple-heart-eyes.png"
-                    alt="🥰"
+                    alt="Heart Eyes"
                     className="w-5 h-5 ml-2"
                   />
                 </h2>
               )}
             </div>
-            {/* Right column: Spacer to balance layout, visible on small devices and up */}
-            <div className="hidden sm:block w-12"></div>
           </div>
         </header>
 
         {/* Main Content */}
         <main className="flex-grow w-full max-w-6xl mx-auto p-4 sm:p-6 flex flex-col">
-          {/* The `UploadForm` component */}
           <UploadForm refresh={fetchFiles} darkMode={darkMode} />
-          
-          {/* FileList is shown only if files are present */}
           <div className={`flex-grow ${files.length === 0 ? 'flex justify-center items-center' : ''}`}>
             <FileList files={files} refresh={fetchFiles} darkMode={darkMode} />
           </div>

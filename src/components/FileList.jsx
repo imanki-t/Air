@@ -22,7 +22,6 @@ const FileItemSkeleton = ({ darkMode }) => (
   </div>
 );
 
-
 const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -61,7 +60,6 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   useEffect(() => {
       setSelectedFiles([]); // Clear selection if the file list itself changes
   }, [files]);
-
 
   // Click-outside handler for dropdowns/modals
   useEffect(() => {
@@ -201,7 +199,8 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       const combinedLinks = urls.join('\n'); // Or create a simple text list
       // For QR code, maybe just use the first link or a message?
       // Using the first link for QR simplicity here:
-      setBatchShareLink(urls[0]); // Or generate a placeholder link like `${window.location.origin}/shared?ids=${selectedFiles.join(',')}` if backend supports it
+      setBatchShareLink(urls[0]);
+      // Or generate a placeholder link like `${window.location.origin}/shared?ids=${selectedFiles.join(',')}` if backend supports it
 
     } catch (err) {
        console.error('Error creating batch share link:', err);
@@ -253,6 +252,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
           </div>
           <input
             type="text"
+            placeholder="Search files..."
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
             className={cn(
@@ -360,7 +360,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                       </button>
                     ))}
                 </div>
-                 {/* Filter Section */}
+                {/* Filter Section */}
                 <div>
                     <div className={cn('px-4 py-2 text-xs font-semibold uppercase tracking-wider', darkMode ? 'text-gray-400' : 'text-gray-500')}>Filter by Type</div>
                     {['all', 'image', 'video', 'audio', 'document', 'other'].map(type => (
@@ -424,7 +424,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                 onClick={toggleSelectAll}
                 className={cn(
                   'w-full md:w-auto py-2 px-4 rounded-md text-sm font-medium text-center transition-colors duration-200 border',
-                  selectedFiles.length === sortedFiles.length
+                   selectedFiles.length === sortedFiles.length
                      // Deselect All: Red text
                     ? `border-red-400 ${darkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-white hover:bg-red-50'}`
                     // Select All: Blue text
@@ -484,7 +484,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
               >
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                  <span className="hidden sm:inline">Delete</span> ({selectedFiles.length})
-              </button>
+             </button>
             </div>
           </div>
         </div>
@@ -494,7 +494,8 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       {isLoading ? (
         <div className={cn(
           'grid gap-4',
-          view === 'grid' ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1' // Added xl
+           // MODIFIED: Changed grid-cols-1 to grid-cols-2 for mobile grid view
+          view === 'grid' ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1'
         )}>
           {/* Render Skeletons */}
           {Array(view === 'grid' ? 10 : 5).fill().map((_, i) => (
@@ -504,7 +505,8 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       ) : sortedFiles.length > 0 ? (
         <div className={cn(
           'grid gap-4',
-           view === 'grid' ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1' // Added xl
+           // MODIFIED: Changed grid-cols-1 to grid-cols-2 for mobile grid view
+           view === 'grid' ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1'
         )}>
           {/* Render File Items */}
           {sortedFiles.map(file => (
@@ -524,8 +526,8 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       ) : (
         // No Files Found Message
         <div className={cn(
-            'text-center py-16 rounded-lg border-2 border-dashed',
-             darkMode ? 'text-gray-500 border-gray-700 bg-gray-800/30' : 'text-gray-400 border-gray-300 bg-gray-50/50'
+            'text-center py-16 rounded-lg border-2 border-dashed min-h-[200px]', // MODIFIED: Added min-h-[200px]
+            darkMode ? 'text-gray-500 border-gray-700 bg-gray-800/30' : 'text-gray-400 border-gray-300 bg-gray-50/50'
         )}>
           <svg className="mx-auto h-12 w-12 mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
@@ -595,7 +597,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
           <div
             ref={batchDownloadModalRef}
             className={cn(
-                'p-6 rounded-lg shadow-xl max-w-sm w-full border animate-modalIn',
+             'p-6 rounded-lg shadow-xl max-w-sm w-full border animate-modalIn',
                  darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'
             )}
             role="alertdialog" aria-modal="true" aria-labelledby="download-progress-title"
@@ -603,14 +605,14 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
             <h2 id="download-progress-title" className="text-center font-semibold text-lg mb-5">Preparing Download</h2>
             <div className="my-6 px-2">
               <div className="flex justify-between mb-1 text-sm font-medium">
-                <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Compressing files...</span>
+                 <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Compressing files...</span>
                 <span className={darkMode ? 'text-gray-100' : 'text-gray-800'}>{batchDownloadProgress}%</span>
               </div>
               <div className={cn('h-2.5 rounded-full overflow-hidden w-full', darkMode ? 'bg-gray-700' : 'bg-gray-200')}>
                  <div className="h-full bg-blue-600 transition-all duration-300 ease-out rounded-full" style={{ width: `${batchDownloadProgress}%` }} />
               </div>
             </div>
-            <p className={cn("text-sm text-center mt-5", darkMode ? "text-gray-400" : "text-gray-500")}>
+             <p className={cn("text-sm text-center mt-5", darkMode ? "text-gray-400" : "text-gray-500")}>
               Creating ZIP archive ({selectedFiles.length} {selectedFiles.length !== 1 ? 'items' : 'item'}).
             </p>
           </div>
@@ -640,7 +642,8 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"> <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /> </svg>
             </button>
 
-            <h2 id="share-modal-title" className="text-center font-semibold text-lg mb-5">Share Selected Files</h2>
+            {/* MODIFIED: Changed title text */}
+            <h2 id="share-modal-title" className="text-center font-semibold text-lg mb-5">Share</h2>
 
              {/* QR Code Section */}
             <div className="flex justify-center mb-5">

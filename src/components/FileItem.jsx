@@ -426,7 +426,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
             </button>
             {/* Title */}
             <h2 id="share-file-title" className={cn(`font-semibold mb-5 text-lg text-center truncate px-8`, darkMode ? 'text-white' : 'text-gray-800')}>
-                Share "{file.filename}"
+                Share
             </h2>
 
             {/* QR Code */}

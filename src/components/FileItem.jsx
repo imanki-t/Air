@@ -359,11 +359,14 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                     >
                       {/* Download Button (No Hover) */}
                       <button onClick={download} className={cn(
-                        'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
-                        darkMode ? 'text-white' : 'text-gray-700' // Default text color
-                      )} role="menuitem">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg> Download 
-                      </button>
+  'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
+  darkMode ? 'text-white' : 'text-gray-700'
+)} role="menuitem">
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-current opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+  </svg>
+  Download
+</button>
 
                       {/* Divider between Download and Share */}
                        <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`}></div>

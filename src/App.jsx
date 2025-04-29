@@ -29,7 +29,7 @@ function App() {
 
     if (!import.meta.env.VITE_BACKEND_URL) {
       console.warn('Backend URL not configured. API calls will fail.');
-      setError('Backend URL not configured.');
+      setError('Not configured yet.');
     }
 
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');

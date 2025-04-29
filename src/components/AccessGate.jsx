@@ -439,7 +439,7 @@ const AccessGate = ({ children }) => {
       
       {/* Copyright Text - Properly positioned in bottom right */}
       <div className="hidden md:block fixed bottom-4 right-6 text-gray-500 text-sm max-w-xs text-right">
-        <span>© {new Date().getFullYear()} Timeless • All Rights Reserved</span><br/>
+        <span>© {new Date().getFullYear()} Kuwuten • All Rights Reserved</span><br/>
         <span>End-to-End Encrypted</span>
       </div>
       

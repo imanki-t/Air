@@ -715,15 +715,12 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
             </div>
 
             {batchShareLink && (
-              <div className="mt-4 text-center">
-                <p className={cn("text-xs", darkMode ? "text-gray-400" : "text-gray-600")}>
-                 {selectedFiles.length > 1
-                    ? "The link above might represent the first file or a list. QR code corresponds to the first link."
-                    : `Anyone with the link can access the selected file.`
-                 }
-                </p>
-              </div>
-            )}
+  <div className="mt-4 text-center">
+    <p className={cn("text-xs", darkMode ? "text-gray-400" : "text-gray-600")}>
+      Anyone with the link can access the selected file{selectedFiles.length > 1 ? 's' : ''}.
+    </p>
+  </div>
+)}
           </div>
         </div>
       )}

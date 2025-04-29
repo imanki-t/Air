@@ -295,7 +295,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
               showMetadata
                 ? 'bg-blue-600 text-white hover:bg-blue-700'
                 : darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-            )}
+             )}
             aria-label={showMetadata ? "Hide file details" : "Show file details"}
             aria-pressed={showMetadata}
             title={showMetadata ? "Hide details" : "Show details"}
@@ -330,7 +330,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                 ref={sortOptionsRef}
                 className={cn(
                   'absolute right-0 mt-2 w-56 rounded-lg shadow-xl z-20 border overflow-hidden', // Kept width fixed for consistency
-                  'max-h-[75vh] overflow-y-auto', // Slightly reduced max height
+                  'max-h-[50vh] sm:max-h-[75vh] overflow-y-auto', // **FIX 1: Adjusted max-h for mobile**
                   darkMode ? 'bg-gray-800 border-gray-700 divide-gray-700' : 'bg-white border-gray-200 divide-gray-200',
                   'divide-y' // Adds separators between sections
                 )}
@@ -355,7 +355,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                             : (darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100')
                         )}
                         role="menuitemradio" aria-checked={sortOption === opt.id}
-                      >
+                       >
                         {opt.label}
                       </button>
                     ))}
@@ -374,7 +374,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                             : (darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100')
                         )}
                         role="menuitemradio" aria-checked={filter === type}
-                      >
+                       >
                         {type.charAt(0).toUpperCase() + type.slice(1)}
                       </button>
                     ))}
@@ -424,7 +424,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                 onClick={toggleSelectAll}
                 className={cn(
                   'w-full md:w-auto py-2 px-4 rounded-md text-sm font-medium text-center transition-colors duration-200 border',
-                   selectedFiles.length === sortedFiles.length
+                    selectedFiles.length === sortedFiles.length
                      // Deselect All: Red text
                     ? `border-red-400 ${darkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-white hover:bg-red-50'}`
                     // Select All: Blue text
@@ -484,60 +484,64 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
               >
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                  <span className="hidden sm:inline">Delete</span> ({selectedFiles.length})
-             </button>
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Files Display Area */}
-      {isLoading ? (
-        <div className={cn(
-          'grid gap-4',
-           // MODIFIED: Changed grid-cols-1 to grid-cols-2 for mobile grid view
-          view === 'grid' ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1'
-        )}>
-          {/* Render Skeletons */}
-          {Array(view === 'grid' ? 10 : 5).fill().map((_, i) => (
-            <FileItemSkeleton key={`skel-${i}`} darkMode={darkMode} />
-          ))}
-        </div>
-      ) : sortedFiles.length > 0 ? (
-        <div className={cn(
-          'grid gap-4',
-           // MODIFIED: Changed grid-cols-1 to grid-cols-2 for mobile grid view
-           view === 'grid' ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1'
-        )}>
-          {/* Render File Items */}
-          {sortedFiles.map(file => (
-            <FileItem
-              key={file._id}
-              file={file}
-              darkMode={darkMode}
-              showDetails={showMetadata}
-              viewType={view}
-              onSelect={handleSelectFile}
-              isSelected={selectedFiles.includes(file._id)}
-              selectionMode={selectionMode}
-              refresh={refresh}
-            />
-          ))}
-        </div>
-      ) : (
-        // No Files Found Message
-        <div className={cn(
-            'text-center py-16 rounded-lg border-2 border-dashed min-h-[200px]', // MODIFIED: Added min-h-[200px]
-            darkMode ? 'text-gray-500 border-gray-700 bg-gray-800/30' : 'text-gray-400 border-gray-300 bg-gray-50/50'
-        )}>
-          <svg className="mx-auto h-12 w-12 mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-          </svg>
-          <h3 className="text-lg font-medium mb-1 text-gray-500">No files found</h3>
-          <p className="text-sm text-gray-400">
-            {searchInput ? 'Try adjusting your search or filter.' : 'Upload some files to see them here.'}
-          </p>
-        </div>
-      )}
+      {/* **FIX 2: Wrapper for Files Display Area with min-height** */}
+      <div className="min-h-[250px]">
+        {/* Files Display Area */}
+        {isLoading ? (
+          <div className={cn(
+            'grid gap-4',
+             // MODIFIED: Changed grid-cols-1 to grid-cols-2 for mobile grid view
+            view === 'grid' ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1'
+          )}>
+            {/* Render Skeletons */}
+            {Array(view === 'grid' ? 10 : 5).fill().map((_, i) => (
+              <FileItemSkeleton key={`skel-${i}`} darkMode={darkMode} />
+            ))}
+          </div>
+        ) : sortedFiles.length > 0 ? (
+          <div className={cn(
+            'grid gap-4',
+             // MODIFIED: Changed grid-cols-1 to grid-cols-2 for mobile grid view
+             view === 'grid' ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1'
+          )}>
+            {/* Render File Items */}
+            {sortedFiles.map(file => (
+              <FileItem
+                key={file._id}
+                file={file}
+                darkMode={darkMode}
+                showDetails={showMetadata}
+                viewType={view}
+                onSelect={handleSelectFile}
+                isSelected={selectedFiles.includes(file._id)}
+                selectionMode={selectionMode}
+                refresh={refresh}
+              />
+            ))}
+          </div>
+        ) : (
+          // No Files Found Message
+          <div className={cn(
+              'text-center py-16 rounded-lg border-2 border-dashed min-h-[200px]', // Existing min-h for styling
+              darkMode ? 'text-gray-500 border-gray-700 bg-gray-800/30' : 'text-gray-400 border-gray-300 bg-gray-50/50'
+          )}>
+            <svg className="mx-auto h-12 w-12 mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+            </svg>
+            <h3 className="text-lg font-medium mb-1 text-gray-500">No files found</h3>
+            <p className="text-sm text-gray-400">
+              {searchInput ? 'Try adjusting your search or filter.' : 'Upload some files to see them here.'}
+            </p>
+          </div>
+        )}
+      </div> {/* **FIX 2: Closing tag for wrapper** */}
+
 
       {/* --- Modals --- */}
 
@@ -568,7 +572,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                    ? 'bg-gray-600 text-gray-200 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500'
                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300 border border-gray-300 disabled:bg-gray-100 disabled:text-gray-400'
                  )}
-              >
+                >
                 Cancel
               </button>
               <button
@@ -597,7 +601,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
           <div
             ref={batchDownloadModalRef}
             className={cn(
-             'p-6 rounded-lg shadow-xl max-w-sm w-full border animate-modalIn',
+              'p-6 rounded-lg shadow-xl max-w-sm w-full border animate-modalIn',
                  darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'
             )}
             role="alertdialog" aria-modal="true" aria-labelledby="download-progress-title"
@@ -605,14 +609,14 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
             <h2 id="download-progress-title" className="text-center font-semibold text-lg mb-5">Preparing Download</h2>
             <div className="my-6 px-2">
               <div className="flex justify-between mb-1 text-sm font-medium">
-                 <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Compressing files...</span>
+                <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Compressing files...</span>
                 <span className={darkMode ? 'text-gray-100' : 'text-gray-800'}>{batchDownloadProgress}%</span>
               </div>
               <div className={cn('h-2.5 rounded-full overflow-hidden w-full', darkMode ? 'bg-gray-700' : 'bg-gray-200')}>
                  <div className="h-full bg-blue-600 transition-all duration-300 ease-out rounded-full" style={{ width: `${batchDownloadProgress}%` }} />
               </div>
             </div>
-             <p className={cn("text-sm text-center mt-5", darkMode ? "text-gray-400" : "text-gray-500")}>
+            <p className={cn("text-sm text-center mt-5", darkMode ? "text-gray-400" : "text-gray-500")}>
               Creating ZIP archive ({selectedFiles.length} {selectedFiles.length !== 1 ? 'items' : 'item'}).
             </p>
           </div>
@@ -636,7 +640,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
               className={cn(
                   "absolute top-3 right-3 p-1.5 rounded-full transition-colors disabled:opacity-50",
                    batchOperationLoading ? "cursor-not-allowed" : (darkMode ? "hover:bg-gray-700 text-gray-400" : "hover:bg-gray-100 text-gray-500")
-              )}
+               )}
               disabled={batchOperationLoading} aria-label="Close share dialog"
             >
                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"> <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /> </svg>
@@ -660,11 +664,11 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                        fgColor={darkMode ? '#FFFFFF' : '#000000'} // Foreground matches theme
                        level="M" // Level M is usually sufficient
                        includeMargin={false}
-                     />
+                      />
                    ) : (
                      <div className="w-[150px] h-[150px] flex items-center justify-center text-center text-xs text-red-500 p-2">Error generating QR code. Link might be invalid or too long.</div>
                    )}
-               </div>
+                </div>
             </div>
 
             {/* Link and Copy Button - Vertical Layout */}
@@ -680,7 +684,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                   )}
                   aria-label="Shareable link"
                   onClick={(e) => e.target.select()} // Select text on click
-                />
+                 />
                <button
                   onClick={copyToClipboard}
                   disabled={!batchShareLink || copied || batchOperationLoading}
@@ -691,7 +695,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                       : !batchShareLink || batchOperationLoading
                         ? (darkMode ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
                         : (darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
-                  )}
+                   )}
                 >
                  {copied ? (
                     <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</>

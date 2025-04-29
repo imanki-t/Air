@@ -231,8 +231,10 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     )}>
       {/* Header */}
       <div className="text-center mb-6">
-        <h2 className={cn('text-2xl font-semibold mb-2', darkMode ? 'text-white' : 'text-gray-900')}>
-          Your Files
+          <h2 className={cn('text-2xl font-semibold mb-2 inline-block px-4 py-1 rounded-lg',
+          darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-800' // Adjusted text color slightly for header contrast
+        )}>
+           Your Files
         </h2>
         <span className={cn('text-sm px-3 py-1 rounded-full inline-block transition-all duration-200',
           darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'

@@ -446,7 +446,7 @@ const AccessGate = ({ children }) => {
       {/* Mobile version - smaller font and multi-line */}
       <div className="block md:hidden fixed bottom-4 right-4 text-gray-500 max-w-[180px] text-right">
         <p className="text-[10px] leading-tight">
-          © {new Date().getFullYear()} Timeless • All Rights Reserved<br/>
+          © {new Date().getFullYear()} Kuwuten • All Rights Reserved<br/>
           End-to-End Encrypted
         </p>
       </div>

@@ -10,7 +10,8 @@ import axios from 'axios';
 function App() {
   const [error, setError] = useState(null);
   const [files, setFiles] = useState([]);
-  const [darkMode, setDarkMode] = useState useState(false);
+  // Corrected line: Removed the extra 'useState'
+  const [darkMode, setDarkMode] = useState(false);
   // State to track login status - managed in App.jsx now
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -139,7 +140,7 @@ function App() {
     <div className={`w-full min-h-screen flex flex-col transition-colors duration-300 ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
 
       {/* Conditionally render header: NOT shown on homepage or login page */}
-      {!hideHeader && ( // <-- Updated conditional rendering here
+      {!hideHeader && ( // <-- Condition hides header on '/' and '/login'
         <header
           className={`p-6 shadow-md transition-all duration-300 ${
             darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
@@ -224,4 +225,3 @@ function App() {
 }
 
 export default App;
-                  

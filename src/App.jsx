@@ -13,6 +13,7 @@ function App() {
   // Corrected line: Removed the extra 'useState'
   const [darkMode, setDarkMode] = useState(false);
   // State to track login status - managed in App.jsx now
+  // This state will NOT persist across sessions without sessionStorage
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Use useLocation hook to get the current route
@@ -20,16 +21,10 @@ function App() {
   // Condition to check if the header should NOT be shown
   const hideHeader = location.pathname === '/' || location.pathname === '/login';
 
-  // Function to check login status from sessionStorage
-  // A more robust solution would involve checking a secure, httpOnly cookie or backend session state.
-  const checkLoginStatus = () => {
-    const unlockedBefore = sessionStorage.getItem('access_granted');
-    setIsLoggedIn(unlockedBefore === 'true');
-  };
-
   // Function to handle successful login from AccessGate
   const handleAccessGranted = () => {
       setIsLoggedIn(true);
+      // Removed sessionStorage.setItem('access_granted', 'true');
       // Optionally navigate here if needed, though Navigate component in Route handles it
       // navigate('/dashboard');
   };
@@ -40,8 +35,10 @@ function App() {
     // This prevents unauthorized attempts if a user manually clears sessionStorage but the backend is still protected.
     if (!isLoggedIn) {
         console.log("Not logged in, skipping file fetch.");
-        setFiles([]); // Clear files if not logged in
-        setError(null); // Clear file loading error if any
+        setFiles([]);
+        // Clear files if not logged in
+        setError(null);
+        // Clear file loading error if any
         return;
     }
     console.log("Fetching files..."); // Debug log
@@ -57,7 +54,7 @@ function App() {
       if (err.response && err.response.status === 401) {
          console.log("Backend returned 401, marking as not logged in."); // Debug log
          setIsLoggedIn(false); // User is no longer authenticated
-         sessionStorage.removeItem('access_granted'); // Clear client-side state (important for UI sync)
+         // Removed sessionStorage.removeItem('access_granted');
          setError('Session expired or unauthorized. Please log in.'); // Set a user-friendly error
       } else {
         setError('Failed to load files.'); // Generic error for other issues
@@ -90,8 +87,7 @@ function App() {
     const handleDarkModeChange = (e) => setDarkMode(e.matches);
     darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
 
-    // Initial check of login status on app mount
-    checkLoginStatus();
+    // Removed initial check of login status from sessionStorage on app mount
 
     // Cleanup function for effect
     return () => {
@@ -116,6 +112,7 @@ function App() {
            }
        }
    }, [isLoggedIn]); // Depend on isLoggedIn state
+
 
   // Show a fatal error screen if the backend URL is missing or a critical global error occurs
   if (error && (error.includes('Backend not configured') || error.includes('Client error'))) {
@@ -160,6 +157,7 @@ function App() {
       <main className="flex-grow w-full max-w-6xl mx-auto p-4 sm:p-6 flex flex-col">
         <Routes>
           {/* Homepage Route: Accessible by everyone */}
+          {/* Homepage still receives isLoggedIn prop, but it will be false on reload */}
           <Route path="/" element={<Homepage isLoggedIn={isLoggedIn} />} />
 
           {/* Login/Access Gate Route: Redirect to dashboard if already logged in */}

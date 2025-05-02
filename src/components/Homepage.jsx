@@ -234,14 +234,16 @@ backgroundSize: '30px 30px', // Adjust grid spacing here (same for both modes)
 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 0 01.707.293l5.414 5.414a1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h3 className="mb-2 text-xl font-semibold">Upload Files</h3>
-{/* MODIFICATION: Added more text to the explanation */}
-<p className="opacity-80">
-                Intelligent file upload system. Quickly and securely upload your documents, photos, and other files with ease.
-</p>
+              {/* Wrap text content in a div with min-height on desktop */}
+              <div className="md:min-h-28"> {/* ADDED: Wrapper for text with desktop min-height */}
+                <h3 className="mb-2 text-xl font-semibold">Upload Files</h3>
+                <p className="opacity-80">
+                  Intelligent file upload system. Quickly and securely upload your documents, photos, and other files with ease.
+                </p>
+              </div> {/* END ADDED */}
               {/* Image taken from public directory */}
-              {/* MODIFICATION: Increased image height */}
-              <img src="/feature1.jpg" alt="Feature 1" className="w-full h-48 mt-4 rounded-md object-cover" />
+              {/* MODIFIED: Increased mobile height, kept desktop height */}
+              <img src="/feature1.jpg" alt="Feature 1" className="w-full h-56 md:h-48 mt-4 rounded-md object-cover" />
             </div>
 
             {/* Feature Card 2 */}
@@ -255,13 +257,16 @@ darkMode
 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
               </div>
-              <h3 className="mb-2 text-xl font-semibold">Advance Resume</h3>
-<p className="opacity-80">
-                Resume file upload, incase you refreshed it would help you.
-</p>
+               {/* Wrap text content in a div with min-height on desktop */}
+               <div className="md:min-h-28"> {/* ADDED: Wrapper for text with desktop min-height */}
+                 <h3 className="mb-2 text-xl font-semibold">Advance Resume</h3>
+                 <p className="opacity-80">
+                   Resume file upload, incase you refreshed it would help you.
+                 </p>
+              </div> {/* END ADDED */}
                {/* Image taken from public directory */}
-               {/* MODIFICATION: Increased image height */}
-              <img src="/feature2.jpg" alt="Feature 2" className="w-full h-48 mt-4 rounded-md object-cover" />
+               {/* MODIFIED: Increased mobile height, kept desktop height */}
+              <img src="/feature2.jpg" alt="Feature 2" className="w-full h-56 md:h-48 mt-4 rounded-md object-cover" />
             </div>
 
             {/* Feature Card 3 */}
@@ -275,13 +280,16 @@ darkMode
 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
               </div>
-              <h3 className="mb-2 text-xl font-semibold">Seamless Sync</h3>
-<p className="opacity-80">
-                Effortlessly access your files across all your devices with real-time synchronization.
-</p>
+               {/* Wrap text content in a div with min-height on desktop */}
+               <div className="md:min-h-28"> {/* ADDED: Wrapper for text with desktop min-height */}
+                 <h3 className="mb-2 text-xl font-semibold">Seamless Sync</h3>
+                 <p className="opacity-80">
+                   Effortlessly access your files across all your devices with real-time synchronization.
+                 </p>
+               </div> {/* END ADDED */}
               {/* Image taken from public directory */}
-              {/* MODIFICATION: Increased image height */}
-              <img src="/feature3.jpg" alt="Feature 3" className="w-full h-48 mt-4 rounded-md object-cover" />
+              {/* MODIFIED: Increased mobile height, kept desktop height */}
+              <img src="/feature3.jpg" alt="Feature 3" className="w-full h-56 md:h-48 mt-4 rounded-md object-cover" />
             </div>
           </div>
         </div>

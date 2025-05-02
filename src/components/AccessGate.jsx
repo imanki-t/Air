@@ -11,7 +11,6 @@ const AccessGate = ({ onAccessGranted }) => {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [mouseMovePosition, setMouseMovePosition] = useState({ x: 0, y: 0 });
   const [showPhases, setShowPhases] = useState(false);
-
   const quotes = [
     // ... (your existing quotes) ...
     "Built a dirt house for the nostalgia. Would die for it.",
@@ -213,15 +212,17 @@ const AccessGate = ({ onAccessGranted }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const correct = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone'; // Ensure this ENV var is set in Render
+    const correct = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone';
+    // Ensure this ENV var is set in Render
     if (passkey === correct) {
-      const audio = new Audio('/access-granted.mp3'); // Make sure this file is in your public directory
+      const audio = new Audio('/access-granted.mp3');
+      // Make sure this file is in your public directory
       audio.play().catch(() => {});
       setFadeOut(true);
       // Notify the parent (App.jsx) that access is granted
-      sessionStorage.setItem('access_granted', 'true'); // Still using sessionStorage for client-side persistence
+      // Removed sessionStorage.setItem('access_granted', 'true');
       if (onAccessGranted) {
-           setTimeout(() => onAccessGranted(), 800); // Call prop after fade out
+           setTimeout(() => onAccessGranted(), 800);
       }
 
     } else {

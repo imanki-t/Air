@@ -105,7 +105,7 @@ const Homepage = ({ isLoggedIn }) => {
       );
     }
 
-    // Add particle effects
+    // Add particle effects - keeping these as they were in the original code
     for (let i = 0; i < 15; i++) {
       const size = Math.floor(Math.random() * 3) + 1;
       const top = Math.floor(Math.random() * 100);
@@ -130,7 +130,10 @@ const Homepage = ({ isLoggedIn }) => {
       );
     }
 
-    return decorations;
+
+    // The grid lines and abstract corner shapes from the original renderDecorations will be handled separately
+    // to ensure the grid background is applied correctly.
+    return decorations; // Only return the random dots, blobs, doodles, and particles
   };
 
 
@@ -142,7 +145,7 @@ const Homepage = ({ isLoggedIn }) => {
 
         {/* Grid background - Applied conditionally based on dark mode */}
         <div
-          className={`absolute inset-0`}
+          className={`absolute inset-0`} // Removed grid-bg class to avoid conflicting styles
           style={{
             backgroundImage: darkMode
               ? `linear-gradient(to right, rgba(66, 135, 245, 0.2) 1px, transparent 1px),
@@ -165,12 +168,12 @@ const Homepage = ({ isLoggedIn }) => {
       <nav className="relative z-10 px-6 py-6 mx-auto max-w-7xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            {/* Logo */}
-            <div className={`w-10 h-10 rounded-lg ${darkMode ?
-'bg-primaryBlue' : 'bg-primaryRed'} flex items-center justify-center text-white font-bold text-lg`}>
+            {/* Logo - Increased size */}
+            <div className={`w-14 h-14 rounded-lg ${darkMode ? // Increased size from w-10 h-10 to w-14 h-14
+'bg-primaryBlue' : 'bg-primaryRed'} flex items-center justify-center text-xl font-bold`}> {/* Increased text size from text-lg to text-xl */}
               K
             </div>
-            <span className="text-2xl font-extrabold tracking-tight">KUWUTEN</span>
+            {/* The "KUWUTEN" text next to the logo is removed */}
           </div>
 
           {/* The dashboard button next to KUWUTEN is removed */}
@@ -196,7 +199,7 @@ const Homepage = ({ isLoggedIn }) => {
                   ? 'bg-primaryBlue text-white hover:bg-blue-600 focus:ring-blue-500'
                   : 'bg-primaryRed text-white hover:bg-red-600 focus:ring-red-500'
               }`}>
-                Dashboard
+                Dashboard {/* Text is "Dashboard" */}
               </button>
             </Link>
           </div>
@@ -204,12 +207,12 @@ const Homepage = ({ isLoggedIn }) => {
       </section>
 
       {/* Abstract wave divider */}
-      <div className="relative z-10 w-full h-24 mt-20 overflow-hidden">
+      <div className={`relative z-10 w-full h-24 mt-20 overflow-hidden`}>
         <svg className="absolute w-full min-w-[1000px] h-24 transform rotate-180" viewBox="0 0 1200 120" preserveAspectRatio="none">
           <path
             d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
              className={`${darkMode ?
-'fill-gray-950' : 'fill-white'}`}
+'fill-gray-950' : 'fill-white'}`} {/* Changed fill color to match dark mode background */}
           ></path>
         </svg>
       </div>
@@ -243,7 +246,7 @@ const Homepage = ({ isLoggedIn }) => {
                 Intelligent file categorization and tagging system that adapts to your workflow habits.
               </p>
               {/* Image taken from public directory */}
-              <img src="/feature1.jpg" alt="Feature 1" className="w-full h-40 mt-4 rounded-md object-contain" /> {/* Changed object-cover to object-contain */}
+              <img src="/feature1.jpg" alt="Feature 1" className="w-full h-40 mt-4 rounded-md object-cover" />
             </div>
 
             {/* Feature Card 2 */}
@@ -264,7 +267,7 @@ const Homepage = ({ isLoggedIn }) => {
                 End-to-end encryption and customizable access controls to keep your files secure and private.
               </p>
                {/* Image taken from public directory */}
-              <img src="/feature2.jpg" alt="Feature 2" className="w-full h-40 mt-4 rounded-md object-contain" /> {/* Changed object-cover to object-contain */}
+              <img src="/feature2.jpg" alt="Feature 2" className="w-full h-40 mt-4 rounded-md object-cover" />
             </div>
 
             {/* Feature Card 3 */}
@@ -285,7 +288,7 @@ const Homepage = ({ isLoggedIn }) => {
                 Effortlessly access your files across all your devices with real-time synchronization.
               </p>
               {/* Image taken from public directory */}
-              <img src="/feature3.jpg" alt="Feature 3" className="w-full h-40 mt-4 rounded-md object-contain" /> {/* Changed object-cover to object-contain */}
+              <img src="/feature3.jpg" alt="Feature 3" className="w-full h-40 mt-4 rounded-md object-cover" />
             </div>
           </div>
         </div>
@@ -297,7 +300,7 @@ const Homepage = ({ isLoggedIn }) => {
           <path
             d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
              className={`${darkMode ?
-'fill-gray-950' : 'fill-white'}`}
+'fill-gray-950' : 'fill-white'}`} {/* Changed fill color to match dark mode background */}
           ></path>
         </svg>
       </div>
@@ -343,7 +346,7 @@ const Homepage = ({ isLoggedIn }) => {
                     ? 'bg-primaryBlue text-white hover:bg-blue-600 focus:ring-blue-500'
                     : 'bg-primaryRed text-white hover:bg-red-600 focus:ring-red-500'
                 }`}>
-                  Go to Dashboard
+                  Go to Dashboard {/* Text remains "Go to Dashboard" */}
                 </button>
               </Link>
             </div>
@@ -378,4 +381,4 @@ const Homepage = ({ isLoggedIn }) => {
 };
 
 export default Homepage;
-        
+                

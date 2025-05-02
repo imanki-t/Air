@@ -1,492 +1,381 @@
-// AccessGate.jsx
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 
-// Accept onAccessGranted prop
-const AccessGate = ({ onAccessGranted }) => {
-  const [passkey, setPasskey] = useState('');
-  const [error, setError] = useState('');
-  const [fadeOut, setFadeOut] = useState(false);
-  // Removed the local 'unlocked' state as App.jsx manages it now
-  const [loading, setLoading] = useState(true);
-  const [passwordVisible, setPasswordVisible] = useState(false);
-  const [mouseMovePosition, setMouseMovePosition] = useState({ x: 0, y: 0 });
-  const [showPhases, setShowPhases] = useState(false);
-  const quotes = [
-    // ... (your existing quotes) ...
-    "Built a dirt house for the nostalgia. Would die for it.",
-    "The future got drip, like me?",
-    "Home is where the creeper didn’t explode.",
-    "Diamond hoe? In a locked chest. Respect it.",
-    "Walk through that nether portal like it’s a runway.",
-    "Trust issues? I cover my redstone with obsidian.",
-    "Built this world in 2012. Still better than real life.",
-    "Every dog I tamed has a name and a backstory.",
-    "It all started with one tree punch. Now I run the realm.",
-    "if you die in Minecraft you die in real life",
-    "this is the start of a very beautiful save file",
-    "punching trees is always the answer",
-    "if you touch my diamonds we fight",
-    "survival of the blockiest",
-    "one small step for Steve, one giant leap for blockkind",
-    "eat, sleep, mine, repeat",
-    "don't mine straight down... unless you're brave",
-    "my pickaxe is my therapist",
-    "built a dirt house, now I'm emotionally attached",
-    "respawned again... I should start a blog",
-    "I tried to hug a creeper, it exploded with love",
-    "Minecraft: where logic goes to nap",
-    "I once mined for 3 days... found gravel",
-    "History will remember me as the dirt block king",
-    "This world ain't big enough for the both of our builds",
-    "Reality can be disappointing, Minecraft never is",
-    "I've built empires out of cobblestone and hope",
-    "Creepers are just misunderstood fireworks",
-    "Don’t question the floating blocks, just accept them",
-    "The real enemy was lag all along",
-    "I craft, therefore I am",
-    "In the beginning, there was wood",
-    "I didn't choose the block life, it chose me",
-    "Even Herobrine fears my redstone skills",
-    "One does not simply walk into the Nether",
-    "The grass is always greener on my Minecraft server",
-    "When in doubt, dig it out",
-    "My bed is too far away, emotionally and physically",
-    "The only war crime in Minecraft is griefing",
-    "Knowledge is power, but diamonds are forever",
-    "Built a castle for fun. Now I defend it like my GPA",
-    "All roads lead to lava",
-    "They see me rollin’... in a minecart",
-    "Every great builder starts with a box",
-    "I’ve seen things… like a chicken riding a spider",
-    "Life’s a glitch and then you respawn",
-    "Redstone is just digital wizardry",
-    "Don't ask why I have 500 blocks of dirt",
-    "Home is where the respawn point is",
-    "Roblox tycoons taught me business better than school",
-    "I survived Natural Disaster Survival and all I got was this badge",
-    "Obby or not to obby, that is the question",
-    "I went to Brookhaven and all my friends turned into spies",
-    "Roblox: where you can be a pizza, a cop, and a ninja in one day",
-    "It’s all fun and games until someone glitches into the void",
-    "The floor is lava, and so is half of my obby",
-    "Roblox avatars have more drip than I do",
-    "I got scammed and it built character",
-    "Adopt Me? More like Rob Me",
-    "Trade requests build personality",
-    "I once built an entire life in Bloxburg… then forgot to save",
-    "Simulator games prepared me for adulting",
-    "I died in Arsenal and now I fear everything",
-    "Roblox: where chaos is part of the charm",
-    "Some people run from the storm. I join it on Roblox",
-    "Obbies are just rage therapy",
-    "Lava parkour builds resilience",
-    "Fake it till you make it… in Royale High",
-    "I've been in more Roblox jobs than real life ones",
-    "My Roblox avatar is cooler than I’ll ever be",
-    "Never trust someone who says 'trust trade'",
-    "Being broke in Roblox is still being fabulous",
-    "My pet in Adopt Me has better housing than me",
-    "Started from a noob, now we here",
-    "History books won’t mention us, but this Minecraft build will",
-    "I invented blockitecture",
-    "Before roads, there were paths made by Minecraft players",
-    "Every great civilization begins with punching a tree",
-    "They conquered Rome. I conquered the End",
-    "We don’t age in Minecraft, we just enchant better gear",
-    "Minecraft physics: because real ones are overrated",
-    "Myth: Steve can’t feel pain. Truth: He just doesn’t show it",
-    "Legend says the first block ever placed still exists",
-    "My empire rose from a single crafting table",
-    "Herobrine was my roommate once",
-    "Lava: nature’s way of saying 'nope'",
-    "Farming wheat since the medieval Minecraft ages",
-    "Built a monument to my lost dog. Still cry at night",
-    "No gods, only Notch",
-    "I fought the Ender Dragon and all I got was trauma",
-    "They built pyramids, I built pixel art",
-    "Minecraft time is faster, but the memories last longer",
-    "Steve is the original renaissance man",
-    "Grass blocks: the true unsung heroes",
-    "If knowledge is power, then bookshelves are armories",
-    "Spiders don’t scare me, unless they glitch through walls",
-    "The cake is a lie… but I still bake it",
-    "XP orbs are just soul fragments, prove me wrong",
-    "All my homies hate phantoms",
-    "My realm, my rules",
-    "Every server has that one chaotic neutral player",
-    "If I had a block for every failed jump, I'd reach the sky limit",
-    "Don't cry because it's night, mine because it happened",
-    "I put the 'craft' in 'outcrafted'",
-    "This world is powered by redstone and dreams",
-    "Placing blocks is therapy",
-    "I fear no man, but baby zombies terrify me",
-    "I built a secret base under my friend’s base. He still doesn’t know.",
-  ];
-  const [currentQuote, setCurrentQuote] = useState('');
-  const [typedQuote, setTypedQuote] = useState('');
+const Homepage = ({ isLoggedIn }) => {
+  // State for managing theme
+  const [darkMode, setDarkMode] = useState(false);
 
-  const phases = ["Encrypting", "Securing", "Connecting", "Verifying"];
-  const [currentPhase, setCurrentPhase] = useState(0);
-  const [phaseVisible, setPhaseVisible] = useState(false);
-  const [phaseOpacity, setPhaseOpacity] = useState(0);
+  // Detect system theme preference on component mount
+useEffect(() => {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setDarkMode(prefersDark);
 
-  useEffect(() => {
-    const quote = quotes[Math.floor(Math.random() * quotes.length)];
-    setCurrentQuote(quote);
-    let index = 0;
-    const typeInterval = setInterval(() => {
-      setTypedQuote((prev) => prev + quote.charAt(index));
-      index++;
-      if (index === quote.length) clearInterval(typeInterval);
-    }, 50);
+    // Listen for system theme changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e) => setDarkMode(e.matches);
+    mediaQuery.addEventListener('change', handleChange);
 
-    // Start loading phases after initial delay
-    setTimeout(() => {
-      setShowPhases(true);
-    }, 3000); // Wait 3 seconds before showing phases
-
-    // Set total loading time
-    setTimeout(() => {
-      setLoading(false);
-    }, 3000 + (phases.length * 1000)); // 3s initial delay + 1s per phase
-
-    const handleMouseMove = (e) => {
-      const x = (e.clientX / window.innerWidth) * 10;
-      const y = (e.clientY / window.innerHeight) * 10;
-      setMouseMovePosition({ x, y });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  useEffect(() => {
-    if (loading && showPhases) {
-      setPhaseVisible(true);
-      setPhaseOpacity(0);
-      const fadeInSteps = 10;
-      const fadeInInterval = 300 / fadeInSteps;
+  // Dynamic grid elements that will render differently based on window size
+const renderDecorations = () => {
+    // Array of decorative elements
+    const decorations = [];
 
-      let step = 0;
-      const fadeInTimer = setInterval(() => {
-        step++;
-        setPhaseOpacity(step / fadeInSteps);
-        if (step >= fadeInSteps) clearInterval(fadeInTimer);
-      }, fadeInInterval);
+    // Generate floating dots
+for (let i = 0; i < 15; i++) {
+      const size = Math.floor(Math.random() * 6) + 2;
+const top = Math.floor(Math.random() * 100);
+      const left = Math.floor(Math.random() * 100);
+      const delay = Math.random() * 5;
 
-      const fadeOutTimer = setTimeout(() => {
-        const fadeOutSteps = 8;
-        const fadeOutInterval = 300 / fadeOutSteps;
-
-        let outStep = 0;
-        const intervalId = setInterval(() => {
-          outStep++;
-          setPhaseOpacity(1 - (outStep / fadeOutSteps));
-
-          if (outStep >= fadeOutSteps) {
-            clearInterval(intervalId);
-            setPhaseVisible(false);
-          }
-        }, fadeOutInterval);
-      }, 600);
-
-      const nextTimer = setTimeout(() => {
-        if (currentPhase < phases.length - 1) {
-          setCurrentPhase(prev => prev + 1);
-        }
-      }, 1000);
-
-      return () => {
-        clearInterval(fadeInTimer);
-        clearTimeout(fadeOutTimer);
-        clearTimeout(nextTimer);
-      };
-    }
-  }, [currentPhase, loading, showPhases]);
-
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => setError(''), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const correct = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone';
-    // Ensure this ENV var is set in Render
-    if (passkey === correct) {
-      const audio = new Audio('/access-granted.mp3');
-      // Make sure this file is in your public directory
-      audio.play().catch(() => {});
-      setFadeOut(true);
-      // Notify the parent (App.jsx) that access is granted
-      // Removed sessionStorage.setItem('access_granted', 'true');
-      if (onAccessGranted) {
-           setTimeout(() => onAccessGranted(), 800);
-      }
-
-    } else {
-      setError('Access Denied: Invalid Passkey');
-      setPasskey('');
-      const form = document.getElementById('access-form');
-      if (form) {
-        form.classList.add('animate-shake');
-        setTimeout(() => form.classList.remove('animate-shake'), 500);
-      }
-    }
-  };
-
-  const togglePasswordVisibility = () => {
-    setPasswordVisible(!passwordVisible);
-  };
-
-  // AccessGate no longer renders children or checks 'unlocked' locally
-  return (
-    <div
-      className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ease-in-out overflow-hidden ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
-      style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}
-    >
-      {/* Background Grid and Animations */}
-      <div className="absolute inset-0 overflow-hidden">
+decorations.push(
         <div
-          className="absolute inset-0 opacity-10"
+          key={`dot-${i}`}
+          className={`absolute rounded-full ${darkMode ? 'bg-blue-400/20' : 'bg-red-400/20'}
+                      animate-float`}
           style={{
-            backgroundImage: 'linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px), linear-gradient(to right, rgba(59,130,246,0.5) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-            transform: `translate(${mouseMovePosition.x}px, ${mouseMovePosition.y}px)`,
-            transition: 'transform 0.5s ease-out'
+            width: `${size}px`,
+            height: `${size}px`,
+        top: `${top}%`,
+            left: `${left}%`,
+            animationDelay: `${delay}s`,
           }}
         />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none">
-          {[1, 2, 3, 4].map(ring => (
-            <div key={ring}
-              className="absolute rounded-full border border-blue-500/20"
-              style={{
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: `${ring * 60}%`,
-                height: `${ring * 60}%`,
-                animation: `orbital-rotation ${ring * 20 + 40}s linear infinite`
-              }}
-            />
-          ))}
-        </div>
-        <div className="absolute inset-0">
-          {Array.from({ length: 30 }).map((_, i) => (
-            <div key={i}
-              className="absolute rounded-full bg-gradient-to-r from-blue-400 to-purple-500"
-              style={{
-                width: `${Math.random() * 6 + 2}px`,
-                height: `${Math.random() * 6 + 2}px`,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                opacity: Math.random() * 0.5 + 0.1,
-                filter: 'blur(1px)',
-                animation: `float ${Math.random() * 10 + 10}s linear infinite`,
-                animationDelay: `${Math.random() * 5}s`
-              }}
-            />
-          ))}
-        </div>
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full bg-purple-500/10 blur-3xl"></div>
-      </div>
+      );
+    }
 
-      {/* App Header */}
-      <header className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4">
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-lg">
-            <img
-              src="/android-chrome-512x512.png"
-              className="h-8 w-8 sm:h-10 sm:w-10"
-            />
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-              KUWUTEN
-            </span>
-          </h1>
-        </div>
-      </header>
+    // Generate blob shapes
+for (let i = 0; i < 5; i++) {
+      const top = Math.floor(Math.random() * 100);
+const left = Math.floor(Math.random() * 100);
+      const size = Math.floor(Math.random() * 150) + 50;
+      const delay = Math.random() * 10;
 
+decorations.push(
+        <div
+          key={`blob-${i}`}
+          className={`absolute rounded-full filter blur-xl opacity-20 animate-blob
+                     ${darkMode ? 'bg-primaryBlue/30' : 'bg-primaryRed/30'}`}
+          style={{
+            width: `${size}px`,
+            height: `${size}px`,
+        top: `${top}%`,
+            left: `${left}%`,
+            animationDelay: `${delay}s`,
+          }}
+        />
+      );
+    }
 
-      {/* Main Content Area (Loading or Login) */}
-      <div className="relative z-10 w-full max-w-md mx-auto px-4 mt-24 sm:mt-28">
-        {loading ? (
-          // Loading Screen - INCREASED RING SIZES BY 2X
-          <div className="flex flex-col items-center justify-center p-8">
-            <div className="relative w-56 h-56 md:w-80 md:h-80 mb-6">
-              <div className="absolute inset-0">
-                <div className="absolute inset-0 rounded-full border-4 border-t-blue-500 border-r-transparent border-b-transparent border-l-transparent animate-spin"></div>
-                <div className="absolute inset-6 rounded-full border-4 border-t-transparent border-r-purple-500 border-b-transparent border-l-transparent animate-spin" style={{ animationDuration: '1.5s' }}></div>
-                <div className="absolute inset-12 rounded-full border-4 border-t-transparent border-r-transparent border-b-blue-500 border-l-transparent animate-spin" style={{ animationDuration: '2s' }}></div>
-              </div>
-              {showPhases && phaseVisible && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span
-                    className="text-gray-300 text-xl md:text-2xl"
-                    style={{
-                      opacity: phaseOpacity,
-                      transition: 'opacity 100ms ease-in-out',
-                    }}
-                  >
-                    {phases[currentPhase]}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          // Login Form
-          <div className="flex flex-col items-center">
-            <div className="w-full relative max-w-xs sm:max-w-sm">
-              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 rounded-2xl opacity-70 blur-sm animate-pulse"></div>
-              <div className="relative bg-gray-900/90 backdrop-blur-md rounded-xl overflow-hidden border border-gray-800">
-                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
-                <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
-                <div className="p-6 pt-10">
-                  <div className="text-center mb-6">
-                    <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-1">
-                      SECURE ACCESS
-                    </h2>
-                    <p className="text-gray-400 text-sm">
-                      Enter your passkey to access your secure files!
-                    </p>
-                  </div>
-                  <form id="access-form" onSubmit={handleSubmit} className="space-y-4">
-                    <div className="relative">
-                      <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg blur opacity-30"></div>
-                      <div className="relative">
-                        <input
-                          type={passwordVisible ? "text" : "password"}
-                          value={passkey}
-                          onChange={(e) => setPasskey(e.target.value)}
-                          placeholder=""
-                          className="w-full px-4 py-3 pr-10 bg-gray-800 text-white border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          autoComplete="off"
-                        />
-                        <button
-                          type="button"
-                          onClick={togglePasswordVisibility}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-400 transition-colors"
-                        >
-                          {passwordVisible ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59" />
-                            </svg>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    {error && (
-                      <div className="py-2 px-3 bg-red-900/50 border border-red-700 rounded-lg text-red-400 text-sm flex items-center space-x-2 animate-pulse">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        <span>{error}</span>
-                      </div>
-                    )}
-                    <button
-                      type="submit"
-                      className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-medium rounded-lg transition-all duration-200 relative overflow-hidden group"
-                    >
-                      <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-400 to-purple-400 opacity-0 group-hover:opacity-20 transition-opacity duration-200"></span>
-                      <span className="flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                        </svg>
-                        Unlock Access
-                      </span>
-                    </button>
-                   </form>
-                </div>
-                <div className="p-4 border-t border-gray-800 text-center">
-                  <p className="text-gray-400 text-sm italic">{currentQuote}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+    // Abstract doodles
+const doodleShapes = [
+      "M10,10 Q30,5 50,30 T90,40",
+      "M5,20 C20,5 40,60 60,10 S80,50 95,20",
+      "M10,30 Q40,5 70,30 T90,25",
+      "M5,40 C40,10 60,60 95,30",
+      "M10,50 Q25,25 40,50 T70,30",
+    ];
 
-      {/* Bottom-left Security Badges - Fixed position */}
-      <div className="fixed bottom-4 left-6 text-gray-500 text-sm hidden md:flex flex-col items-start">
-        <div className="flex items-center space-x-1 mb-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-          <span>256-bit Encryption</span>
-        </div>
-        <div className="flex items-center space-x-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-          </svg>
-          <span>Secure Authentication</span>
-        </div>
-      </div>
+for (let i = 0; i < 10; i++) {
+      const top = Math.floor(Math.random() * 90) + 5;
+const left = Math.floor(Math.random() * 90) + 5;
+      const scale = (Math.random() * 0.5) + 0.5;
+const rotate = Math.floor(Math.random() * 360);
+      const shape = doodleShapes[Math.floor(Math.random() * doodleShapes.length)];
 
-      {/* Copyright Text - Properly positioned in bottom right */}
-      <div className="hidden md:block fixed bottom-4 right-6 text-gray-500 text-sm max-w-xs text-right">
-        <span>© {new Date().getFullYear()} Kuwuten • All Rights Reserved</span><br/>
-        <span>End-to-End Encrypted</span>
-      </div>
-
-      {/* Mobile version - smaller font and multi-line */}
-      <div className="block md:hidden fixed bottom-4 right-4 text-gray-500 max-w-[180px] text-right">
-        <p className="text-[10px] leading-tight">
-          © {new Date().getFullYear()} Kuwuten • All Rights Reserved<br/>
-          End-to-End Encrypted
-        </p>
-      </div>
-
-      {/* Additional Decorative Elements */}
-      <div className="fixed top-10 left-10 w-16 h-16 opacity-10 hidden lg:block">
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="50" r="40" fill="none" stroke="#3b82f6" strokeWidth="2" />
-          <path d="M50,10 L50,90 M10,50 L90,50" stroke="#3b82f6" strokeWidth="1" />
+decorations.push(
+        <svg
+          key={`doodle-${i}`}
+          className="absolute opacity-10 pointer-events-none"
+          width="40"
+          height="20"
+          style={{
+            top: `${top}%`,
+            left: `${left}%`,
+            transform: `scale(${scale}) rotate(${rotate}deg)`,
+}}
+        >
+          <path
+            d={shape}
+            fill="none"
+            stroke={darkMode ? "#3b82f6" : "#ef4444"}
+            strokeWidth="2"
+          />
         </svg>
+      );
+}
+
+    // Add particle effects - keeping these as they were in the original code
+    for (let i = 0; i < 15; i++) {
+      const size = Math.floor(Math.random() * 3) + 1;
+const top = Math.floor(Math.random() * 100);
+      const left = Math.floor(Math.random() * 100);
+      const delay = Math.random() * 5;
+const duration = (Math.random() * 10) + 10;
+
+      decorations.push(
+        <div
+          key={`particle-${i}`}
+          className={`absolute ${darkMode ? 'bg-blue-300' : 'bg-red-300'} rounded-full`}
+          style={{
+            width: `${size}px`,
+            height: `${size}px`,
+            top: `${top}%`,
+        left: `${left}%`,
+            opacity: 0.3,
+            animation: `float ${duration}s ease-in-out infinite`,
+            animationDelay: `${delay}s`,
+          }}
+        />
+      );
+}
+return decorations; // Only return the random dots, blobs, doodles, and particles
+  };
+
+return (
+    <div className={`min-h-screen relative overflow-hidden font-inter transition-colors duration-500 ${darkMode ? 'bg-gray-950 text-white' : 'bg-white text-gray-900'}`}>
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {renderDecorations()}
+
+        {/* Grid background - Applied conditionally based on dark mode */}
+        <div
+          className={`absolute inset-0`} // Removed grid-bg class to avoid conflicting styles
+style={{
+            backgroundImage: darkMode
+              ? `linear-gradient(to right, rgba(66, 135, 245, 0.2) 1px, transparent 1px),
+                 linear-gradient(to bottom, rgba(66, 135, 245, 0.2) 1px, transparent 1px)` // Blue grid for dark mode
+              : `linear-gradient(to right, rgba(139, 0, 0, 0.3) 1px, transparent 1px),
+                 linear-gradient(to bottom, rgba(139, 0, 0, 0.3) 1px, transparent 1px)`, // Red grid for light mode
+backgroundSize: '30px 30px', // Adjust grid spacing here (same for both modes)
+            backgroundColor: darkMode ? '#0f172a' : '#ffffff', // Explicitly set background color based on mode (Tailwind gray-950 and white)
+}}
+        ></div>
+
+         {/* Abstract corner shapes - Keeping these are decorative layers */}
+         {/* MODIFICATION: Changed top-0 to top-28 */}
+        <div className={`absolute top-28 left-0 w-32 h-32 md:w-64 md:h-64 -translate-x-1/2 -translate-y-1/2 rounded-full ${darkMode ?
+'bg-primaryBlue/10' : 'bg-primaryRed/10'} blur-xl`}></div>
+        <div className={`absolute bottom-0 right-0 w-40 h-40 md:w-80 md:h-80 translate-x-1/3 translate-y-1/3 rounded-full ${darkMode ?
+'bg-primaryBlue/10' : 'bg-primaryRed/10'} blur-xl`}></div>
+
+
       </div>
-      <div className="fixed bottom-10 left-10 w-16 h-16 opacity-10 hidden lg:block">
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="50" r="40" fill="none" stroke="#8b5cf6" strokeWidth="2" />
-          <path d="M50,10 L50,90 M10,50 L90,50" stroke="#8b5cf6" strokeWidth="1" />
+
+      {/* Navigation bar */}
+      {/* MODIFICATION: Added conditional background color */}
+      <nav className={`relative z-10 px-6 py-6 mx-auto max-w-7xl ${darkMode ? 'bg-gray-950' : 'bg-white'}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            {/* Logo - Increased size */}
+            <img src="/android-chrome-512x512.png" alt="KUWUTEN Logo" className="w-20 h-20 rounded-lg" />
+            {/* Adding back the "KUWUTEN" text */}
+<span className="text-4xl font-extrabold tracking-tight">KUWUTEN</span>
+          </div>
+
+          {/* The dashboard button next to KUWUTEN is removed */}
+
+        </div>
+      </nav>
+
+      {/* Hero section */}
+      <section className="relative z-10 px-6 pt-16 mx-auto max-w-7xl md:pt-24">
+        <div className="text-center">
+<h1 className="text-4xl font-extrabold tracking-tight md:text-6xl">
+            Your Personal <span className={darkMode ? 'text-primaryBlue' : 'text-primaryRed'}>File Management</span> System
+</h1>
+          <p className="max-w-2xl mx-auto mt-6 text-xl">
+            Organize, access, and secure your files with an elegant, efficient, and personalized experience.
+</p>
+          <div className="mt-10">
+            <Link to={isLoggedIn ? "/dashboard" : "/login"}>
+<button className={`px-8 py-3 text-lg font-medium rounded-md shadow-md transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                darkMode
+                  ? 'bg-primaryBlue text-white hover:bg-blue-600 focus:ring-blue-500'
+: 'bg-primaryRed text-white hover:bg-red-600 focus:ring-red-500'
+              }`}>
+                Dashboard {/* Text is "Dashboard" */}
+              </button>
+            </Link>
+          </div>
+</div>
+      </section>
+
+      {/* Abstract wave divider */}
+      <div className={`relative z-10 w-full h-24 mt-20 overflow-hidden`}>
+        <svg className="absolute w-full min-w-[1000px] h-24 transform rotate-180" viewBox="0 0 1200 120" preserveAspectRatio="none">
+          <path
+            d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
+            className={`${darkMode ? 'fill-gray-950' : 'fill-white'}`} /* Changed fill color to match dark mode background */
+></path>
         </svg>
       </div>
 
-      <style jsx>{`
-        .bg-grid-pattern {
-          background-image: radial-gradient(circle, #3b82f6 1px, transparent 1px);
-          background-size: 20px 20px;
-        }
+      {/* Features section */}
+      <section className={`relative z-10 px-6 py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+<div className="mx-auto max-w-7xl">
+          <h2 className="text-3xl font-bold text-center">Key Features</h2>
+          <p className="max-w-2xl mx-auto mt-4 text-center text-lg opacity-80">
+            Designed specifically for your personal needs
+          </p>
 
-        @keyframes orbital-rotation {
-          from { transform: translate(-50%, -50%) rotate(0deg); }
-          to { transform: translate(-50%, -50%) rotate(360deg); }
-        }
+          <div className="grid grid-cols-1 gap-8 mt-12 md:grid-cols-3">
 
-        @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-20px); }
-        }
+            {/* Feature Card 1 */}
+<div className={`p-6 rounded-xl transition-all duration-300 transform hover:scale-105 ${
+              darkMode
+                ? 'bg-gray-800 hover:shadow-lg hover:shadow-blue-900/20'
+: 'bg-white hover:shadow-xl hover:shadow-red-200/50'
+            }`}>
+              <div className={`w-12 h-12 rounded-md ${darkMode ? 'bg-blue-500/20' : 'bg-red-500/20'} flex items-center justify-center mb-4`}>
+<svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${darkMode ? 'text-blue-400' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 0 01.707.293l5.414 5.414a1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              {/* Wrap text content in a div with min-height on desktop */}
+              <div className="md:min-h-28"> {/* ADDED: Wrapper for text with desktop min-height */}
+                <h3 className="mb-2 text-xl font-semibold">Upload Files</h3>
+                <p className="opacity-80">
+                  Intelligent file upload system. Quickly and securely upload your documents, photos, and other files with ease.
+                </p>
+              </div> {/* END ADDED */}
+              {/* Image taken from public directory */}
+              {/* MODIFIED: Increased mobile height, kept desktop height */}
+              <img src="/feature1.jpg" alt="Feature 1" className="w-full h-56 md:h-48 mt-4 rounded-md object-cover" />
+            </div>
 
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-          20%, 40%, 60%, 80% { transform: translateX(5px); }
-        }
+            {/* Feature Card 2 */}
+            <div className={`p-6 rounded-xl transition-all duration-300 transform hover:scale-105 ${
+darkMode
+                ? 'bg-gray-800 hover:shadow-lg hover:shadow-blue-900/20'
+: 'bg-white hover:shadow-xl hover:shadow-red-200/50'
+            }`}>
+              <div className={`w-12 h-12 rounded-md ${darkMode ? 'bg-blue-500/20' : 'bg-red-500/20'} flex items-center justify-center mb-4`}>
+<svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${darkMode ? 'text-blue-400' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+               {/* Wrap text content in a div with min-height on desktop */}
+               <div className="md:min-h-28"> {/* ADDED: Wrapper for text with desktop min-height */}
+                 <h3 className="mb-2 text-xl font-semibold">Advance Resume</h3>
+                 <p className="opacity-80">
+                   Resume file upload, incase you refreshed it would help you.
+                 </p>
+              </div> {/* END ADDED */}
+               {/* Image taken from public directory */}
+               {/* MODIFIED: Increased mobile height, kept desktop height */}
+              <img src="/feature2.jpg" alt="Feature 2" className="w-full h-56 md:h-48 mt-4 rounded-md object-cover" />
+            </div>
 
-        .animate-shake {
-          animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-        }
-      `}</style>
+            {/* Feature Card 3 */}
+            <div className={`p-6 rounded-xl transition-all duration-300 transform hover:scale-105 ${
+darkMode
+                ? 'bg-gray-800 hover:shadow-lg hover:shadow-blue-900/20'
+: 'bg-white hover:shadow-xl hover:shadow-red-200/50'
+            }`}>
+              <div className={`w-12 h-12 rounded-md ${darkMode ? 'bg-blue-500/20' : 'bg-red-500/20'} flex items-center justify-center mb-4`}>
+<svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${darkMode ? 'text-blue-400' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </div>
+               {/* Wrap text content in a div with min-height on desktop */}
+               <div className="md:min-h-28"> {/* ADDED: Wrapper for text with desktop min-height */}
+                 <h3 className="mb-2 text-xl font-semibold">Seamless Sync</h3>
+                 <p className="opacity-80">
+                   Effortlessly access your files across all your devices with real-time synchronization.
+                 </p>
+               </div> {/* END ADDED */}
+              {/* Image taken from public directory */}
+              {/* MODIFIED: Increased mobile height, kept desktop height */}
+              <img src="/feature3.jpg" alt="Feature 3" className="w-full h-56 md:h-48 mt-4 rounded-md object-cover" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Second abstract wave divider */}
+      <div className={`relative z-10 w-full h-24 mt-20 overflow-hidden`}>
+<svg className="absolute w-full min-w-[1000px] h-24 transform rotate-180" viewBox="0 0 1200 120" preserveAspectRatio="none">
+          <path
+            d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
+            className={`${darkMode ? 'fill-gray-950' : 'fill-white'}`} /* Changed fill color to match dark mode background */
+></path>
+        </svg>
+      </div>
+
+      {/* CTA section */}
+      <section className="relative z-10 px-6 py-16 mx-auto max-w-7xl">
+        <div className={`p-10 text-center rounded-2xl overflow-hidden relative ${
+          darkMode
+            ? 'bg-gray-900'
+: 'bg-gray-50'
+        }`}>
+          {/* Background decorative elements - keeping these */}
+          <div className="absolute inset-0 opacity-30 overflow-hidden">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div
+key={`cta-deco-${i}`}
+                className={`absolute rounded-full ${
+                  darkMode ? 'bg-primaryBlue/10' : 'bg-primaryRed/10'
+                } animate-float`}
+                style={{
+                  width: `${Math.random() * 100 + 50}px`,
+height: `${Math.random() * 100 + 50}px`,
+                  top: `${Math.random() * 100}%`,
+                  left: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 5}s`,
+animationDuration:`${Math.random() * 10 + 15}s`,
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="relative z-10">
+            <h2 className="text-3xl font-bold">Ready to Get Started?</h2>
+            <p className="max-w-2xl mx-auto mt-4 text-lg opacity-80">
+Access your dashboard now and experience seamless file management designed just for you.
+</p>
+            <div className="mt-8">
+              <Link to={isLoggedIn ? "/dashboard" : "/login"}>
+<button className={`px-8 py-3 text-lg font-medium rounded-md shadow-md transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                  darkMode
+                    ? 'bg-primaryBlue text-white hover:bg-blue-600 focus:ring-blue-500'
+: 'bg-primaryRed text-white hover:bg-red-600 focus:ring-red-500'
+                }`}>
+                  Go to Dashboard {/* Text remains "Go to Dashboard" */}
+                </button>
+</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className={`relative z-10 px-6 py-10 border-t ${
+        darkMode
+          ? 'border-gray-800 bg-gray-950'
+: 'border-gray-200 bg-white'
+      }`}>
+        <div className="mx-auto max-w-7xl">
+          <div className="flex flex-col items-center justify-between md:flex-row">
+            <div className="flex items-center space-x-2">
+              {/* Footer Logo - Changed to image and increased size */}
+              <img src="/android-chrome-512x512.png" alt="KUWUTEN Logo" className="w-10 h-10 rounded-lg" />
+{/* Footer KUWUTEN text - Increased size */}
+              <span className="text-2xl font-bold tracking-tight">KUWUTEN</span>
+            </div>
+
+            <p className="mt-4 text-sm opacity-60 md:mt-0">
+              © {new Date().getFullYear()} KUWUTEN CLOUD
+</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
 
-export default AccessGate;
+export default Homepage;
+            

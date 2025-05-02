@@ -1,3 +1,4 @@
+I can help with that. Here is the modified code:
 // App.jsx
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'; // Import useLocation
@@ -35,16 +36,14 @@ function App() {
     // This prevents unauthorized attempts if a user manually clears sessionStorage but the backend is still protected.
     if (!isLoggedIn) {
         console.log("Not logged in, skipping file fetch.");
-        setFiles([]);
-        // Clear files if not logged in
-        setError(null);
-        // Clear file loading error if any
+        setFiles([]); // Clear files if not logged in
+        setError(null); // Clear file loading error if any
         return;
     }
     console.log("Fetching files..."); // Debug log
     try {
       // Include credentials (like cookies) if your backend session uses them
-      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/files`, { withCredentials: true });
+      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/files`); // Modified line
       setFiles(res.data);
       setError(null); // Clear any previous error
       console.log("Files fetched successfully."); // Debug log
@@ -62,7 +61,6 @@ function App() {
       setFiles([]); // Clear files on error
     }
   };
-
   useEffect(() => {
     // Global error handler for unexpected JS errors
     window.onerror = (message, source, lineno, colno, error) => {
@@ -103,6 +101,7 @@ function App() {
        console.log("isLoggedIn state changed:", isLoggedIn); // Debug log
        if (isLoggedIn) {
            fetchFiles(); // Fetch files only when logged in
+
        } else {
            // If somehow logged out, clear files and potential file-related error
            setFiles([]);
@@ -110,6 +109,7 @@ function App() {
            if (!error || !error.includes('Session expired')) {
                setError(null);
            }
+
        }
    }, [isLoggedIn]); // Depend on isLoggedIn state
 
@@ -121,6 +121,7 @@ function App() {
         <div className="bg-gray-800 bg-opacity-90 p-6 rounded-lg max-w-lg text-center shadow-lg">
           <h1 className="text-2xl font-semibold mb-4">Application Error</h1>
           <p className="mb-6">{error}</p>
+
           <button
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
@@ -141,6 +142,7 @@ function App() {
         <header
           className={`p-6 shadow-md transition-all duration-300 ${
             darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+
           }`}
         >
           <div className="max-w-6xl mx-auto flex items-center justify-center">
@@ -148,6 +150,7 @@ function App() {
               <h1 className="text-4xl font-vintage tracking-wide">KUWUTEN</h1>
               {/* You could add navigation links here */}
             </div>
+
           </div>
         </header>
       )}
@@ -158,13 +161,15 @@ function App() {
         <Routes>
           {/* Homepage Route: Accessible by everyone */}
           {/* Homepage still receives isLoggedIn prop, but it will be false on reload */}
-          <Route path="/" element={<Homepage isLoggedIn={isLoggedIn} />} />
+          <Route path="/" element={<Homepage isLoggedIn={isLoggedIn} />}
+           />
 
           {/* Login/Access Gate Route: Redirect to dashboard if already logged in */}
           <Route
             path="/login"
             element={
-              isLoggedIn ? (
+              isLoggedIn ?
+               (
                 // If logged in, redirect to dashboard to avoid seeing login page
                 <Navigate to="/dashboard" replace />
               ) : (
@@ -177,14 +182,17 @@ function App() {
 
           {/* Dashboard Route: Protected - requires login */}
           <Route
+
             path="/dashboard"
             element={
-              isLoggedIn ? (
+              isLoggedIn ?
+               (
                 // If logged in, show the dashboard content
                 <>
                   {/* Display file loading errors here if any */}
                   {error && error.includes('Failed to load files') && (
-                      <div className={`mb-4 p-3 rounded-md text-sm ${darkMode ? 'bg-red-900/50 text-red-300' : 'bg-red-100 text-red-700'}`}>
+
+                    <div className={`mb-4 p-3 rounded-md text-sm ${darkMode ? 'bg-red-900/50 text-red-300' : 'bg-red-100 text-red-700'}`}>
                           {error}
                       </div>
                   )}
@@ -192,10 +200,12 @@ function App() {
                   <UploadForm refresh={fetchFiles} darkMode={darkMode} />
                   <div className={`flex-grow ${files.length === 0 ? 'flex justify-center items-center' : ''}`}>
                     {/* Pass files and refresh to FileList */}
+
                     {/* Pass isLoggedIn and fetchFiles to FileList if FileList needs to trigger re-auth */}
                     <FileList files={files} refresh={fetchFiles} darkMode={darkMode} isLoading={false} /> {/* Add isLoading prop if you have one */}
                   </div>
                 </>
+
               ) : (
                 // If not logged in, redirect to the login page
                 <Navigate to="/login" replace />
@@ -213,7 +223,8 @@ function App() {
       {/* Footer (Optional: You might only show this when logged in or always) */}
       <footer
         className={`p-4 text-center text-sm ${
-          darkMode ? 'text-gray-400' : 'text-gray-500'
+
+         darkMode ? 'text-gray-400' : 'text-gray-500'
         }`}
       >
         © {new Date().getFullYear()} KuwuteN • All Rights Reserved

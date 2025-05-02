@@ -69,24 +69,6 @@ const Homepage = ({ isLoggedIn }) => {
       );
     }
 
-    // Grid lines
-    for (let i = 0; i < 10; i++) {
-      decorations.push(
-        <div
-          key={`h-line-${i}`}
-          className={`absolute h-px w-full ${darkMode ? 'bg-blue-950' : 'bg-red-950'} opacity-10`}
-          style={{ top: `${i * 10}%` }}
-        />
-      );
-      decorations.push(
-        <div
-          key={`v-line-${i}`}
-          className={`absolute w-px h-full ${darkMode ? 'bg-blue-950' : 'bg-red-950'} opacity-10`}
-          style={{ left: `${i * 10}%` }}
-        />
-      );
-    }
-
     // Abstract doodles
     const doodleShapes = [
       "M10,10 Q30,5 50,30 T90,40",
@@ -151,18 +133,32 @@ const Homepage = ({ isLoggedIn }) => {
     return decorations;
   };
 
+
   return (
     <div className={`min-h-screen relative overflow-hidden font-inter transition-colors duration-500 ${darkMode ? 'bg-gray-950 text-white' : 'bg-white text-gray-900'}`}>
       {/* Decorative background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {renderDecorations()}
 
-        {/* Grid background */}
-        <div className={`absolute inset-0 ${darkMode ? 'bg-blue-950/5' : 'bg-red-50/80'} grid-bg`}></div>
+        {/* Grid background - Applied conditionally based on dark mode */}
+        <div
+          className={`absolute inset-0`}
+          style={{
+            backgroundImage: darkMode
+              ? `linear-gradient(to right, rgba(66, 135, 245, 0.2) 1px, transparent 1px),
+                 linear-gradient(to bottom, rgba(66, 135, 245, 0.2) 1px, transparent 1px)` // Blue grid for dark mode
+              : `linear-gradient(to right, rgba(139, 0, 0, 0.3) 1px, transparent 1px),
+                 linear-gradient(to bottom, rgba(139, 0, 0, 0.3) 1px, transparent 1px)`, // Red grid for light mode
+            backgroundSize: '30px 30px', // Adjust grid spacing here (same for both modes)
+            backgroundColor: darkMode ? '#0f172a' : '#ffffff', // Explicitly set background color based on mode (Tailwind gray-950 and white)
+          }}
+        ></div>
 
-        {/* Abstract corner shapes */}
+         {/* Abstract corner shapes - Keeping these as they are decorative layers */}
         <div className={`absolute top-0 left-0 w-32 h-32 md:w-64 md:h-64 -translate-x-1/2 -translate-y-1/2 rounded-full ${darkMode ? 'bg-primaryBlue/10' : 'bg-primaryRed/10'} blur-xl`}></div>
         <div className={`absolute bottom-0 right-0 w-40 h-40 md:w-80 md:h-80 translate-x-1/3 translate-y-1/3 rounded-full ${darkMode ? 'bg-primaryBlue/10' : 'bg-primaryRed/10'} blur-xl`}></div>
+
+
       </div>
 
       {/* Navigation bar */}
@@ -200,7 +196,7 @@ const Homepage = ({ isLoggedIn }) => {
                   ? 'bg-primaryBlue text-white hover:bg-blue-600 focus:ring-blue-500'
                   : 'bg-primaryRed text-white hover:bg-red-600 focus:ring-red-500'
               }`}>
-                Dashboard {/* Changed text to "Dashboard" */}
+                Dashboard
               </button>
             </Link>
           </div>
@@ -209,11 +205,11 @@ const Homepage = ({ isLoggedIn }) => {
 
       {/* Abstract wave divider */}
       <div className="relative z-10 w-full h-24 mt-20 overflow-hidden">
-        <svg className="absolute w-full min-w-[1000px] h-24 transform" viewBox="0 0 1200 120" preserveAspectRatio="none">
+        <svg className="absolute w-full min-w-[1000px] h-24 transform rotate-180" viewBox="0 0 1200 120" preserveAspectRatio="none">
           <path
             d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
-            className={`${darkMode ?
-'fill-gray-900' : 'fill-gray-50'}`}
+             className={`${darkMode ?
+'fill-gray-950' : 'fill-white'}`}
           ></path>
         </svg>
       </div>
@@ -247,7 +243,7 @@ const Homepage = ({ isLoggedIn }) => {
                 Intelligent file categorization and tagging system that adapts to your workflow habits.
               </p>
               {/* Image taken from public directory */}
-              <img src="/feature1.jpg" alt="Feature 1" className="w-full h-40 mt-4 rounded-md object-cover" />
+              <img src="/feature1.jpg" alt="Feature 1" className="w-full h-40 mt-4 rounded-md object-contain" /> {/* Changed object-cover to object-contain */}
             </div>
 
             {/* Feature Card 2 */}
@@ -268,7 +264,7 @@ const Homepage = ({ isLoggedIn }) => {
                 End-to-end encryption and customizable access controls to keep your files secure and private.
               </p>
                {/* Image taken from public directory */}
-              <img src="/feature2.jpg" alt="Feature 2" className="w-full h-40 mt-4 rounded-md object-cover" />
+              <img src="/feature2.jpg" alt="Feature 2" className="w-full h-40 mt-4 rounded-md object-contain" /> {/* Changed object-cover to object-contain */}
             </div>
 
             {/* Feature Card 3 */}
@@ -289,19 +285,18 @@ const Homepage = ({ isLoggedIn }) => {
                 Effortlessly access your files across all your devices with real-time synchronization.
               </p>
               {/* Image taken from public directory */}
-              <img src="/feature3.jpg" alt="Feature 3" className="w-full h-40 mt-4 rounded-md object-cover" />
+              <img src="/feature3.jpg" alt="Feature 3" className="w-full h-40 mt-4 rounded-md object-contain" /> {/* Changed object-cover to object-contain */}
             </div>
           </div>
         </div>
       </section>
 
       {/* Second abstract wave divider */}
-      <div className={`relative z-10 w-full h-24 overflow-hidden ${darkMode ?
-'bg-gray-900' : 'bg-gray-50'}`}>
+      <div className={`relative z-10 w-full h-24 mt-20 overflow-hidden`}>
         <svg className="absolute w-full min-w-[1000px] h-24 transform rotate-180" viewBox="0 0 1200 120" preserveAspectRatio="none">
           <path
             d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
-            className={`${darkMode ?
+             className={`${darkMode ?
 'fill-gray-950' : 'fill-white'}`}
           ></path>
         </svg>
@@ -314,7 +309,7 @@ const Homepage = ({ isLoggedIn }) => {
             ? 'bg-gray-900'
             : 'bg-gray-50'
         }`}>
-          {/* Background decorative elements */}
+          {/* Background decorative elements - keeping these */}
           <div className="absolute inset-0 opacity-30 overflow-hidden">
             {Array.from({ length: 10 }).map((_, i) => (
               <div
@@ -348,7 +343,7 @@ const Homepage = ({ isLoggedIn }) => {
                     ? 'bg-primaryBlue text-white hover:bg-blue-600 focus:ring-blue-500'
                     : 'bg-primaryRed text-white hover:bg-red-600 focus:ring-red-500'
                 }`}>
-                  Go to Dashboard {/* Text remains "Go to Dashboard" as per instruction */}
+                  Go to Dashboard
                 </button>
               </Link>
             </div>
@@ -383,4 +378,4 @@ const Homepage = ({ isLoggedIn }) => {
 };
 
 export default Homepage;
-          
+        

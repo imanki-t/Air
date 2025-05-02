@@ -136,7 +136,6 @@ const Homepage = ({ isLoggedIn }) => {
     return decorations; // Only return the random dots, blobs, doodles, and particles
   };
 
-
   return (
     <div className={`min-h-screen relative overflow-hidden font-inter transition-colors duration-500 ${darkMode ? 'bg-gray-950 text-white' : 'bg-white text-gray-900'}`}>
       {/* Decorative background elements */}
@@ -157,7 +156,7 @@ const Homepage = ({ isLoggedIn }) => {
           }}
         ></div>
 
-         {/* Abstract corner shapes - Keeping these as they are decorative layers */}
+         {/* Abstract corner shapes - Keeping these are decorative layers */}
         <div className={`absolute top-0 left-0 w-32 h-32 md:w-64 md:h-64 -translate-x-1/2 -translate-y-1/2 rounded-full ${darkMode ? 'bg-primaryBlue/10' : 'bg-primaryRed/10'} blur-xl`}></div>
         <div className={`absolute bottom-0 right-0 w-40 h-40 md:w-80 md:h-80 translate-x-1/3 translate-y-1/3 rounded-full ${darkMode ? 'bg-primaryBlue/10' : 'bg-primaryRed/10'} blur-xl`}></div>
 
@@ -169,12 +168,9 @@ const Homepage = ({ isLoggedIn }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             {/* Logo - Increased size */}
-            <div className={`w-14 h-14 rounded-lg ${darkMode ? // Size remains w-14 h-14 as per previous instruction
-'bg-primaryBlue' : 'bg-primaryRed'} flex items-center justify-center text-xl font-bold`}> {/* Text size remains text-xl as per previous instruction */}
-              K
-            </div>
+            <img src="/android-chrome-512x512.png" alt="KUWUTEN Logo" className="w-20 h-20 rounded-lg" />
             {/* Adding back the "KUWUTEN" text */}
-            <span className="text-2xl font-extrabold tracking-tight">KUWUTEN</span> {/* Added back the span */}
+            <span className="text-4xl font-extrabold tracking-tight">KUWUTEN</span>
           </div>
 
           {/* The dashboard button next to KUWUTEN is removed */}
@@ -186,15 +182,13 @@ const Homepage = ({ isLoggedIn }) => {
       <section className="relative z-10 px-6 pt-16 mx-auto max-w-7xl md:pt-24">
         <div className="text-center">
           <h1 className="text-4xl font-extrabold tracking-tight md:text-6xl">
-            Your Personal <span className={darkMode ?
-'text-primaryBlue' : 'text-primaryRed'}>File Management</span> System
+            Your Personal <span className={darkMode ? 'text-primaryBlue' : 'text-primaryRed'}>File Management</span> System
           </h1>
           <p className="max-w-2xl mx-auto mt-6 text-xl">
             Organize, access, and secure your files with an elegant, efficient, and personalized experience.
           </p>
           <div className="mt-10">
-            <Link to={isLoggedIn ?
-"/dashboard" : "/login"}>
+            <Link to={isLoggedIn ? "/dashboard" : "/login"}>
               <button className={`px-8 py-3 text-lg font-medium rounded-md shadow-md transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                 darkMode
                   ? 'bg-primaryBlue text-white hover:bg-blue-600 focus:ring-blue-500'
@@ -212,15 +206,13 @@ const Homepage = ({ isLoggedIn }) => {
         <svg className="absolute w-full min-w-[1000px] h-24 transform rotate-180" viewBox="0 0 1200 120" preserveAspectRatio="none">
           <path
             d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
-            className={`${darkMode ?
-'fill-gray-950' : 'fill-white'}`} /* Changed fill color to match dark mode background */
+            className={`${darkMode ? 'fill-gray-950' : 'fill-white'}`} /* Changed fill color to match dark mode background */
           ></path>
         </svg>
       </div>
 
       {/* Features section */}
-      <section className={`relative z-10 px-6 py-16 ${darkMode ?
-'bg-gray-900' : 'bg-gray-50'}`}>
+      <section className={`relative z-10 px-6 py-16 ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <div className="mx-auto max-w-7xl">
           <h2 className="text-3xl font-bold text-center">Key Features</h2>
           <p className="max-w-2xl mx-auto mt-4 text-center text-lg opacity-80">
@@ -235,16 +227,14 @@ const Homepage = ({ isLoggedIn }) => {
                 ? 'bg-gray-800 hover:shadow-lg hover:shadow-blue-900/20'
                 : 'bg-white hover:shadow-xl hover:shadow-red-200/50'
             }`}>
-              <div className={`w-12 h-12 rounded-md ${darkMode ?
-'bg-blue-500/20' : 'bg-red-500/20'} flex items-center justify-center mb-4`}>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${darkMode ?
-'text-blue-400' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className={`w-12 h-12 rounded-md ${darkMode ? 'bg-blue-500/20' : 'bg-red-500/20'} flex items-center justify-center mb-4`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${darkMode ? 'text-blue-400' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <h3 className="mb-2 text-xl font-semibold">Smart Organization</h3>
+              <h3 className="mb-2 text-xl font-semibold">Upload Files</h3>
               <p className="opacity-80">
-                Intelligent file categorization and tagging system that adapts to your workflow habits.
+                Intelligent file upload system.
               </p>
               {/* Image taken from public directory */}
               <img src="/feature1.jpg" alt="Feature 1" className="w-full h-40 mt-4 rounded-md object-cover" />
@@ -256,16 +246,14 @@ const Homepage = ({ isLoggedIn }) => {
                 ? 'bg-gray-800 hover:shadow-lg hover:shadow-blue-900/20'
                 : 'bg-white hover:shadow-xl hover:shadow-red-200/50'
             }`}>
-              <div className={`w-12 h-12 rounded-md ${darkMode ?
-'bg-blue-500/20' : 'bg-red-500/20'} flex items-center justify-center mb-4`}>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${darkMode ?
-'text-blue-400' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className={`w-12 h-12 rounded-md ${darkMode ? 'bg-blue-500/20' : 'bg-red-500/20'} flex items-center justify-center mb-4`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${darkMode ? 'text-blue-400' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
               </div>
-              <h3 className="mb-2 text-xl font-semibold">Advanced Security</h3>
+              <h3 className="mb-2 text-xl font-semibold">Advance Resume</h3>
               <p className="opacity-80">
-                End-to-end encryption and customizable access controls to keep your files secure and private.
+                Resume file upload, incase you refreshed it would help you.
               </p>
                {/* Image taken from public directory */}
               <img src="/feature2.jpg" alt="Feature 2" className="w-full h-40 mt-4 rounded-md object-cover" />
@@ -277,10 +265,8 @@ const Homepage = ({ isLoggedIn }) => {
                 ? 'bg-gray-800 hover:shadow-lg hover:shadow-blue-900/20'
                 : 'bg-white hover:shadow-xl hover:shadow-red-200/50'
             }`}>
-              <div className={`w-12 h-12 rounded-md ${darkMode ?
-'bg-blue-500/20' : 'bg-red-500/20'} flex items-center justify-center mb-4`}>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${darkMode ?
-'text-blue-400' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className={`w-12 h-12 rounded-md ${darkMode ? 'bg-blue-500/20' : 'bg-red-500/20'} flex items-center justify-center mb-4`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${darkMode ? 'text-blue-400' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
               </div>
@@ -300,8 +286,7 @@ const Homepage = ({ isLoggedIn }) => {
         <svg className="absolute w-full min-w-[1000px] h-24 transform rotate-180" viewBox="0 0 1200 120" preserveAspectRatio="none">
           <path
             d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
-            className={`${darkMode ?
-'fill-gray-950' : 'fill-white'}`} /* Changed fill color to match dark mode background */
+            className={`${darkMode ? 'fill-gray-950' : 'fill-white'}`} /* Changed fill color to match dark mode background */
           ></path>
         </svg>
       </div>
@@ -327,8 +312,7 @@ const Homepage = ({ isLoggedIn }) => {
                   top: `${Math.random() * 100}%`,
                   left: `${Math.random() * 100}%`,
                   animationDelay: `${Math.random() * 5}s`,
-                  animationDuration:
-`${Math.random() * 10 + 15}s`,
+                  animationDuration:`${Math.random() * 10 + 15}s`,
                 }}
               />
             ))}
@@ -340,8 +324,7 @@ const Homepage = ({ isLoggedIn }) => {
               Access your dashboard now and experience seamless file management designed just for you.
             </p>
             <div className="mt-8">
-              <Link to={isLoggedIn ?
-"/dashboard" : "/login"}>
+              <Link to={isLoggedIn ? "/dashboard" : "/login"}>
                 <button className={`px-8 py-3 text-lg font-medium rounded-md shadow-md transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                   darkMode
                     ? 'bg-primaryBlue text-white hover:bg-blue-600 focus:ring-blue-500'
@@ -364,11 +347,10 @@ const Homepage = ({ isLoggedIn }) => {
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-col items-center justify-between md:flex-row">
             <div className="flex items-center space-x-2">
-              <div className={`w-8 h-8 rounded-lg ${darkMode ?
-'bg-primaryBlue' : 'bg-primaryRed'} flex items-center justify-center text-white font-bold text-sm`}>
-                K
-              </div>
-              <span className="text-xl font-bold tracking-tight">KUWUTEN</span>
+              {/* Footer Logo - Changed to image and increased size */}
+              <img src="/android-chrome-512x512.png" alt="KUWUTEN Logo" className="w-10 h-10 rounded-lg" />
+              {/* Footer KUWUTEN text - Increased size */}
+              <span className="text-2xl font-bold tracking-tight">KUWUTEN</span>
             </div>
 
             <p className="mt-4 text-sm opacity-60 md:mt-0">

@@ -1,21 +1,23 @@
 // App.jsx
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom'; // Import Routes, Route, Navigate
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import UploadForm from './components/UploadForm';
 import FileList from './components/FileList';
-import AccessGate from './components/AccessGate'; // Your existing AccessGate
-import Homepage from './components/Homepage'; // Import the new Homepage
+import AccessGate from './components/AccessGate';
+import Homepage from './components/Homepage';
 import axios from 'axios';
+import { FaMoon, FaSun, FaSignOutAlt } from 'react-icons/fa';
 
 function App() {
   const [error, setError] = useState(null);
   const [files, setFiles] = useState([]);
   const [darkMode, setDarkMode] = useState(false);
-  // State to track login status - managed in App.jsx now
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const location = useLocation();
 
   // Function to check login status from sessionStorage
-  // A more robust solution would involve checking a secure, httpOnly cookie or backend session state.
   const checkLoginStatus = () => {
     const unlockedBefore = sessionStorage.getItem('access_granted');
     setIsLoggedIn(unlockedBefore === 'true');
@@ -23,55 +25,57 @@ function App() {
 
   // Function to handle successful login from AccessGate
   const handleAccessGranted = () => {
-      setIsLoggedIn(true);
-      // Optionally navigate here if needed, though Navigate component in Route handles it
-      // navigate('/dashboard');
+    setIsLoggedIn(true);
+    sessionStorage.setItem('access_granted', 'true');
   };
 
+  // Function to handle logout
+  const handleLogout = () => {
+    sessionStorage.removeItem('access_granted');
+    setIsLoggedIn(false);
+    setFiles([]);
+  };
 
   const fetchFiles = async () => {
-    // Only fetch files if isLoggedIn is true.
-    // This prevents unauthorized attempts if a user manually clears sessionStorage but the backend is still protected.
     if (!isLoggedIn) {
-        console.log("Not logged in, skipping file fetch.");
-        setFiles([]); // Clear files if not logged in
-        setError(null); // Clear file loading error if any
-        return;
+      console.log("Not logged in, skipping file fetch.");
+      setFiles([]);
+      setError(null);
+      return;
     }
-    console.log("Fetching files..."); // Debug log
+    
+    setIsLoading(true);
+    
     try {
-      // Include credentials (like cookies) if your backend session uses them
       const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/files`, { withCredentials: true });
       setFiles(res.data);
-      setError(null); // Clear any previous error
-      console.log("Files fetched successfully."); // Debug log
+      setError(null);
     } catch (err) {
       console.error('Error fetching files:', err);
-      // Handle unauthorized access: If backend sends 401, user is not authenticated.
       if (err.response && err.response.status === 401) {
-         console.log("Backend returned 401, marking as not logged in."); // Debug log
-         setIsLoggedIn(false); // User is no longer authenticated
-         sessionStorage.removeItem('access_granted'); // Clear client-side state (important for UI sync)
-         setError('Session expired or unauthorized. Please log in.'); // Set a user-friendly error
+        setIsLoggedIn(false);
+        sessionStorage.removeItem('access_granted');
+        setError('Session expired or unauthorized. Please log in.');
       } else {
-        setError('Failed to load files.'); // Generic error for other issues
+        setError('Failed to load files.');
       }
-      setFiles([]); // Clear files on error
+      setFiles([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    // Global error handler for unexpected JS errors
+    // Global error handler
     window.onerror = (message, source, lineno, colno, error) => {
       console.error('Global error:', message, error);
-      // Avoid overwriting specific API errors unless it's a different type of error
-      if (!error || !error.response) { // Only set error if it's not an Axios response error
-         setError(`Client error: ${message}`);
+      if (!error || !error.response) {
+        setError(`Client error: ${message}`);
       }
-      return true; // Prevent default browser error handling
+      return true;
     };
 
-    // Check if backend URL is configured
+    // Check backend URL
     if (!import.meta.env.VITE_BACKEND_URL) {
       console.warn('Backend URL not configured. API calls will fail.');
       setError('Backend not configured. Please set VITE_BACKEND_URL.');
@@ -80,39 +84,32 @@ function App() {
     // Set initial dark mode based on system preference
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     setDarkMode(darkModeMediaQuery.matches);
+    
     // Listen for dark mode changes
     const handleDarkModeChange = (e) => setDarkMode(e.matches);
     darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
 
-    // Initial check of login status on app mount
+    // Initial check of login status
     checkLoginStatus();
 
-    // Cleanup function for effect
     return () => {
-      window.onerror = null; // Remove global error handler
-      darkModeMediaQuery.removeEventListener('change', handleDarkModeChange); // Remove listener
+      window.onerror = null;
+      darkModeMediaQuery.removeEventListener('change', handleDarkModeChange);
     };
-  }, []); // Empty dependency array means this effect runs once on mount
+  }, []);
 
-   // Effect to fetch files when isLoggedIn changes to true
-   // This runs after the initial mount if checkLoginStatus sets isLoggedIn to true
-   // and runs whenever handleAccessGranted sets isLoggedIn to true
-   useEffect(() => {
-       console.log("isLoggedIn state changed:", isLoggedIn); // Debug log
-       if (isLoggedIn) {
-           fetchFiles(); // Fetch files only when logged in
-       } else {
-           // If somehow logged out, clear files and potential file-related error
-           setFiles([]);
-           // Keep network-related errors if isLoggedIn became false due to 401
-           // But clear generic file load error if it wasn't a 401 that logged out
-           if (!error || !error.includes('Session expired')) {
-               setError(null);
-           }
-       }
-   }, [isLoggedIn]); // Depend on isLoggedIn state
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchFiles();
+    } else {
+      setFiles([]);
+      if (!error || !error.includes('Session expired')) {
+        setError(null);
+      }
+    }
+  }, [isLoggedIn]);
 
-  // Show a fatal error screen if the backend URL is missing or a critical global error occurs
+  // Fatal error screen
   if (error && (error.includes('Backend not configured') || error.includes('Client error'))) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 text-white p-4">
@@ -121,7 +118,7 @@ function App() {
           <p className="mb-6">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded transition-colors duration-300"
           >
             Reload Page
           </button>
@@ -130,89 +127,230 @@ function App() {
     );
   }
 
+  // Page transition variants
+  const pageVariants = {
+    initial: {
+      opacity: 0,
+      y: 20,
+    },
+    in: {
+      opacity: 1,
+      y: 0,
+    },
+    out: {
+      opacity: 0,
+      y: -20,
+    },
+  };
+
+  const pageTransition = {
+    type: "tween",
+    ease: "anticipate",
+    duration: 0.5,
+  };
 
   return (
-    <div className={`w-full min-h-screen flex flex-col transition-colors duration-300 ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
-      {/* Header Section (Optional: you might only show this when logged in) */}
-      <header
-        className={`p-6 shadow-md transition-all duration-300 ${
-          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}
-      >
-        <div className="max-w-6xl mx-auto flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-4xl font-vintage tracking-wide">KUWUTEN</h1>
-            {/* You could add navigation links here */}
+    <div className={`w-full min-h-screen flex flex-col transition-colors duration-500 ${
+      darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
+    }`}>
+      {/* Header */}
+      <header className={`sticky top-0 z-30 transition-all duration-300 backdrop-blur-md ${
+        darkMode 
+          ? 'bg-gray-900/80 border-b border-gray-800' 
+          : 'bg-white/80 border-b border-gray-100 shadow-sm'
+      }`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <div className="flex items-center">
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <Link to="/">
+                  <h1 className="text-3xl font-bold tracking-tight">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-600">
+                      Kuwuten
+                    </span>
+                  </h1>
+                </Link>
+              </motion.div>
+            </div>
+            
+            {/* Right side buttons */}
+            <div className="flex items-center space-x-4">
+              {/* Dark Mode Toggle */}
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setDarkMode(!darkMode)}
+                className={`p-2 rounded-full ${
+                  darkMode 
+                    ? 'bg-gray-800 hover:bg-gray-700' 
+                    : 'bg-gray-100 hover:bg-gray-200'
+                } transition-colors duration-300`}
+                aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {darkMode ? (
+                  <FaSun className="h-5 w-5 text-yellow-400" />
+                ) : (
+                  <FaMoon className="h-5 w-5 text-indigo-600" />
+                )}
+              </motion.button>
+              
+              {/* Logout Button - Only show when logged in */}
+              {isLoggedIn && (
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleLogout}
+                  className={`flex items-center px-4 py-2 rounded-md ${
+                    darkMode 
+                      ? 'bg-gray-800 hover:bg-gray-700' 
+                      : 'bg-gray-100 hover:bg-gray-200'
+                  } transition-colors duration-300`}
+                >
+                  <FaSignOutAlt className={`h-4 w-4 mr-2 ${
+                    darkMode ? 'text-red-400' : 'text-red-600'
+                  }`} />
+                  <span>Logout</span>
+                </motion.button>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-grow w-full max-w-6xl mx-auto p-4 sm:p-6 flex flex-col">
-        <Routes>
-          {/* Homepage Route: Accessible by everyone */}
-          <Route path="/" element={<Homepage isLoggedIn={isLoggedIn} />} />
+      {/* Main Content */}
+      <main className="flex-grow w-full">
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            {/* Homepage Route */}
+            <Route 
+              path="/" 
+              element={
+                <motion.div
+                  key="homepage"
+                  initial="initial"
+                  animate="in"
+                  exit="out"
+                  variants={pageVariants}
+                  transition={pageTransition}
+                >
+                  <Homepage isLoggedIn={isLoggedIn} darkMode={darkMode} />
+                </motion.div>
+              } 
+            />
 
-          {/* Login/Access Gate Route: Redirect to dashboard if already logged in */}
-          <Route
-            path="/login"
-            element={
-              isLoggedIn ? (
-                // If logged in, redirect to dashboard to avoid seeing login page
-                <Navigate to="/dashboard" replace />
-              ) : (
-                // If not logged in, show the AccessGate.
-                // Pass the handler so AccessGate can notify App when successful.
-                <AccessGate onAccessGranted={handleAccessGranted} />
-              )
-            }
-          />
+            {/* Login Route */}
+            <Route
+              path="/login"
+              element={
+                isLoggedIn ? (
+                  <Navigate to="/dashboard" replace />
+                ) : (
+                  <motion.div
+                    key="login"
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    variants={pageVariants}
+                    transition={pageTransition}
+                    className="max-w-md mx-auto mt-12"
+                  >
+                    <AccessGate onAccessGranted={handleAccessGranted} darkMode={darkMode} />
+                  </motion.div>
+                )
+              }
+            />
 
-          {/* Dashboard Route: Protected - requires login */}
-          <Route
-            path="/dashboard"
-            element={
-              isLoggedIn ? (
-                // If logged in, show the dashboard content
-                <>
-                  {/* Display file loading errors here if any */}
-                  {error && error.includes('Failed to load files') && (
-                      <div className={`mb-4 p-3 rounded-md text-sm ${darkMode ? 'bg-red-900/50 text-red-300' : 'bg-red-100 text-red-700'}`}>
-                          {error}
-                      </div>
-                  )}
-                  {/* Render Dashboard components */}
-                  <UploadForm refresh={fetchFiles} darkMode={darkMode} />
-                  <div className={`flex-grow ${files.length === 0 ? 'flex justify-center items-center' : ''}`}>
-                    {/* Pass files and refresh to FileList */}
-                    {/* Pass isLoggedIn and fetchFiles to FileList if FileList needs to trigger re-auth */}
-                    <FileList files={files} refresh={fetchFiles} darkMode={darkMode} isLoading={false} /> {/* Add isLoading prop if you have one */}
-                  </div>
-                </>
-              ) : (
-                // If not logged in, redirect to the login page
-                <Navigate to="/login" replace />
-              )
-            }
-          />
+            {/* Dashboard Route */}
+            <Route
+              path="/dashboard"
+              element={
+                isLoggedIn ? (
+                  <motion.div
+                    key="dashboard"
+                    initial="initial"
+                    animate="in"
+                    exit="out"
+                    variants={pageVariants}
+                    transition={pageTransition}
+                    className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6"
+                  >
+                    {/* Error Display */}
+                    {error && error.includes('Failed to load files') && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`mb-4 p-4 rounded-lg text-sm flex items-center ${
+                          darkMode ? 'bg-red-900/30 text-red-300' : 'bg-red-100 text-red-700'
+                        }`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        {error}
+                      </motion.div>
+                    )}
+                    
+                    {/* Upload Form */}
+                    <UploadForm refresh={fetchFiles} darkMode={darkMode} />
+                    
+                    {/* File List */}
+                    <div className={`mt-8 ${files.length === 0 && !isLoading ? 'flex justify-center items-center min-h-[400px]' : ''}`}>
+                      <FileList 
+                        files={files} 
+                        refresh={fetchFiles} 
+                        darkMode={darkMode} 
+                        isLoading={isLoading} 
+                      />
+                    </div>
+                  </motion.div>
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              }
+            />
 
-           {/* Fallback Route (Optional: Redirect to homepage or a 404 page) */}
-           {/* This catches any paths that don't match the defined routes */}
-           <Route path="*" element={<Navigate to="/" replace />} />
-
-        </Routes>
+            {/* Fallback Route */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AnimatePresence>
       </main>
 
-      {/* Footer (Optional: You might only show this when logged in or always) */}
-      <footer
-        className={`p-4 text-center text-sm ${
-          darkMode ? 'text-gray-400' : 'text-gray-500'
-        }`}
-      >
-        © {new Date().getFullYear()} KuwuteN • All Rights Reserved
+      {/* Footer */}
+      <footer className={`py-6 px-4 transition-colors duration-300 ${
+        darkMode ? 'bg-gray-900 text-gray-400 border-t border-gray-800' : 'bg-gray-50 text-gray-500 border-t border-gray-100'
+      }`}>
+        <div className="max-w-7xl mx-auto text-center">
+          <p className="text-sm">
+            © {new Date().getFullYear()} KuwuteN • All Rights Reserved
+          </p>
+        </div>
       </footer>
     </div>
   );
 }
+
+// Add missing React Router components
+const Link = ({ to, children, className }) => {
+  const location = useLocation();
+  return (
+    <a 
+      href={to} 
+      onClick={(e) => {
+        e.preventDefault();
+        window.history.pushState({}, "", to);
+        const navEvent = new PopStateEvent('popstate');
+        window.dispatchEvent(navEvent);
+      }}
+      className={className}
+    >
+      {children}
+    </a>
+  );
+};
 
 export default App;

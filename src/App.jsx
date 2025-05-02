@@ -1,4 +1,3 @@
-I can help with that. Here is the modified code:
 // App.jsx
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'; // Import useLocation

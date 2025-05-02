@@ -1,6 +1,6 @@
 // App.jsx
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'; // Import useLocation if you need conditional header
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'; // Import useLocation
 import UploadForm from './components/UploadForm';
 import FileList from './components/FileList';
 import AccessGate from './components/AccessGate'; // Your existing AccessGate
@@ -10,9 +10,14 @@ import axios from 'axios';
 function App() {
   const [error, setError] = useState(null);
   const [files, setFiles] = useState([]);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState useState(false);
   // State to track login status - managed in App.jsx now
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Use useLocation hook to get the current route
+  const location = useLocation();
+  // Condition to check if the header should NOT be shown
+  const hideHeader = location.pathname === '/' || location.pathname === '/login';
 
   // Function to check login status from sessionStorage
   // A more robust solution would involve checking a secure, httpOnly cookie or backend session state.
@@ -72,7 +77,7 @@ function App() {
     };
 
     // Check if backend URL is configured
-    if (!import.meta.env.Vite_BACKEND_URL) {
+    if (!import.meta.env.VITE_BACKEND_URL) {
       console.warn('Backend URL not configured. API calls will fail.');
       setError('Backend not configured. Please set VITE_BACKEND_URL.');
     }
@@ -105,7 +110,6 @@ function App() {
            // If somehow logged out, clear files and potential file-related error
            setFiles([]);
            // Keep network-related errors if isLoggedIn became false due to 401
-           // But clear generic file load error if it wasn't a 401 that logged out
            if (!error || !error.includes('Session expired')) {
                setError(null);
            }
@@ -133,20 +137,23 @@ function App() {
 
   return (
     <div className={`w-full min-h-screen flex flex-col transition-colors duration-300 ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
-      {/* Header Section (Optional: you might only show this when logged in) - REMOVED */}
-      {/*
-      <header
-        className={`p-6 shadow-md transition-all duration-300 ${
-          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}
-      >
-        <div className="max-w-6xl mx-auto flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-4xl font-vintage tracking-wide">KUWUTEN</h1>
+
+      {/* Conditionally render header: NOT shown on homepage or login page */}
+      {!hideHeader && ( // <-- Updated conditional rendering here
+        <header
+          className={`p-6 shadow-md transition-all duration-300 ${
+            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}
+        >
+          <div className="max-w-6xl mx-auto flex items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-4xl font-vintage tracking-wide">KUWUTEN</h1>
+              {/* You could add navigation links here */}
+            </div>
           </div>
-        </div>
-      </header>
-      */}
+        </header>
+      )}
+
 
       {/* Main Content Area */}
       <main className="flex-grow w-full max-w-6xl mx-auto p-4 sm:p-6 flex flex-col">
@@ -217,3 +224,4 @@ function App() {
 }
 
 export default App;
+                  

@@ -1,130 +1,131 @@
+// AccessGate.jsx
 import React, { useState, useEffect } from 'react';
 
-const AccessGate = ({ children }) => {
+// Accept onAccessGranted prop
+const AccessGate = ({ onAccessGranted }) => {
   const [passkey, setPasskey] = useState('');
   const [error, setError] = useState('');
   const [fadeOut, setFadeOut] = useState(false);
-  const [unlocked, setUnlocked] = useState(false);
+  // Removed the local 'unlocked' state as App.jsx manages it now
   const [loading, setLoading] = useState(true);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [mouseMovePosition, setMouseMovePosition] = useState({ x: 0, y: 0 });
   const [showPhases, setShowPhases] = useState(false);
 
-  // For the login form quote (appears only on the login screen)
   const quotes = [
-"Built a dirt house for the nostalgia. Would die for it.",
-"The future got drip, like me?",
-"Home is where the creeper didn’t explode.",
-"Diamond hoe? In a locked chest. Respect it.",
-"Walk through that nether portal like it’s a runway.",
-"Trust issues? I cover my redstone with obsidian.",
-"Built this world in 2012. Still better than real life.",
-"Every dog I tamed has a name and a backstory.",
-"It all started with one tree punch. Now I run the realm.",
-"if you die in Minecraft you die in real life",
-"this is the start of a very beautiful save file",
-"punching trees is always the answer",
-"if you touch my diamonds we fight",
-"survival of the blockiest",
-"one small step for Steve, one giant leap for blockkind",
-"eat, sleep, mine, repeat",
-"don't mine straight down... unless you're brave",
-"my pickaxe is my therapist",
-"built a dirt house, now I'm emotionally attached",
-"respawned again... I should start a blog",
-"I tried to hug a creeper, it exploded with love",
-"Minecraft: where logic goes to nap",
-"I once mined for 3 days... found gravel",
-"History will remember me as the dirt block king",
-"This world ain't big enough for the both of our builds",
-"Reality can be disappointing, Minecraft never is",
-"I've built empires out of cobblestone and hope",
-"Creepers are just misunderstood fireworks",
-"Don’t question the floating blocks, just accept them",
-"The real enemy was lag all along",
-"I craft, therefore I am",
-"In the beginning, there was wood",
-"I didn't choose the block life, it chose me",
-"Even Herobrine fears my redstone skills",
-"One does not simply walk into the Nether",
-"The grass is always greener on my Minecraft server",
-"When in doubt, dig it out",
-"My bed is too far away, emotionally and physically",
-"The only war crime in Minecraft is griefing",
-"Knowledge is power, but diamonds are forever",
-"Built a castle for fun. Now I defend it like my GPA",
-"All roads lead to lava",
-"They see me rollin’... in a minecart",
-"Every great builder starts with a box",
-"I’ve seen things… like a chicken riding a spider",
-"Life’s a glitch and then you respawn",
-"Redstone is just digital wizardry",
-"Don't ask why I have 500 blocks of dirt",
-"Home is where the respawn point is",
-"Roblox tycoons taught me business better than school",
-"I survived Natural Disaster Survival and all I got was this badge",
-"Obby or not to obby, that is the question",
-"I went to Brookhaven and all my friends turned into spies",
-"Roblox: where you can be a pizza, a cop, and a ninja in one day",
-"It’s all fun and games until someone glitches into the void",
-"The floor is lava, and so is half of my obby",
-"Roblox avatars have more drip than I do",
-"I got scammed and it built character",
-"Adopt Me? More like Rob Me",
-"Trade requests build personality",
-"I once built an entire life in Bloxburg… then forgot to save",
-"Simulator games prepared me for adulting",
-"I died in Arsenal and now I fear everything",
-"Roblox: where chaos is part of the charm",
-"Some people run from the storm. I join it on Roblox",
-"Obbies are just rage therapy",
-"Lava parkour builds resilience",
-"Fake it till you make it… in Royale High",
-"I've been in more Roblox jobs than real life ones",
-"My Roblox avatar is cooler than I’ll ever be",
-"Never trust someone who says 'trust trade'",
-"Being broke in Roblox is still being fabulous",
-"My pet in Adopt Me has better housing than me",
-"Started from a noob, now we here",
-"History books won’t mention us, but this Minecraft build will",
-"I invented blockitecture",
-"Before roads, there were paths made by Minecraft players",
-"Every great civilization begins with punching a tree",
-"They conquered Rome. I conquered the End",
-"We don’t age in Minecraft, we just enchant better gear",
-"Minecraft physics: because real ones are overrated",
-"Myth: Steve can’t feel pain. Truth: He just doesn’t show it",
-"Legend says the first block ever placed still exists",
-"My empire rose from a single crafting table",
-"Herobrine was my roommate once",
-"Lava: nature’s way of saying 'nope'",
-"Farming wheat since the medieval Minecraft ages",
-"Built a monument to my lost dog. Still cry at night",
-"No gods, only Notch",
-"I fought the Ender Dragon and all I got was trauma",
-"They built pyramids, I built pixel art",
-"Minecraft time is faster, but the memories last longer",
-"Steve is the original renaissance man",
-"Grass blocks: the true unsung heroes",
-"If knowledge is power, then bookshelves are armories",
-"Spiders don’t scare me, unless they glitch through walls",
-"The cake is a lie… but I still bake it",
-"XP orbs are just soul fragments, prove me wrong",
-"All my homies hate phantoms",
-"My realm, my rules",
-"Every server has that one chaotic neutral player",
-"If I had a block for every failed jump, I'd reach the sky limit",
-"Don't cry because it's night, mine because it happened",
-"I put the 'craft' in 'outcrafted'",
-"This world is powered by redstone and dreams",
-"Placing blocks is therapy",
-"I fear no man, but baby zombies terrify me",
-"I built a secret base under my friend’s base. He still doesn’t know.",
+    // ... (your existing quotes) ...
+    "Built a dirt house for the nostalgia. Would die for it.",
+    "The future got drip, like me?",
+    "Home is where the creeper didn’t explode.",
+    "Diamond hoe? In a locked chest. Respect it.",
+    "Walk through that nether portal like it’s a runway.",
+    "Trust issues? I cover my redstone with obsidian.",
+    "Built this world in 2012. Still better than real life.",
+    "Every dog I tamed has a name and a backstory.",
+    "It all started with one tree punch. Now I run the realm.",
+    "if you die in Minecraft you die in real life",
+    "this is the start of a very beautiful save file",
+    "punching trees is always the answer",
+    "if you touch my diamonds we fight",
+    "survival of the blockiest",
+    "one small step for Steve, one giant leap for blockkind",
+    "eat, sleep, mine, repeat",
+    "don't mine straight down... unless you're brave",
+    "my pickaxe is my therapist",
+    "built a dirt house, now I'm emotionally attached",
+    "respawned again... I should start a blog",
+    "I tried to hug a creeper, it exploded with love",
+    "Minecraft: where logic goes to nap",
+    "I once mined for 3 days... found gravel",
+    "History will remember me as the dirt block king",
+    "This world ain't big enough for the both of our builds",
+    "Reality can be disappointing, Minecraft never is",
+    "I've built empires out of cobblestone and hope",
+    "Creepers are just misunderstood fireworks",
+    "Don’t question the floating blocks, just accept them",
+    "The real enemy was lag all along",
+    "I craft, therefore I am",
+    "In the beginning, there was wood",
+    "I didn't choose the block life, it chose me",
+    "Even Herobrine fears my redstone skills",
+    "One does not simply walk into the Nether",
+    "The grass is always greener on my Minecraft server",
+    "When in doubt, dig it out",
+    "My bed is too far away, emotionally and physically",
+    "The only war crime in Minecraft is griefing",
+    "Knowledge is power, but diamonds are forever",
+    "Built a castle for fun. Now I defend it like my GPA",
+    "All roads lead to lava",
+    "They see me rollin’... in a minecart",
+    "Every great builder starts with a box",
+    "I’ve seen things… like a chicken riding a spider",
+    "Life’s a glitch and then you respawn",
+    "Redstone is just digital wizardry",
+    "Don't ask why I have 500 blocks of dirt",
+    "Home is where the respawn point is",
+    "Roblox tycoons taught me business better than school",
+    "I survived Natural Disaster Survival and all I got was this badge",
+    "Obby or not to obby, that is the question",
+    "I went to Brookhaven and all my friends turned into spies",
+    "Roblox: where you can be a pizza, a cop, and a ninja in one day",
+    "It’s all fun and games until someone glitches into the void",
+    "The floor is lava, and so is half of my obby",
+    "Roblox avatars have more drip than I do",
+    "I got scammed and it built character",
+    "Adopt Me? More like Rob Me",
+    "Trade requests build personality",
+    "I once built an entire life in Bloxburg… then forgot to save",
+    "Simulator games prepared me for adulting",
+    "I died in Arsenal and now I fear everything",
+    "Roblox: where chaos is part of the charm",
+    "Some people run from the storm. I join it on Roblox",
+    "Obbies are just rage therapy",
+    "Lava parkour builds resilience",
+    "Fake it till you make it… in Royale High",
+    "I've been in more Roblox jobs than real life ones",
+    "My Roblox avatar is cooler than I’ll ever be",
+    "Never trust someone who says 'trust trade'",
+    "Being broke in Roblox is still being fabulous",
+    "My pet in Adopt Me has better housing than me",
+    "Started from a noob, now we here",
+    "History books won’t mention us, but this Minecraft build will",
+    "I invented blockitecture",
+    "Before roads, there were paths made by Minecraft players",
+    "Every great civilization begins with punching a tree",
+    "They conquered Rome. I conquered the End",
+    "We don’t age in Minecraft, we just enchant better gear",
+    "Minecraft physics: because real ones are overrated",
+    "Myth: Steve can’t feel pain. Truth: He just doesn’t show it",
+    "Legend says the first block ever placed still exists",
+    "My empire rose from a single crafting table",
+    "Herobrine was my roommate once",
+    "Lava: nature’s way of saying 'nope'",
+    "Farming wheat since the medieval Minecraft ages",
+    "Built a monument to my lost dog. Still cry at night",
+    "No gods, only Notch",
+    "I fought the Ender Dragon and all I got was trauma",
+    "They built pyramids, I built pixel art",
+    "Minecraft time is faster, but the memories last longer",
+    "Steve is the original renaissance man",
+    "Grass blocks: the true unsung heroes",
+    "If knowledge is power, then bookshelves are armories",
+    "Spiders don’t scare me, unless they glitch through walls",
+    "The cake is a lie… but I still bake it",
+    "XP orbs are just soul fragments, prove me wrong",
+    "All my homies hate phantoms",
+    "My realm, my rules",
+    "Every server has that one chaotic neutral player",
+    "If I had a block for every failed jump, I'd reach the sky limit",
+    "Don't cry because it's night, mine because it happened",
+    "I put the 'craft' in 'outcrafted'",
+    "This world is powered by redstone and dreams",
+    "Placing blocks is therapy",
+    "I fear no man, but baby zombies terrify me",
+    "I built a secret base under my friend’s base. He still doesn’t know.",
   ];
   const [currentQuote, setCurrentQuote] = useState('');
   const [typedQuote, setTypedQuote] = useState('');
 
-  // Array for the status messages
   const phases = ["Encrypting", "Securing", "Connecting", "Verifying"];
   const [currentPhase, setCurrentPhase] = useState(0);
   const [phaseVisible, setPhaseVisible] = useState(false);
@@ -140,20 +141,15 @@ const AccessGate = ({ children }) => {
       if (index === quote.length) clearInterval(typeInterval);
     }, 50);
 
-    const unlockedBefore = sessionStorage.getItem('access_granted');
-    if (unlockedBefore === 'true') {
-      setUnlocked(true);
-    } else {
-      // First wait 3 seconds with just the rings
-      setTimeout(() => {
-        setShowPhases(true);
-      }, 3000);
+    // Start loading phases after initial delay
+    setTimeout(() => {
+      setShowPhases(true);
+    }, 3000); // Wait 3 seconds before showing phases
 
-      // Then set the total loading time to 3s + (1s * number of phases)
-      setTimeout(() => {
-        setLoading(false);
-      }, 3000 + (phases.length * 1000));
-    }
+    // Set total loading time
+    setTimeout(() => {
+      setLoading(false);
+    }, 3000 + (phases.length * 1000)); // 3s initial delay + 1s per phase
 
     const handleMouseMove = (e) => {
       const x = (e.clientX / window.innerWidth) * 10;
@@ -166,45 +162,40 @@ const AccessGate = ({ children }) => {
 
   useEffect(() => {
     if (loading && showPhases) {
-      // Flag that we want to show a phase
       setPhaseVisible(true);
-      
-      // Gradually increase opacity over 300ms for smoother appearance
       setPhaseOpacity(0);
       const fadeInSteps = 10;
       const fadeInInterval = 300 / fadeInSteps;
-      
+
       let step = 0;
       const fadeInTimer = setInterval(() => {
         step++;
         setPhaseOpacity(step / fadeInSteps);
         if (step >= fadeInSteps) clearInterval(fadeInTimer);
       }, fadeInInterval);
-      
-      // Start fading out after 600ms (giving 400ms of full visibility)
+
       const fadeOutTimer = setTimeout(() => {
         const fadeOutSteps = 8;
         const fadeOutInterval = 300 / fadeOutSteps;
-        
+
         let outStep = 0;
         const intervalId = setInterval(() => {
           outStep++;
           setPhaseOpacity(1 - (outStep / fadeOutSteps));
-          
+
           if (outStep >= fadeOutSteps) {
             clearInterval(intervalId);
             setPhaseVisible(false);
           }
         }, fadeOutInterval);
       }, 600);
-      
-      // After 1s total, move to the next phase
+
       const nextTimer = setTimeout(() => {
         if (currentPhase < phases.length - 1) {
           setCurrentPhase(prev => prev + 1);
         }
       }, 1000);
-      
+
       return () => {
         clearInterval(fadeInTimer);
         clearTimeout(fadeOutTimer);
@@ -222,15 +213,17 @@ const AccessGate = ({ children }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const correct = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone';
+    const correct = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone'; // Ensure this ENV var is set in Render
     if (passkey === correct) {
-      const audio = new Audio('/access-granted.mp3');
+      const audio = new Audio('/access-granted.mp3'); // Make sure this file is in your public directory
       audio.play().catch(() => {});
       setFadeOut(true);
-      setTimeout(() => {
-        setUnlocked(true);
-        sessionStorage.setItem('access_granted', 'true');
-      }, 800);
+      // Notify the parent (App.jsx) that access is granted
+      sessionStorage.setItem('access_granted', 'true'); // Still using sessionStorage for client-side persistence
+      if (onAccessGranted) {
+           setTimeout(() => onAccessGranted(), 800); // Call prop after fade out
+      }
+
     } else {
       setError('Access Denied: Invalid Passkey');
       setPasskey('');
@@ -246,8 +239,7 @@ const AccessGate = ({ children }) => {
     setPasswordVisible(!passwordVisible);
   };
 
-  if (unlocked) return children;
-
+  // AccessGate no longer renders children or checks 'unlocked' locally
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ease-in-out overflow-hidden ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
@@ -255,7 +247,7 @@ const AccessGate = ({ children }) => {
     >
       {/* Background Grid and Animations */}
       <div className="absolute inset-0 overflow-hidden">
-        <div 
+        <div
           className="absolute inset-0 opacity-10"
           style={{
             backgroundImage: 'linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px), linear-gradient(to right, rgba(59,130,246,0.5) 1px, transparent 1px)',
@@ -299,16 +291,16 @@ const AccessGate = ({ children }) => {
         <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-blue-500/10 blur-3xl"></div>
         <div className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full bg-purple-500/10 blur-3xl"></div>
       </div>
-        
+
       {/* App Header */}
       <header className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4">
         <div className="flex items-center space-x-3">
           <div className="flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-lg">
-  <img 
-    src="/android-chrome-512x512.png" 
-    className="h-8 w-8 sm:h-10 sm:w-10"
-  />
-</div>
+            <img
+              src="/android-chrome-512x512.png"
+              className="h-8 w-8 sm:h-10 sm:w-10"
+            />
+          </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
               KUWUTEN
@@ -316,7 +308,8 @@ const AccessGate = ({ children }) => {
           </h1>
         </div>
       </header>
-        
+
+
       {/* Main Content Area (Loading or Login) */}
       <div className="relative z-10 w-full max-w-md mx-auto px-4 mt-24 sm:mt-28">
         {loading ? (
@@ -330,9 +323,9 @@ const AccessGate = ({ children }) => {
               </div>
               {showPhases && phaseVisible && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span 
+                  <span
                     className="text-gray-300 text-xl md:text-2xl"
-                    style={{ 
+                    style={{
                       opacity: phaseOpacity,
                       transition: 'opacity 100ms ease-in-out',
                     }}
@@ -354,7 +347,7 @@ const AccessGate = ({ children }) => {
                 <div className="p-6 pt-10">
                   <div className="text-center mb-6">
                     <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-1">
-                      SECURE ACCESS 
+                      SECURE ACCESS
                     </h2>
                     <p className="text-gray-400 text-sm">
                       Enter your passkey to access your secure files!
@@ -410,7 +403,7 @@ const AccessGate = ({ children }) => {
                         Unlock Access
                       </span>
                     </button>
-                  </form>
+                   </form>
                 </div>
                 <div className="p-4 border-t border-gray-800 text-center">
                   <p className="text-gray-400 text-sm italic">{currentQuote}</p>
@@ -420,7 +413,7 @@ const AccessGate = ({ children }) => {
           </div>
         )}
       </div>
-        
+
       {/* Bottom-left Security Badges - Fixed position */}
       <div className="fixed bottom-4 left-6 text-gray-500 text-sm hidden md:flex flex-col items-start">
         <div className="flex items-center space-x-1 mb-1">
@@ -436,13 +429,13 @@ const AccessGate = ({ children }) => {
           <span>Secure Authentication</span>
         </div>
       </div>
-      
+
       {/* Copyright Text - Properly positioned in bottom right */}
       <div className="hidden md:block fixed bottom-4 right-6 text-gray-500 text-sm max-w-xs text-right">
         <span>© {new Date().getFullYear()} Kuwuten • All Rights Reserved</span><br/>
         <span>End-to-End Encrypted</span>
       </div>
-      
+
       {/* Mobile version - smaller font and multi-line */}
       <div className="block md:hidden fixed bottom-4 right-4 text-gray-500 max-w-[180px] text-right">
         <p className="text-[10px] leading-tight">
@@ -450,7 +443,7 @@ const AccessGate = ({ children }) => {
           End-to-End Encrypted
         </p>
       </div>
-        
+
       {/* Additional Decorative Elements */}
       <div className="fixed top-10 left-10 w-16 h-16 opacity-10 hidden lg:block">
         <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -464,29 +457,29 @@ const AccessGate = ({ children }) => {
           <path d="M50,10 L50,90 M10,50 L90,50" stroke="#8b5cf6" strokeWidth="1" />
         </svg>
       </div>
-        
+
       <style jsx>{`
         .bg-grid-pattern {
           background-image: radial-gradient(circle, #3b82f6 1px, transparent 1px);
           background-size: 20px 20px;
         }
-          
+
         @keyframes orbital-rotation {
           from { transform: translate(-50%, -50%) rotate(0deg); }
           to { transform: translate(-50%, -50%) rotate(360deg); }
         }
-          
+
         @keyframes float {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-20px); }
         }
-          
+
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
           10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
           20%, 40%, 60%, 80% { transform: translateX(5px); }
         }
-          
+
         .animate-shake {
           animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
         }

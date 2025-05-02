@@ -1,14 +1,24 @@
+// App.jsx
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom'; // Import Routes, Route, Navigate
 import UploadForm from './components/UploadForm';
 import FileList from './components/FileList';
-import AccessGate from './components/AccessGate';
+import AccessGate from './components/AccessGate'; // Your existing AccessGate
+import Homepage from './components/Homepage'; // Import the new Homepage
 import axios from 'axios';
 
 function App() {
   const [error, setError] = useState(null);
   const [files, setFiles] = useState([]);
   const [darkMode, setDarkMode] = useState(false);
-  const [showHello, setShowHello] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // State to track login status
+
+  // Function to check login status (adapting from AccessGate's sessionStorage logic)
+  // A more robust solution would involve checking a secure, httpOnly cookie or backend session state.
+  const checkLoginStatus = () => {
+    const unlockedBefore = sessionStorage.getItem('access_granted');
+    setIsLoggedIn(unlockedBefore === 'true');
+  };
 
   const fetchFiles = async () => {
     try {
@@ -16,6 +26,11 @@ function App() {
       setFiles(res.data);
     } catch (err) {
       console.error('Error fetching files:', err);
+      // Consider handling unauthorized access here (e.g., if backend sends 401)
+      if (err.response && err.response.status === 401) {
+         setIsLoggedIn(false); // User is no longer authenticated
+         sessionStorage.removeItem('access_granted'); // Clear client-side state
+      }
       setError('Failed to load files');
     }
   };
@@ -37,18 +52,28 @@ function App() {
     const handleDarkModeChange = (e) => setDarkMode(e.matches);
     darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
 
-    fetchFiles();
+    // Check login status on app load
+    checkLoginStatus();
 
-    const helloTimer = setTimeout(() => {
-      setShowHello(false);
-    }, 30000);
+    // Fetch files only if potentially logged in (adjust based on your auth flow)
+    if (sessionStorage.getItem('access_granted') === 'true') {
+       fetchFiles();
+    }
+
 
     return () => {
       window.onerror = null;
       darkModeMediaQuery.removeEventListener('change', handleDarkModeChange);
-      clearTimeout(helloTimer);
     };
-  }, []);
+  }, []); // Empty dependency array means this effect runs once on mount
+
+   // Effect to re-fetch files when isLoggedIn changes to true
+   useEffect(() => {
+       if (isLoggedIn) {
+           fetchFiles();
+       }
+   }, [isLoggedIn]);
+
 
   if (error) {
     return (
@@ -68,53 +93,75 @@ function App() {
   }
 
   return (
-    <AccessGate>
-      <div
-        className={`w-full min-h-screen flex flex-col transition-colors duration-300 ${
-          darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'
+    <div className={`w-full min-h-screen flex flex-col transition-colors duration-300 ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
+      {/* Header Section (You might want to make this always visible or conditionally show it) */}
+      <header
+        className={`p-6 shadow-md transition-all duration-300 ${
+          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
         }`}
       >
-        {/* Header Section */}
-        <header
-          className={`p-6 shadow-md transition-all duration-300 ${
-            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}
-        >
-          <div className="max-w-6xl mx-auto flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-4xl font-vintage tracking-wide">KUWUTEN</h1>
-              {showHello && (
-                <h2 className="text-sm sm:text-base font-vintage tracking-wide mt-2 flex justify-center items-center">
-                  <span>Hello!</span>
-                  <img
-                    src="/apple-heart-eyes.png"
-                    alt="Heart Eyes"
-                    className="w-5 h-5 ml-2"
-                  />
-                </h2>
-              )}
-            </div>
+        <div className="max-w-6xl mx-auto flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-4xl font-vintage tracking-wide">KUWUTEN</h1>
+            {/* You can keep or remove the 'Hello' message based on your preference */}
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* Main Content */}
-        <main className="flex-grow w-full max-w-6xl mx-auto p-4 sm:p-6 flex flex-col">
-          <UploadForm refresh={fetchFiles} darkMode={darkMode} />
-          <div className={`flex-grow ${files.length === 0 ? 'flex justify-center items-center' : ''}`}>
-            <FileList files={files} refresh={fetchFiles} darkMode={darkMode} />
-          </div>
-        </main>
+      {/* Main Content Area */}
+      <main className="flex-grow w-full max-w-6xl mx-auto p-4 sm:p-6 flex flex-col">
+        <Routes>
+          {/* Homepage Route */}
+          <Route path="/" element={<Homepage isLoggedIn={isLoggedIn} />} />
 
-        {/* Footer */}
-        <footer
-          className={`p-4 text-center text-sm ${
-            darkMode ? 'text-gray-400' : 'text-gray-500'
-          }`}
-        >
-          © {new Date().getFullYear()} KuwuteN • All Rights Reserved
-        </footer>
-      </div>
-    </AccessGate>
+          {/* Login/Access Gate Route */}
+          {/* When AccessGate unlocks, it should update isLoggedIn state and potentially navigate */}
+          <Route
+            path="/login"
+            element={
+              isLoggedIn ? (
+                <Navigate to="/dashboard" replace /> // Redirect to dashboard if already logged in
+              ) : (
+                 // Pass a prop to AccessGate to notify App when access is granted
+                <AccessGate onAccessGranted={() => setIsLoggedIn(true)} />
+              )
+            }
+          />
+
+          {/* Dashboard Route - Protected */}
+          <Route
+            path="/dashboard"
+            element={
+              isLoggedIn ? (
+                <>
+                  {/* Render Dashboard components */}
+                  <UploadForm refresh={fetchFiles} darkMode={darkMode} />
+                  <div className={`flex-grow ${files.length === 0 ? 'flex justify-center items-center' : ''}`}>
+                    {/* Pass files and refresh to FileList */}
+                    <FileList files={files} refresh={fetchFiles} darkMode={darkMode} />
+                  </div>
+                </>
+              ) : (
+                <Navigate to="/login" replace /> // Redirect to login if not logged in
+              )
+            }
+          />
+
+           {/* Fallback Route (Optional: Redirect to homepage or a 404 page) */}
+           <Route path="*" element={<Navigate to="/" replace />} />
+
+        </Routes>
+      </main>
+
+      {/* Footer (Optional: You might want to make this always visible) */}
+      <footer
+        className={`p-4 text-center text-sm ${
+          darkMode ? 'text-gray-400' : 'text-gray-500'
+        }`}
+      >
+        © {new Date().getFullYear()} KuwuteN • All Rights Reserved
+      </footer>
+    </div>
   );
 }
 

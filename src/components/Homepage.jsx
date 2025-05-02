@@ -231,15 +231,17 @@ backgroundSize: '30px 30px', // Adjust grid spacing here (same for both modes)
             }`}>
               <div className={`w-12 h-12 rounded-md ${darkMode ? 'bg-blue-500/20' : 'bg-red-500/20'} flex items-center justify-center mb-4`}>
 <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 ${darkMode ? 'text-blue-400' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 0 01.707.293l5.414 5.414a1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
               <h3 className="mb-2 text-xl font-semibold">Upload Files</h3>
+{/* MODIFICATION: Added more text to the explanation */}
 <p className="opacity-80">
-                Intelligent file upload system.
+                Intelligent file upload system. Quickly and securely upload your documents, photos, and other files with ease.
 </p>
               {/* Image taken from public directory */}
-              <img src="/feature1.jpg" alt="Feature 1" className="w-full h-40 mt-4 rounded-md object-cover" />
+              {/* MODIFICATION: Increased image height */}
+              <img src="/feature1.jpg" alt="Feature 1" className="w-full h-48 mt-4 rounded-md object-cover" />
             </div>
 
             {/* Feature Card 2 */}
@@ -258,7 +260,8 @@ darkMode
                 Resume file upload, incase you refreshed it would help you.
 </p>
                {/* Image taken from public directory */}
-              <img src="/feature2.jpg" alt="Feature 2" className="w-full h-40 mt-4 rounded-md object-cover" />
+               {/* MODIFICATION: Increased image height */}
+              <img src="/feature2.jpg" alt="Feature 2" className="w-full h-48 mt-4 rounded-md object-cover" />
             </div>
 
             {/* Feature Card 3 */}
@@ -277,7 +280,8 @@ darkMode
                 Effortlessly access your files across all your devices with real-time synchronization.
 </p>
               {/* Image taken from public directory */}
-              <img src="/feature3.jpg" alt="Feature 3" className="w-full h-40 mt-4 rounded-md object-cover" />
+              {/* MODIFICATION: Increased image height */}
+              <img src="/feature3.jpg" alt="Feature 3" className="w-full h-48 mt-4 rounded-md object-cover" />
             </div>
           </div>
         </div>
@@ -365,4 +369,4 @@ Access your dashboard now and experience seamless file management designed just 
   );
 };
 
-export default Homepage;           
+export default Homepage;

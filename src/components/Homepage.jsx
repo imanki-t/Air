@@ -238,7 +238,7 @@ backgroundSize: '30px 30px', // Adjust grid spacing here (same for both modes)
               <div className="md:min-h-28"> {/* ADDED: Wrapper for text with desktop min-height */}
                 <h3 className="mb-2 text-xl font-semibold">Upload Files</h3>
                 <p className="opacity-80">
-                  Intelligent file upload system. Quickly and securely upload your documents, photos, and other files with ease.
+                  Intelligent file upload system. Quickly upload your documents, photos, and other files.
                 </p>
               </div> {/* END ADDED */}
               {/* Image taken from public directory */}

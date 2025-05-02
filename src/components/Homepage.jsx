@@ -168,12 +168,13 @@ const Homepage = ({ isLoggedIn }) => {
       <nav className="relative z-10 px-6 py-6 mx-auto max-w-7xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            {/* Logo */}
-            <div className={`w-10 h-10 rounded-lg ${darkMode ?
-'bg-primaryBlue' : 'bg-primaryRed'} flex items-center justify-center text-white font-bold text-lg`}>
+            {/* Logo - Increased size */}
+            <div className={`w-14 h-14 rounded-lg ${darkMode ? // Size remains w-14 h-14 as per previous instruction
+'bg-primaryBlue' : 'bg-primaryRed'} flex items-center justify-center text-xl font-bold`}> {/* Text size remains text-xl as per previous instruction */}
               K
             </div>
-            <span className="text-2xl font-extrabold tracking-tight">KUWUTEN</span>
+            {/* Adding back the "KUWUTEN" text */}
+            <span className="text-2xl font-extrabold tracking-tight">KUWUTEN</span> {/* Added back the span */}
           </div>
 
           {/* The dashboard button next to KUWUTEN is removed */}
@@ -207,12 +208,12 @@ const Homepage = ({ isLoggedIn }) => {
       </section>
 
       {/* Abstract wave divider */}
-      <div className="relative z-10 w-full h-24 mt-20 overflow-hidden">
+      <div className={`relative z-10 w-full h-24 mt-20 overflow-hidden`}>
         <svg className="absolute w-full min-w-[1000px] h-24 transform rotate-180" viewBox="0 0 1200 120" preserveAspectRatio="none">
           <path
             d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
             className={`${darkMode ?
-'fill-gray-900' : 'fill-gray-50'}`}
+'fill-gray-950' : 'fill-white'}`} /* Changed fill color to match dark mode background */
           ></path>
         </svg>
       </div>
@@ -299,8 +300,8 @@ const Homepage = ({ isLoggedIn }) => {
         <svg className="absolute w-full min-w-[1000px] h-24 transform rotate-180" viewBox="0 0 1200 120" preserveAspectRatio="none">
           <path
             d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
-             className={`${darkMode ?
-'fill-gray-950' : 'fill-white'}`} {/* Changed fill color to match dark mode background */}
+            className={`${darkMode ?
+'fill-gray-950' : 'fill-white'}`} /* Changed fill color to match dark mode background */
           ></path>
         </svg>
       </div>
@@ -381,3 +382,4 @@ const Homepage = ({ isLoggedIn }) => {
 };
 
 export default Homepage;
+      

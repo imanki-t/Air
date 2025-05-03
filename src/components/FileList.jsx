@@ -44,6 +44,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
 
   // --- Batch Operations State ---
   const [selectionMode, setSelectionMode] = useState(false);
+  // selectedFiles now stores IDs of ALL selected files globally
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [batchOperationLoading, setBatchOperationLoading] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -68,11 +69,12 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       }
   }, [selectionMode]);
 
+   // Clear selection if the file list itself changes or pagination is toggled
   useEffect(() => {
-      setSelectedFiles([]); // Clear selection if the file list itself changes
-  }, [files]);
+      setSelectedFiles([]);
+  }, [files, isPaginationEnabled]); // Added isPaginationEnabled dependency
 
-  // Reset to first page when filter or sort changes
+  // Reset to first page when filter, sort, or search changes
   useEffect(() => {
     setCurrentPage(1);
   }, [filter, sortOption, searchInput]);
@@ -81,11 +83,11 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   useEffect(() => {
     const handleClickOutside = e => {
       if (
-  sortOptionsRef.current &&
-  !sortOptionsRef.current.contains(e.target) &&
-  !sortButtonRef.current?.contains(e.target)
-) {
-  setShowSortOptions(false);
+        sortOptionsRef.current &&
+        !sortOptionsRef.current.contains(e.target) &&
+        !sortButtonRef.current?.contains(e.target)
+      ) {
+        setShowSortOptions(false);
       }
       if (deleteConfirmModalRef.current && !deleteConfirmModalRef.current.contains(e.target)) {
         setShowDeleteConfirmModal(false);
@@ -159,11 +161,12 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
            // Check for valid number and range
            if (!isNaN(page) && page >= 1 && page <= totalPages) {
                setCurrentPage(page);
-               setIsEditingPage(false); // Exit editing on valid input + Enter
+               // Do NOT exit editing here immediately, let onBlur handle it for consistency
            } else {
-               // Invalid input - just exit editing, onBlur will handle value reset
-               setIsEditingPage(false);
+               // Invalid input - let onBlur handle value reset and exiting editing
            }
+           // On Enter, regardless of validity, blur the input to trigger onBlur
+           e.target.blur();
        } else if (e.key === 'Escape') {
            setIsEditingPage(false); // Cancel editing on Escape
        }
@@ -173,13 +176,14 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
        const page = parseInt(editPageValue, 10);
         // Reset value if invalid when blurring, but only if not empty
        if (isNaN(page) || page < 1 || page > totalPages || editPageValue === '') {
-           setEditPageValue(currentPage.toString());
+           setEditPageValue(currentPage.toString()); // Reset to current page's value
        } else {
-           // If it's a valid number, update the page (redundant if Enter was pressed, but safe)
+           // If it's a valid number, update the page state (safe fallback)
            setCurrentPage(page);
        }
        setIsEditingPage(false); // Always exit editing on blur
    };
+
 
   // --- Selection Handlers ---
   const toggleSelectionMode = () => {
@@ -193,17 +197,29 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     );
   };
 
-  const toggleSelectAll = () => {
-      if (selectedFiles.length === (isPaginationEnabled ? paginatedFiles.length : sortedFiles.length)) {
-          // Deselect all if all on current page (or all visible) are selected
-          setSelectedFiles([]);
-      } else {
-          // Select all files on the current page if pagination is enabled,
-          // otherwise select all visible files.
-          const filesToSelect = isPaginationEnabled ? paginatedFiles : sortedFiles;
-          setSelectedFiles(filesToSelect.map(f => f._id));
-      }
-  };
+   const toggleSelectAll = () => {
+       // Determine the files to target based on pagination state
+       const targetFiles = isPaginationEnabled ? paginatedFiles : sortedFiles;
+       const targetFileIds = targetFiles.map(f => f._id);
+
+       // Check if ALL targetable files are currently selected globally
+       const allTargetableSelected = targetFileIds.length > 0 && targetFileIds.every(id => selectedFiles.includes(id));
+
+       if (allTargetableSelected) {
+           // If all targetable are selected, deselect them globally
+           // We need to remove the targetable IDs from the global selection
+           setSelectedFiles(prev => prev.filter(id => !targetFileIds.includes(id)));
+       } else {
+           // If not all targetable are selected, add all targetable IDs to the global selection
+           setSelectedFiles(prev => [...new Set([...prev, ...targetFileIds])]); // Add unique IDs to maintain global selection
+       }
+   };
+
+
+   // Check if all files on the current page are selected (for button text/styling)
+   const allOnCurrentPageSelected = paginatedFiles.length > 0 && paginatedFiles.every(f => selectedFiles.includes(f._id));
+   // Check if all visible files (across all pages) are selected (for button text/styling when pagination is off)
+   const allVisibleFilesSelected = sortedFiles.length > 0 && sortedFiles.every(f => selectedFiles.includes(f._id));
 
 
   // --- Batch Operations ---
@@ -217,6 +233,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       refresh(); // Refresh file list
       setShowDeleteConfirmModal(false); // Close modal
       setSelectionMode(false);
+       setSelectedFiles([]); // Clear selection after deletion
     } catch (err) {
       console.error('Error deleting files:', err);
       alert('Error deleting files. Please try again.');
@@ -231,9 +248,10 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     setBatchDownloadProgress(0);
     const zip = new JSZip();
     let done = 0;
-    const toDownload = selectedFiles
-      .map(id => files.find(f => f._id === id))
-      .filter(Boolean);
+    // Filter original files list based on selected IDs for batch operations
+    const toDownload = files
+      .filter(f => selectedFiles.includes(f._id));
+
     try {
       for (const file of toDownload) {
         if (!file) continue;
@@ -247,6 +265,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
       saveAs(blob, `batch_download_${Date.now()}.zip`);
       setSelectionMode(false); // Exit selection mode after download
+      setSelectedFiles([]); // Clear selection after download
     } catch (err) {
        console.error('Error preparing batch download:', err);
        alert('Error preparing batch download. Please try again.');
@@ -268,16 +287,17 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     try {
       const zip = new JSZip();
       let done = 0;
-      const filesToZip = selectedFiles
-        .map(id => files.find(f => f._id === id))
-        .filter(Boolean);
+       // Filter original files list based on selected IDs for batch operations
+      const filesToZip = files
+        .filter(f => selectedFiles.includes(f._id));
+
       if (filesToZip.length === 0) {
           throw new Error("No valid files selected for zipping.");
       }
 
       console.log('Starting batch share zip process...');
       for (const file of filesToZip) {
-        console.log(`Workspaceing file: ${file.filename} (${file._id})`);
+        console.log(`Processing file: ${file.filename} (${file._id})`);
         const res = await axios.get(`${backendUrl}/api/files/download/${file._id}`, {
           responseType: 'blob'
         });
@@ -318,6 +338,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
        // Close modal on error
     } finally {
       setBatchOperationLoading(false);
+       setSelectedFiles([]); // Clear selection after share
       console.log('Batch share operation finished.');
     }
   };
@@ -414,11 +435,16 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
             aria-pressed={selectionMode}
             title={selectionMode ? "Exit selection mode" : "Select multiple files"}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-5 w-5', selectionMode ? '' : (darkMode ? 'text-gray-300' : 'text-gray-600'))} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              {selectionMode
-                ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                : <path strokeLinecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v16c0 1.1-.9 2-2 2h12a2 2 0 002-2V8l-6-6H6a2 2 0 00-2 2zM14 3v5h5" />}
-            </svg>
+            {/* File/Selection related icon */}
+             <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-5 w-5', selectionMode ? '' : (darkMode ? 'text-gray-300' : 'text-gray-600'))} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                {selectionMode ? (
+                   // Close/Exit icon
+                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  // Simple square/checkbox outline for selection mode toggle
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h18v18H3z" />
+                )}
+             </svg>
           </button>
 
           {/* Toggle Metadata */}
@@ -556,22 +582,32 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
           <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4 flex-wrap">
             {/* Select/Deselect All Button */}
             <div className="w-full md:w-auto">
-              <button
-                onClick={toggleSelectAll}
-                className={cn(
-                  'w-full md:w-auto py-2 px-4 rounded-md text-sm font-medium text-center transition-colors duration-200 border',
-selectedFiles.length === (isPaginationEnabled ? paginatedFiles.length : sortedFiles.length)
-                    ? `border-red-400 ${darkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-white hover:bg-red-50'}`
-                    : `border-blue-400 ${darkMode ? 'text-blue-300 bg-gray-700 hover:bg-gray-600' : 'text-blue-600 bg-white hover:bg-blue-50'}`
-                )}
-              >
-                {selectedFiles.length === (isPaginationEnabled ? paginatedFiles.length : sortedFiles.length) ? 'Deselect All' : 'Select All'}
-              </button>
+              {/* Determine if 'Select All' or 'Deselect All' should be shown */}
+              {/* This checks if ALL currently targetable files (page or all visible) are selected */}
+              {/* The action toggles selection ONLY for the targetable files */}
+               {(() => {
+                   const targetableFiles = isPaginationEnabled ? paginatedFiles : sortedFiles;
+                   const allTargetableSelected = targetableFiles.length > 0 && targetableFiles.every(f => selectedFiles.includes(f._id));
+                   return (
+                       <button
+                           onClick={toggleSelectAll}
+                           className={cn(
+                               'w-full md:w-auto py-2 px-4 rounded-md text-sm font-medium text-center transition-colors duration-200 border',
+                               allTargetableSelected
+                                   ? `border-red-400 ${darkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-white hover:bg-red-50'}`
+                                   : `border-blue-400 ${darkMode ? 'text-blue-300 bg-gray-700 hover:bg-gray-600' : 'text-blue-600 bg-white hover:bg-blue-50'}`
+                           )}
+                       >
+                           {allTargetableSelected ? 'Deselect All' : 'Select All'}
+                       </button>
+                   );
+               })()}
             </div>
 
             {/* Selected Count Indicator */}
+             {/* Shows total selected globally vs total visible files */}
             <div className={cn('text-sm flex-grow text-center md:text-left order-last md:order-none w-full md:w-auto pt-2 md:pt-0', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-              {selectedFiles.length} of {isPaginationEnabled ? paginatedFiles.length : sortedFiles.length} selected {isPaginationEnabled ? 'on this page' : ''}
+              {selectedFiles.length} of {sortedFiles.length} selected. {/* Added full stop */}
             </div>
 
             {/* Batch Action Buttons */}
@@ -651,6 +687,7 @@ selectedFiles.length === (isPaginationEnabled ? paginatedFiles.length : sortedFi
                 showDetails={showMetadata}
                 viewType={view}
                 onSelect={handleSelectFile}
+                // Check if the file is selected globally
                 isSelected={selectedFiles.includes(file._id)}
                 selectionMode={selectionMode}
                 refresh={refresh}
@@ -675,7 +712,7 @@ selectedFiles.length === (isPaginationEnabled ? paginatedFiles.length : sortedFi
       </div>
 
       {/* Pagination Controls at the bottom */}
-      {isPaginationEnabled && sortedFiles.length > 0 && (
+      {isPaginationEnabled && totalPages > 0 && ( {/* Only show if pagination enabled and pages exist */}
         <div className={cn(
             'flex justify-center items-center gap-4 mt-6',
             darkMode ? 'text-gray-300' : 'text-gray-700'
@@ -697,72 +734,74 @@ selectedFiles.length === (isPaginationEnabled ? paginatedFiles.length : sortedFi
            )}
 
            {/* Page Indicator/Input */}
-            <span className="text-sm">Current Page </span>
-           {isEditingPage ? (
-               <input
-                   ref={pageInputRef}
-                   type="number"
-                   min="1"
-                   max={totalPages}
-                   value={editPageValue}
-                   onChange={(e) => setEditPageValue(e.target.value)}
-                   onKeyDown={handlePageInputKeyDown}
-                   onBlur={handlePageInputBlur}
-                   className={cn(
-                       'w-16 text-center p-1 rounded-md text-sm border',
-                       darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-white border-gray-300 text-gray-800'
-                   )}
-                   aria-label="Current page number input"
-               />
-           ) : (
-                <span
-                    className={cn(
-                        "text-sm cursor-pointer hover:underline", // Hover effect
-                        darkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-700 hover:text-gray-900' // Hover colors
-                    )}
-                    onClick={handlePageClick}
-                    onContextMenu={(e) => { // Handle right-click
-                        e.preventDefault(); // Prevent default context menu
-                        handlePageClick();
-                    }}
-                    // Basic long-press detection (can be enhanced)
-                    onTouchStart={(e) => {
-                        // Store timer ID directly on the element
-                        e.currentTarget.dataset.pressTimer = setTimeout(() => {
+           <span className="text-sm flex flex-col sm:flex-row items-center sm:items-baseline"> {/* Flex column on mobile, row on sm+ */}
+              <span className="block sm:inline">Page</span> {/* "Page" on its own line on mobile, inline on sm+ */}
+               {isEditingPage ? (
+                   <input
+                       ref={pageInputRef}
+                       type="number"
+                       min="1"
+                       max={totalPages}
+                       value={editPageValue}
+                       onChange={(e) => setEditPageValue(e.target.value)}
+                       onKeyDown={handlePageInputKeyDown}
+                       onBlur={handlePageInputBlur}
+                       className={cn(
+                           'w-16 text-center p-1 rounded-md text-sm border mt-1 sm:mt-0 sm:ml-1', // Add margin top on mobile, left on sm+
+                           darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-white border-gray-300 text-gray-800'
+                       )}
+                       aria-label="Current page number input"
+                   />
+               ) : (
+                    <span
+                        className={cn(
+                            "text-sm cursor-pointer hover:underline ml-0 sm:ml-1", // Hover effect, remove left margin on mobile
+                            darkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-700 hover:text-gray-900' // Hover colors
+                        )}
+                        onClick={handlePageClick}
+                        onContextMenu={(e) => { // Handle right-click
+                            e.preventDefault(); // Prevent default context menu
                             handlePageClick();
-                        }, 500); // 500ms for long press
-                    }}
-                    onTouchEnd={(e) => {
-                        // Clear the timer using the stored ID
-                        clearTimeout(e.currentTarget.dataset.pressTimer);
-                    }}
-                    onMouseDown={(e) => {
-                         // Only handle left click for regular click, right click is contextmenu
-                        if (e.button === 0) {
-                             // Store timer ID directly on the element
+                        }}
+                        // Basic long-press detection (can be enhanced)
+                        onTouchStart={(e) => {
+                            // Store timer ID directly on the element
                             e.currentTarget.dataset.pressTimer = setTimeout(() => {
                                 handlePageClick();
                             }, 500); // 500ms for long press
-                        }
-                    }}
-                     onMouseUp={(e) => {
-                         if (e.button === 0) {
-                             // Clear the timer using the stored ID
-                             clearTimeout(e.currentTarget.dataset.pressTimer);
-                         }
-                     }}
-                     onMouseLeave={(e) => {
-                          if (e.button === 0) { // Clear timer if mouse leaves while holding
-                               // Clear the timer using the stored ID
-                              clearTimeout(e.currentTarget.dataset.pressTimer);
-                          }
-                      }}
+                        }}
+                        onTouchEnd={(e) => {
+                            // Clear the timer using the stored ID
+                            clearTimeout(e.currentTarget.dataset.pressTimer);
+                        }}
+                        onMouseDown={(e) => {
+                             // Only handle left click for regular click, right click is contextmenu
+                            if (e.button === 0) {
+                                 // Store timer ID directly on the element
+                                e.currentTarget.dataset.pressTimer = setTimeout(() => {
+                                    handlePageClick();
+                                }, 500); // 500ms for long press
+                            }
+                        }}
+                         onMouseUp={(e) => {
+                             if (e.button === 0) {
+                                 // Clear the timer using the stored ID
+                                 clearTimeout(e.currentTarget.dataset.pressTimer);
+                             }
+                         }}
+                         onMouseLeave={(e) => {
+                              if (e.button === 0) { // Clear timer if mouse leaves while holding
+                                   // Clear the timer using the stored ID
+                                  clearTimeout(e.currentTarget.dataset.pressTimer);
+                              }
+                          }}
 
-                >
-                     {currentPage}
-                </span>
-           )}
-            <span className="text-sm"> of {totalPages}</span>
+                    >
+                         {currentPage} of {totalPages} {/* Combined number and total pages */}
+                    </span>
+               )}
+            </span>
+
 
            {/* Next Button */}
            {currentPage < totalPages && (
@@ -782,9 +821,21 @@ selectedFiles.length === (isPaginationEnabled ? paginatedFiles.length : sortedFi
         </div>
       )}
        {/* Message when pagination is enabled but no files */}
-        {isPaginationEnabled && sortedFiles.length === 0 && (
+        {isPaginationEnabled && totalPages === 0 && sortedFiles.length > 0 && (
              <div className={cn("text-center mt-4 text-sm", darkMode ? "text-gray-500" : "text-gray-400")}>
-                 No files match your criteria for pagination.
+                 No items found on this page.
+             </div>
+        )}
+         {/* Message when no files at all */}
+        {sortedFiles.length === 0 && !isLoading && (
+             <div className={cn("text-center py-16 rounded-lg border-2 border-dashed min-h-[200px]", darkMode ? "text-gray-500 border-gray-700 bg-gray-800/30" : "text-gray-400 border-gray-300 bg-gray-50/50")}>
+                 <svg className="mx-auto h-12 w-12 mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                 </svg>
+                 <h3 className="text-lg font-medium mb-1 text-gray-500">No files found</h3>
+                 <p className="text-sm text-gray-400">
+                   {searchInput ? 'Try adjusting your search or filter.' : 'Upload some files!'}
+                 </p>
              </div>
         )}
 
@@ -824,7 +875,7 @@ selectedFiles.length === (isPaginationEnabled ? paginatedFiles.length : sortedFi
               <button
                 onClick={batchDelete}
                 disabled={batchOperationLoading}
-                 className={cn(
+                className={cn(
                      'flex-1 px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm text-white flex items-center justify-center gap-2',
                      batchOperationLoading
                        ? 'bg-red-500 cursor-wait'

@@ -1,9 +1,19 @@
+// components/FileItem.jsx
+// This component displays a single file and handles individual actions
+// (Download, Share, Delete) and selection state.
+// Includes JWT authentication headers for API calls for multi-user support.
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
+import { saveAs } from 'file-saver'; // Used for direct download fallback if streaming fails
 
 // Utility for conditional class names
 const cn = (...classes) => classes.filter(Boolean).join(' ');
+
+// Helper function to get the JWT token from localStorage
+const getToken = () => localStorage.getItem('token');
+
 
 const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, selectionMode, viewType }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -11,555 +21,639 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   // --- State ---
   const [showShare, setShowShare] = useState(false);
   const [shareLink, setShareLink] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false); // For copy link button state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false); // Loading state for item-specific actions (download, share, delete)
-  const [showMenu, setShowMenu] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [showMenu, setShowMenu] = useState(false); // For the kebab menu dropdown
+  const [downloadProgress, setDownloadProgress] = useState(0); // 0-100 percentage for individual download
+  const [isDownloading, setIsDownloading] = useState(false); // State for individual download progress overlay
+
 
   // --- Refs ---
-  const menuRef = useRef(null);
-  const shareModalRef = useRef(null);
-  const deleteModalRef = useRef(null);
+  const menuRef = useRef(null); // Ref for the kebab menu dropdown element
+  const shareModalRef = useRef(null); // Ref for the share modal element
+  const deleteModalRef = useRef(null); // Ref for the delete confirmation modal element
+  const itemRef = useRef(null); // Ref for the main file item div
+
 
   // --- Effects ---
+
   // Close menu/modals on outside click
   useEffect(() => {
     const handleOutsideClick = (event) => {
       // Close menu only if click is outside the menu itself
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        // Check if the click target is the menu button to prevent immediate reopening
-        const menuButton = menuRef.current.previousElementSibling; // Assumes button is sibling before menu div
+      if (showMenu && menuRef.current && !menuRef.current.contains(event.target)) {
+         // Check if the click target is the menu button to prevent immediate reopening
+         // The menu button should be a child of the main item div, not the menu itself.
+        const menuButton = itemRef.current?.querySelector('button[aria-label="File actions menu"]');
         if (!menuButton || !menuButton.contains(event.target)) {
              setShowMenu(false);
         }
       }
-      // Close modals
-      if (shareModalRef.current && !shareModalRef.current.contains(event.target)) {
-         setShowShare(false);
-      }
-      if (deleteModalRef.current && !deleteModalRef.current.contains(event.target)) {
-         setShowDeleteConfirm(false);
-      }
-    };
 
-    if (showMenu || showShare || showDeleteConfirm) {
-       document.addEventListener('mousedown', handleOutsideClick);
-    }
+      // Close share modal if click is outside the modal content
+      if (showShare && shareModalRef.current && !shareModalRef.current.contains(event.target)) {
+           setShowShare(false);
+           setShareLink(''); // Clear share link when closing modal
+           setCopied(false); // Reset copied state
+      }
+       // Close delete modal if click is outside the modal content
+       if (showDeleteConfirm && deleteModalRef.current && !deleteModalRef.current.contains(event.target)) {
+           setShowDeleteConfirm(false);
+       }
+    };
+    // Add event listener to the whole document
+    document.addEventListener("mousedown", handleOutsideClick);
 
     return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
+      // Clean up the event listener
+      document.removeEventListener("mousedown", handleOutsideClick);
     };
-  }, [showMenu, showShare, showDeleteConfirm]);
+  }, [showMenu, showShare, showDeleteConfirm, menuRef, shareModalRef, deleteModalRef, itemRef]); // Added all relevant refs/states to deps
 
-  // Close modals on Escape key
-  const handleKeyDown = useCallback((e) => {
-      if (e.key === 'Escape') {
-        if (showShare) setShowShare(false);
-        if (showDeleteConfirm) setShowDeleteConfirm(false);
-        if (showMenu) setShowMenu(false);
-      }
-    }, [showShare, showDeleteConfirm, showMenu]);
 
-  useEffect(() => {
-    if (showShare || showDeleteConfirm || showMenu) {
-      window.addEventListener('keydown', handleKeyDown);
-    } else {
-      window.removeEventListener('keydown', handleKeyDown);
-    }
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showShare, showDeleteConfirm, showMenu, handleKeyDown]);
+   // Effect for copy link copied state
+   useEffect(() => {
+       if (copied) {
+           const timer = setTimeout(() => setCopied(false), 2000);
+           return () => clearTimeout(timer);
+       }
+   }, [copied]);
 
-  // --- Actions ---
-  const download = async () => {
-    setShowMenu(false);
+
+  // --- Action Handlers ---
+
+  // Handle individual file download
+  const downloadFile = useCallback(async () => {
     setIsActionLoading(true);
+    setIsDownloading(true); // Show download progress overlay
     setDownloadProgress(0);
+     setShowMenu(false); // Close menu immediately
+
+    const token = getToken(); // Get token for auth
+    if (!token) {
+         alert('Download failed: Not authenticated. Please log in.');
+         setIsActionLoading(false);
+         setIsDownloading(false);
+         setDownloadProgress(0);
+         // Potentially trigger a global logout in App.jsx here
+         return; // Stop if no token
+    }
+
+
     try {
       const response = await axios({
         url: `${backendUrl}/api/files/download/${file._id}`,
         method: 'GET',
-        responseType: 'blob',
+        responseType: 'blob', // Important: responseType must be 'blob' for file downloads
+         headers: { // *** Add headers here ***
+             Authorization: `Bearer ${token}` // *** Add Authorization header ***
+         },
         onDownloadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-             setDownloadProgress(percentCompleted);
-          } else {
-              setDownloadProgress(50); // Indeterminate fallback
-          }
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setDownloadProgress(percentCompleted);
         },
       });
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', file.filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Download failed:', err);
-      alert(`Failed to download ${file.filename}.`);
-    } finally {
+      // Use file-saver to trigger the download in the browser
+      // Use the original filename from metadata if available, otherwise use GridFS filename
+      const filename = file.metadata?.filename || file.filename || `download_${file._id}`;
+      saveAs(response.data, filename);
+
       setIsActionLoading(false);
-      // Reset progress slightly later to show completion
-      setTimeout(() => setDownloadProgress(0), 1200);
-    }
-  };
+      setIsDownloading(false);
+      setDownloadProgress(0);
 
-  const deleteFile = async () => {
+
+    } catch (error) {
+      console.error('Download error:', error);
+      setIsActionLoading(false);
+      setIsDownloading(false);
+      setDownloadProgress(0);
+
+      // Handle unauthorized error specifically
+      if (error.response && error.response.status === 401) {
+          alert('Session expired or unauthorized. Please log in again.');
+           // Potentially trigger a global logout in App.jsx here
+           // window.dispatchEvent(new CustomEvent('unauthorized')); // Custom event example
+      } else if (error.response && error.response.data && error.response.data.error) {
+           alert(`Download failed: ${error.response.data.error}`);
+      }
+      else {
+         alert('Failed to download file.');
+      }
+    }
+  }, [file, backendUrl]);
+
+
+   // Handle individual file share
+  const shareFile = useCallback(async () => {
     setIsActionLoading(true);
-    try {
-      // API endpoint: /api/files/:id
-      await axios.delete(`${backendUrl}/api/files/${file._id}`);
-      setShowDeleteConfirm(false); // Close modal first
-      refresh(); // Refresh the list (this item will disappear)
-    } catch (err) {
-      console.error('Delete failed:', err);
-      alert(`Failed to delete ${file.filename}.`);
-      setIsActionLoading(false); // Reset loading state on error only
-      setShowDeleteConfirm(false);
+    setShareLink(''); // Clear previous link
+    setCopied(false); // Reset copied state
+    setShowMenu(false); // Close menu
+
+    const token = getToken(); // Get token for auth
+    if (!token) {
+         alert('Share failed: Not authenticated. Please log in.');
+         setIsActionLoading(false);
+         // Potentially trigger a global logout in App.jsx here
+         return; // Stop if no token
     }
-    // No finally block resetting loading state, as the component might unmount
-  };
 
-  const share = async () => {
-    setShowMenu(false);
-    setIsActionLoading(true); // Use isActionLoading for the modal spinner
-    setShareLink('');
-    setCopied(false);
-    setShowShare(true);
     try {
-      const res = await axios.post(`${backendUrl}/api/files/share/${file._id}`);
-      setShareLink(res.data.url);
+      const res = await axios.post(`${backendUrl}/api/files/share/${file._id}`, {}, { // Pass empty data object if no body is needed
+          headers: { // *** Add headers here ***
+              Authorization: `Bearer ${token}` // *** Add Authorization header ***
+          }
+      });
+
+      if (res.data && res.data.url) {
+        setShareLink(res.data.url);
+        setShowShare(true); // Show the share modal
+      } else {
+        // If backend doesn't return a URL but success status, something is wrong.
+        throw new Error('Backend did not return a share URL.');
+      }
+
+      setIsActionLoading(false);
+
     } catch (err) {
-      console.error('Share failed:', err);
-      alert(`Failed to generate share link for ${file.filename}.`);
-      setShowShare(false);
-    } finally {
-      setIsActionLoading(false); // Stop loading in modal regardless of outcome
+      console.error('Share error:', err);
+      setIsActionLoading(false);
+      setShareLink(''); // Ensure link is cleared on error
+
+       // Handle unauthorized error specifically
+      if (err.response && err.response.status === 401) {
+          alert('Session expired or unauthorized. Please log in again.');
+           // Potentially trigger a global logout in App.jsx here
+      } else if (err.response && err.response.data && err.response.data.error) {
+           alert(`Share failed: ${err.response.data.error}`);
+      }
+      else {
+         alert('Failed to generate share link.');
+      }
     }
-  };
+  }, [file, backendUrl]);
 
-  const copyToClipboard = async () => {
-     if (!shareLink) return;
-     try {
-       await navigator.clipboard.writeText(shareLink);
-       setCopied(true);
-       setTimeout(() => setCopied(false), 2000);
-     } catch (err) {
-       console.error('Copy failed:', err);
-       alert('Failed to copy link.');
-     }
-   };
 
-  // --- Helpers ---
-  const formatSize = (bytes) => {
-    if (bytes === null || bytes === undefined || bytes < 0) return 'N/A';
+  // Handle individual file deletion
+  const deleteFile = useCallback(async () => {
+    setShowDeleteConfirm(false); // Close the confirmation modal
+    setIsActionLoading(true);
+    setShowMenu(false); // Close menu
+
+    const token = getToken(); // Get token for auth
+    if (!token) {
+         alert('Delete failed: Not authenticated. Please log in.');
+         setIsActionLoading(false);
+         // Potentially trigger a global logout in App.jsx here
+         return; // Stop if no token
+    }
+
+
+    try {
+      await axios.delete(`${backendUrl}/api/files/${file._id}`, { // *** Add config object for headers ***
+          headers: { // *** Add headers here ***
+              Authorization: `Bearer ${token}` // *** Add Authorization header ***
+          }
+      });
+
+      setIsActionLoading(false);
+      // Call the refresh function passed from FileList to update the list
+      if (refresh) refresh();
+
+    } catch (err) {
+      console.error('Delete error:', err);
+      setIsActionLoading(false);
+
+       // Handle unauthorized error specifically
+      if (err.response && err.response.status === 401) {
+          alert('Session expired or unauthorized. Please log in again.');
+           // Potentially trigger a global logout in App.jsx here
+      } else if (err.response && err.response.data && err.response.data.error) {
+          alert(`Delete failed: ${err.response.data.error}`);
+      }
+      else {
+         alert('Failed to delete file.');
+      }
+    }
+  }, [file, backendUrl, refresh]); // Added refresh to deps
+
+
+  // --- Utility Functions ---
+
+  // Format bytes into a human-readable string
+  const formatBytes = (bytes, decimals = 2) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(i === 0 ? 0 : 1)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   };
 
+  // Format date
   const formatDate = (dateString) => {
-    if (!dateString) return 'Unknown date';
+    if (!dateString) return 'N/A';
+    const options = { year: 'numeric', month: 'short', day: 'numeric' };
     try {
-       const date = new Date(dateString);
-       return date.toLocaleString(undefined, {
-         year: 'numeric', month: 'short', day: 'numeric',
-         hour: 'numeric', minute: '2-digit', hour12: true
-       });
-     } catch (e) {
-        console.error("Error formatting date:", dateString, e);
-        return 'Invalid date';
-     }
+       return new Date(dateString).toLocaleDateString(undefined, options);
+    } catch (e) {
+       console.error("Error formatting date:", dateString, e);
+       return 'Invalid Date';
+    }
   };
 
-  // Define Icon component for clarity
-  const FileTypeIcon = ({ type, darkMode }) => {
-      const iconSize = "h-10 w-10";
-      const iconColor = darkMode ? "text-gray-400" : "text-gray-500";
-
-      const icons = {
-          image: <svg xmlns="http://www.w3.org/2000/svg" className={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
-          video: <svg xmlns="http://www.w3.org/2000/svg" className={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>,
-          audio: <svg xmlns="http://www.w3.org/2000/svg" className={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" /></svg>,
-          document: <svg xmlns="http://www.w3.org/2000/svg" className={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
-          other: <svg xmlns="http://www.w3.org/2000/svg" className={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>,
-      };
-      return <div className={iconColor}>{icons[type] || icons['other']}</div>;
-  };
+   // Get file extension
+   const getFileExtension = (filename) => {
+        if (!filename) return '';
+        const parts = filename.split('.');
+        return parts.length > 1 ? parts.pop().toUpperCase() : 'FILE'; // Return extension in uppercase
+   };
 
 
-  // Preview logic based on metadata type
-  const renderPreview = () => {
-    const url = `${backendUrl}/api/files/download/${file._id}`;
-    const type = file.metadata?.type || 'other';
-    const imageVideoPreviewClasses = 'absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300';
-    const containerBaseClasses = `relative h-32 mb-2 rounded-t-lg overflow-hidden group ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`; // Apply bg here
+  // Determine the layout based on viewType prop
+  const isListView = viewType === 'list';
 
-    if (type === 'image') {
-      return (
-        <div className={containerBaseClasses}>
-          <img src={url} alt={`Preview of ${file.filename}`} className={imageVideoPreviewClasses} loading="lazy" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        </div>
-      );
+  // --- Render Methods ---
+
+  // Render file icon/preview based on type
+  const renderFilePreview = () => {
+    const fileType = file.metadata?.type || 'other';
+    const fileMime = file.contentType || ''; // Use contentType from GridFS file object
+
+    // Basic image preview
+    // Using the /download route URL for previewing. Note: This route sets Content-Disposition: attachment.
+    // Browsers might still render images if the blob is displayable, but a dedicated /preview route
+    // without the attachment header would be better for explicit previewing vs downloading.
+    if (fileType === 'image' && file._id) {
+        return (
+             <img
+                // Using the download route. Auth headers are implicitly handled by axios wrapper or similar if implemented globally.
+                // If not using a global wrapper, consider a separate public preview endpoint or
+                // handle auth headers explicitly here if this image needs to be authenticated.
+                // Given the current structure, the download route is protected, so this preview relies on authentication.
+                src={`${backendUrl}/api/files/download/${file._id}`}
+                alt={file.metadata?.filename || 'Image preview'}
+                className={cn("w-full h-full rounded-md", isListView ? 'object-contain' : 'object-cover')} // Contain in list view, cover in grid view
+                // Add onerror to show a fallback icon if the image fails to load/display (e.g., auth failed or file corrupted)
+                onError={(e) => {
+                     console.error("Image preview failed to load:", e.target.src);
+                     e.target.onerror = null; // Prevent infinite loop
+                     // Replace with a generic image icon or type indicator
+                     const parent = e.target.parentElement;
+                     if (parent) {
+                         // Create fallback element (e.g., div with icon)
+                         const fallback = document.createElement('div');
+                         fallback.className = 'flex flex-col items-center justify-center w-full h-full bg-gray-700 rounded-md'; // Use same background as icons
+                         fallback.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                                 <span class="text-sm font-mono mt-2 text-gray-400">${getFileExtension(file.metadata?.filename || file.filename)}</span>`;
+                         parent.replaceChild(fallback, e.target); // Replace the img tag with the fallback div
+                     }
+                }}
+            />
+        );
     }
 
-    if (type === 'video') {
-      return (
-        <div className={containerBaseClasses}>
-          <video src={`${url}#t=0.5`} preload="metadata" className={`${imageVideoPreviewClasses} bg-black`} /> {/* Added bg-black */}
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all duration-300">
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white/70 drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8.118v3.764a1 1 0 001.555.832l3.197-1.882a1 1 0 000-1.664l-3.197-1.882z" clipRule="evenodd" />
-              </svg>
-          </div>
-        </div>
-      );
+     // Placeholder for video/audio previews (would require <video> or <audio> tags and authenticated streaming)
+    if (fileType === 'video') {
+         // return <video controls src={`${backendUrl}/api/files/download/${file._id}`} className="w-full h-full object-cover rounded-md"></video>;
+        return (
+             <div className="flex items-center justify-center w-full h-full bg-gray-700 rounded-md">
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h.01M19 18h.01M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+             </div>
+        );
+    }
+    if (fileType === 'audio') {
+        // return <audio controls src={`${backendUrl}/api/files/download/${file._id}`} className="w-full h-full rounded-md"></audio>;
+         return (
+             <div className="flex items-center justify-center w-full h-full bg-gray-700 rounded-md">
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6a2 2 0 00-2-2H5a2 2 0 00-2 2v13a2 2 0 002 2h2a2 2 0 002-2zm0 0V6a2 2 0 012-2h2a2 2 0 012 2v13a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+             </div>
+        );
     }
 
-    // Default: Show file type icon centered
-    const fileExtension = file.filename.split('.').pop().toUpperCase();
+    // Default icon for other types
     return (
-      <div className={`${containerBaseClasses} flex flex-col items-center justify-center`}>
-         <FileTypeIcon type={type} darkMode={darkMode} />
-         {type !== 'audio' && ( // Don't show extension for audio as icon is clear
-            <span className={`mt-1 text-xs font-semibold tracking-wide ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                {fileExtension}
-            </span>
-         )}
-      </div>
+        <div className="flex flex-col items-center justify-center w-full h-full bg-gray-700 rounded-md">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a3 3 0 011 5.917m-9 2.172A11.96 11.96 0 0112 15.75c2.929 0 5.642-.908 7.962-2.485-.59-.376-1.236-.691-1.927-.99A15.98 15.98 0 0012 13a15.98 0 00-6.035 1.765zm0 0h.01" />
+            </svg>
+            <span className="text-sm font-mono mt-2 text-gray-400">{getFileExtension(file.metadata?.filename || file.filename)}</span>
+        </div>
     );
   };
 
-  // Handle item click for selection
-  const handleItemClick = (e) => {
-    // Allow clicking menu button even in selection mode
-    const menuButton = e.currentTarget.querySelector('[aria-label="File options"]');
-    if (menuButton && menuButton.contains(e.target)) {
-        return; // Let menu button handle its own click
-     }
 
-    if (selectionMode) {
-      e.preventDefault();
-      onSelect(file._id);
-    }
-    // Potentially add navigation or file preview action here if not in selection mode
-  };
-
-  // --- Render ---
   return (
-    <>
-      {/* Main Item Card */}
-      <div
+    <div
+        ref={itemRef} // Attach ref to the main div
         className={cn(
-          `relative flex flex-col justify-between text-sm rounded-xl shadow-md overflow-hidden border transition-all duration-200 ease-in-out`,
-          `h-full min-h-[200px]`, // Ensure a minimum height
-          isSelected
-            ? `ring-2 ring-offset-1 ${darkMode ? 'ring-blue-500 bg-gray-750 border-blue-700' : 'ring-blue-600 bg-blue-50 border-blue-400'}`
-            : `${darkMode ? 'bg-gray-800 border-gray-700 hover:border-gray-600' : 'bg-white border-gray-200 hover:border-gray-300'}`,
-          darkMode ? 'text-white' : 'text-gray-900',
-          selectionMode ? 'cursor-pointer' : '',
-          'transform hover:-translate-y-0.5 hover:shadow-lg'
+            `relative rounded-xl shadow-md border transition-colors duration-300 overflow-hidden group`,
+            darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200',
+            isActionLoading ? 'cursor-wait' : '', // Indicate loading with cursor
+            selectionMode ? (isSelected ? (darkMode ? 'ring-2 ring-blue-500' : 'ring-2 ring-600') : (darkMode ? 'hover:border-gray-500 cursor-pointer' : 'hover:border-gray-400 cursor-pointer')) : '', // Add ring/hover effect in selection mode
+            isListView ? 'flex items-center space-x-4 p-3 h-[100px]' : 'flex flex-col h-[280px] p-3' // Adjust padding/layout/height for list view
         )}
-        onClick={handleItemClick}
-        role="listitem" aria-selected={isSelected}
-      >
-        {/* Content Area */}
-        <div className="flex flex-col h-full">
-            {/* Preview Area */}
-            {renderPreview()}
-
-            {/* Info Area */}
-            <div className="p-3 pt-2 flex flex-col flex-grow">
-              {/* Filename */}
-              <h3
-                title={file.filename}
-                className={cn(
-                  `font-medium text-sm truncate mb-1`,
-                  darkMode ? 'text-gray-100' : 'text-gray-800'
-                )}
-              >
-                {file.filename}
-              </h3>
-
-              {/* Basic Metadata (Size) - always visible */}
-              <div className={cn(`text-xs mt-0.5`, darkMode ? 'text-gray-400' : 'text-gray-500')}>
-                 <p className="truncate">{formatSize(file.length)}</p>
-              </div>
-
-               {/* Spacer to push metadata down if showDetails is true */}
-              {showDetails && <div className="flex-grow min-h-[1rem]"></div>}
-
-              {/* Extended Metadata (conditionally rendered) */}
-              {showDetails && (
-                <div className={cn(
-                  `mt-2 text-xs space-y-1 pt-2 border-t`,
-                  darkMode ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-200'
-                 )}>
-                  {file.metadata?.type && <p><span className="font-semibold">Type:</span> {file.metadata.type}</p>}
-                  <p><span className="font-semibold">Uploaded:</span> {formatDate(file.uploadDate)}</p>
-                  {file.metadata?.dimensions && (
-                    <p><span className="font-semibold">Dimensions:</span> {file.metadata.dimensions}</p>
-                  )}
-                  {/* Add more details if available */}
-                </div>
-              )}
-            </div>
-        </div>
-
-        {/* Selection Indicator / Kebab Menu Area */}
-        <div className="absolute top-1.5 right-1.5 z-10">
-            {selectionMode ? (
-               // Selection Checkbox-like Indicator
-               <div className={cn(
-                 "w-5 h-5 rounded-full flex items-center justify-center border transition-all duration-150",
-                 isSelected
-                    ? (darkMode ? 'bg-blue-500 border-blue-400' : 'bg-blue-600 border-blue-500')
-                    : (darkMode ? 'bg-gray-600/80 border-gray-500 hover:bg-gray-500/80' : 'bg-white/80 border-gray-400 hover:bg-gray-50/80')
-               )}>
+         // Handle click for selection mode - Stop propagation for clicks inside item when in selection mode
+         onClick={selectionMode ? (e) => { e.stopPropagation(); onSelect(file._id); } : undefined}
+    >
+        {/* Selection Checkbox/Indicator */}
+        {selectionMode && (
+             <div className={cn(
+                 "absolute top-2 left-2 w-6 h-6 rounded-full border flex items-center justify-center z-10 transition-all duration-100",
+                 darkMode ? 'border-gray-500 bg-gray-700' : 'border-gray-400 bg-gray-200',
+                 isSelected ? (darkMode ? 'bg-blue-600 border-blue-600' : 'bg-blue-600 border-blue-600') : ''
+             )}>
                  {isSelected && (
-                   <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                  )}
-               </div>
-           ) : (
-               // Kebab Menu Button
-               <div className="relative">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent card click
-                      setShowMenu(prev => !prev);
-                    }}
-                    className={cn(
-                      `p-1.5 rounded-full transition-colors duration-150`,
-                      showMenu ? (darkMode ? 'bg-gray-600 text-gray-100' : 'bg-gray-200 text-gray-700')
-                             : (darkMode ? 'text-gray-400 hover:bg-gray-700/80 hover:text-gray-100' : 'text-gray-500 hover:bg-gray-100/80 hover:text-gray-700'),
-                      'backdrop-blur-sm bg-opacity-50' // Add subtle background for visibility over preview
-                    )}
-                    aria-label="File options" aria-haspopup="true" aria-expanded={showMenu} title="Options"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" /></svg>
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {showMenu && (
-                    <div
-                      ref={menuRef}
-                      className={cn(
-                        `absolute right-0 mt-1 py-1 sm:w-40 w-36 rounded-md shadow-xl z-50 border`,
-                        `backdrop-blur-md`, // More blur
-                        darkMode ? 'bg-gray-800/90 border-gray-600' : 'bg-white/90 border-gray-200'
-                      )}
-                      role="menu"
-                    >
-                      {/* Download Button (No Hover) */}
-                      <button onClick={download} className={cn(
-  'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
-  darkMode ? 'text-white' : 'text-gray-700'
-)} role="menuitem">
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-current opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-  </svg>
-  Get
-</button>
-
-                      {/* Divider between Download and Share */}
-                       <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`}></div>
-
-                      {/* Share Button (No Hover) */}
-                      <button onClick={share} className={cn(
-                        'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
-                        darkMode ? 'text-white' : 'text-gray-700' // Default text color
-                      )} role="menuitem">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> Share
-                      </button>
-
-                      {/* Divider before Delete */}
-                      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`}></div>
-
-                      {/* Delete Button (No Hover, retains color) */}
-                      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }} className={cn(
-                        'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
-                        darkMode ? 'text-red-400' : 'text-red-600' // Keep delete color indication
-                      )} role="menuitem">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
-                      </button>
-                    </div>
-                  )}
-               </div>
-           )}
-        </div>
-
-        {/* Download Progress Overlay */}
-        {isActionLoading && downloadProgress > 0 && (
-          <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20 rounded-lg backdrop-blur-sm">
-             <div className="w-4/5 max-w-xs text-center">
-               <div className="mb-1.5 text-xs font-medium text-white">Downloading... {downloadProgress}%</div>
-               <div className="w-full bg-gray-600 rounded-full h-1.5 overflow-hidden">
-                 <div className="bg-blue-500 h-full rounded-full transition-all duration-150 ease-out" style={{ width: `${downloadProgress}%` }}></div>
-               </div>
              </div>
-          </div>
         )}
+
+
+        {/* File Preview / Icon Area */}
+         {isListView ? (
+             // List View Preview Area
+             <div className="flex-shrink-0 w-16 h-16 flex items-center justify-center overflow-hidden rounded-md bg-gray-700"> {/* Added background */}
+                 {renderFilePreview()}
+             </div>
+         ) : (
+              // Grid View Preview Area
+             <div className="w-full h-48 flex items-center justify-center overflow-hidden rounded-md bg-gray-700"> {/* Added background */}
+                 {renderFilePreview()}
+             </div>
+         )}
+
+
+      {/* File Info and Actions */}
+      <div className={cn("flex-grow min-w-0", !isListView && "mt-2")}> {/* Added min-w-0 to allow truncation in list view */}
+         {/* Filename and Kebab Menu */}
+         <div className={cn("flex items-center justify-between", isListView ? 'mb-1' : 'mb-2')}> {/* Adjust margin bottom based on view */}
+            <span className={cn("font-medium text-sm truncate", darkMode ? 'text-gray-200' : 'text-gray-800')}>
+               {file.metadata?.filename || file.filename || 'Unnamed File'} {/* Use metadata filename first */}
+            </span>
+
+            {/* Kebab Menu Button - Hide in selection mode */}
+            {!selectionMode && (
+                <div className="relative flex-shrink-0"> {/* Ref is on the menu content, not the button */}
+                    <button
+                       onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }} // Stop event propagation
+                       className={cn(
+                           "p-1 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500",
+                           darkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-200'
+                       )}
+                       aria-label="File actions menu"
+                   >
+                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                           <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                       </svg>
+                   </button>
+
+                    {/* Kebab Menu Dropdown */}
+                   {showMenu && (
+                       <div
+                           ref={menuRef} // Attach ref to the menu content
+                           className={cn(
+                           "absolute right-0 mt-2 w-48 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-20", // Increased z-index
+                           darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                       )} role="menu" aria-orientation="vertical" aria-labelledby="menu-button">
+                           <div className="py-1" role="none">
+                                {/* Download */}
+                                <button
+                                   onClick={(e) => { e.stopPropagation(); downloadFile(); }} // Stop propagation and call handler
+                                    disabled={isActionLoading} // Disable while any action is loading
+                                   className={cn(
+                                       "flex items-center px-4 py-2 text-sm w-full text-left transition-colors disabled:opacity-50 disabled:cursor-wait",
+                                       darkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
+                                   )}
+                                   role="menuitem"
+                               >
+                                    {isActionLoading && isDownloading && (
+                                       <svg className="animate-spin h-4 w-4 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+                                    )}
+                                   Download
+                                </button>
+                                {/* Share */}
+                                <button
+                                   onClick={(e) => { e.stopPropagation(); shareFile(); }} // Stop propagation and call handler
+                                    disabled={isActionLoading} // Disable while any action is loading
+                                    className={cn(
+                                       "flex items-center px-4 py-2 text-sm w-full text-left transition-colors disabled:opacity-50 disabled:cursor-wait",
+                                       darkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
+                                   )}
+                                    role="menuitem"
+                                >
+                                     {isActionLoading && !isDownloading && showShare === false && ( // Show loading spinner specifically for share if not downloading
+                                        <svg className="animate-spin h-4 w-4 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+                                     )}
+                                    Share
+                                </button>
+                                {/* Delete */}
+                                <button
+                                   onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }} // Stop propagation and show modal
+                                    disabled={isActionLoading} // Disable while any action is loading
+                                    className={cn(
+                                       "flex items-center px-4 py-2 text-sm w-full text-left transition-colors disabled:opacity-50 disabled:cursor-wait",
+                                       darkMode ? 'text-red-400 hover:bg-red-900 hover:text-white' : 'text-red-600 hover:bg-red-100'
+                                   )}
+                                    role="menuitem"
+                                >
+                                    Delete
+                                </button>
+                           </div>
+                       </div>
+                   )}
+                </div>
+            )}
+         </div>
+
+         {/* File Details (Size, Date, Type, Dimensions) - Conditionally shown */}
+         {showDetails && (
+              <div className={cn("text-xs space-y-1", isListView ? '' : 'mt-1')}> {/* Adjust margin top in grid view */}
+                  <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Size: {formatBytes(file.length)}</p> {/* Use file.length for size */}
+                  <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Uploaded: {formatDate(file.uploadDate)}</p> {/* Use file.uploadDate */}
+                  <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Type: {file.metadata?.type || 'Other'}</p>
+                  {/* Add dimensions if available in metadata */}
+                  {/* {file.metadata?.dimensions && (
+                      <p className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Dimensions: {file.metadata.dimensions}</p>
+                  )} */}
+              </div>
+          )}
       </div>
 
-      {/* --- Modals for FileItem --- */}
+      {/* Download Progress Overlay */}
+      {isDownloading && downloadProgress >= 0 && downloadProgress < 100 && ( // Show if downloading and not yet 100%
+           <div className={cn(
+               "absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 text-white text-lg font-bold z-30 animate-fadeIn",
+               isActionLoading ? 'cursor-wait' : '' // Indicate loading with cursor
+           )}>
+               {downloadProgress}%
+           </div>
+      )}
 
-      {/* Share Modal */}
+
+      {/* Share Link Modal */}
       {showShare && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4 backdrop-blur-sm animate-fadeIn">
-          <div
-            ref={shareModalRef}
-            className={cn(
-              `p-6 rounded-xl max-w-sm w-full relative shadow-xl border animate-modalIn`,
-               darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-             )}
-            role="dialog" aria-modal="true" aria-labelledby="share-file-title"
-          >
-            {/* Close Button */}
-            <button
-              onClick={() => setShowShare(false)}
-              className={cn(
-                  `absolute top-3 right-3 p-1.5 rounded-full transition-colors disabled:opacity-50`,
-                   isActionLoading ? "cursor-not-allowed" : (darkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100')
-               )}
-              disabled={isActionLoading} title="Close" aria-label="Close share dialog"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-            {/* Title */}
-            <h2 id="share-file-title" className={cn(`font-semibold mb-5 text-lg text-center truncate px-8`, darkMode ? 'text-white' : 'text-gray-800')}>
-                Share
-            </h2>
-
-            {/* QR Code */}
-            <div className="flex justify-center mb-5">
-                <div className={cn("p-2 border rounded-lg", darkMode ? 'border-gray-600 bg-gray-900' : 'border-gray-300 bg-gray-50')}>
-                   {isActionLoading && !shareLink ? ( // Show spinner while loading link
-                      <div className="w-40 h-40 flex items-center justify-center">
-                         <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+        <div ref={shareModalRef} className={cn("fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fadeIn")} aria-labelledby="share-link-title" role="dialog" aria-modal="true">
+          <div className={cn(
+             "relative rounded-lg shadow-xl w-full max-w-sm p-6 transform transition-all text-center",
+              darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'
+           )}>
+             <svg xmlns="http://www.w3.org/2000/svg" className={cn("mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 mb-4", darkMode ? 'text-blue-500' : 'text-blue-600')} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6.632l6.632-3.316m0 6.632a3 3 0 110-2.684a3 3 0 010 2.684z" />
+             </svg>
+             <h3 className="text-lg leading-6 font-medium" id="share-link-title">Share File</h3>
+             <div className="mt-4 text-center">
+                {shareLink ? (
+                    <>
+                     {/* QR Code */}
+                     <div className="flex justify-center mb-4">
+                       <QRCodeSVG
+                         value={shareLink}
+                         size={128}
+                         level={"H"}
+                         includeMargin={false}
+                         fgColor={darkMode ? "#d1d5db" : "#1f2937"} // qr code color
+                         bgColor={darkMode ? "#1f2937" : "#ffffff"} // qr code background color
+                       />
+                     </div>
+                     {/* Share Link Input */}
+                     <div className={cn("relative rounded-md shadow-sm mt-2", darkMode ? 'bg-gray-700' : 'bg-gray-100')}>
+                         <input
+                             type="text"
+                             value={shareLink}
+                             readOnly
+                             className={cn(
+                                 "w-full px-3 py-2 pr-10 text-sm rounded-md border focus:outline-none",
+                                 darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'
+                             )}
+                          />
+                         <button
+                              onClick={() => {
+                                  navigator.clipboard.writeText(shareLink);
+                                  setCopied(true);
+                              }}
+                              className={cn(
+                                  "absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 font-medium focus:outline-none",
+                                   darkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'
+                               )}
+                           >
+                                {copied ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                ) : (
+                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h6a2 2 0 002-2v-6a2 2 0 00-2-2h-6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg>
+                                )}
+                           </button>
                       </div>
-                   ) : shareLink ? (
-                     <QRCodeSVG
-                       value={shareLink} size={160} bgColor="transparent"
-                       fgColor={darkMode ? "#FFFFFF" : "#000000"} level="M" includeMargin={false} className="block"
-                     />
-                   ) : ( // Show error if loading finished but no link
-                      <div className="w-40 h-40 flex items-center justify-center text-center text-xs text-red-500 p-2">Failed to load QR Code.</div>
-                   )}
-                </div>
+                    </>
+                ) : (
+                     isActionLoading ? ( // Show generating message only if share action triggered loading
+                         <p className={cn("text-sm flex items-center justify-center gap-2", darkMode ? 'text-gray-400' : 'text-gray-500')}>
+                            <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+                            Generating link...
+                         </p>
+                     ) : (
+                         <p className={cn("text-sm", darkMode ? 'text-gray-400' : 'text-gray-500')}>Link not available yet.</p>
+                     )
+                )}
+             </div>
+             <div className="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse justify-center"> {/* Adjusted layout */}
+               <button
+                 type="button"
+                 className={cn(
+                   "w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:w-auto sm:text-sm",
+                   darkMode ? 'bg-blue-700 hover:bg-blue-600 focus:ring-blue-500' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                 )}
+                 onClick={() => {
+                    setShowShare(false);
+                    setShareLink(''); // Clear share link when closing modal
+                    setCopied(false); // Reset copied state
+                    setIsActionLoading(false); // Ensure loading is off
+                 }}
+               >
+                 Close
+               </button>
              </div>
 
-            {/* Link Input and Copy Button */}
-             <div className="flex flex-col gap-2.5 mb-4">
-                <input
-                   value={isActionLoading ? 'Generating...' : shareLink || 'Error generating link'}
-                   readOnly
-                   className={cn(
-                       `w-full px-3 py-2 rounded font-mono text-xs border`, // Smaller text
-                       `overflow-x-auto whitespace-nowrap`, // Allow scroll
-                       darkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-800',
-                       'disabled:opacity-70'
-                   )}
-                   disabled={isActionLoading} aria-label="Shareable link" onClick={(e) => e.target.select()}
-                 />
-                 <button
-                   onClick={copyToClipboard}
-                   disabled={!shareLink || copied || isActionLoading}
-                   className={cn(
-                       `w-full px-3 py-2 rounded-md font-medium text-sm transition-colors flex items-center justify-center gap-2`,
-                        copied ? 'bg-green-600 text-white cursor-default'
-                             : !shareLink || isActionLoading
-                                 ? (darkMode ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
-                                 : (darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
-                   )}
-                 >
-                   {copied ? (
-                      <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</>
-                   ) : (
-                       'Copy Link'
-                   )}
-                 </button>
-             </div>
-
-            {/* Footer Text */}
-            <p className={cn(`text-xs text-center`, darkMode ? 'text-gray-400' : 'text-gray-500')}>
-              Anyone with this link can view or download this file.
-            </p>
+            {/* Disclaimer below the link */}
+            {shareLink && (
+              <div className="mt-4 text-center">
+                <p className={cn("text-xs", darkMode ? "text-gray-400" : "text-gray-600")}>
+                  Anyone with the link can access this file.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+
+       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4 backdrop-blur-sm animate-fadeIn">
-          <div
-            ref={deleteModalRef}
-            className={cn(
-              `p-6 rounded-xl max-w-sm w-full relative shadow-xl border animate-modalIn`,
-                 darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'
-            )}
-            role="alertdialog" aria-modal="true" aria-labelledby="delete-file-title" aria-describedby="delete-file-desc"
-          >
-             <h2 id="delete-file-title" className={cn(`font-semibold mb-2 text-lg`, darkMode ? 'text-white' : 'text-gray-800')}>Confirm Delete</h2>
-             <p id="delete-file-desc" className={cn(`text-sm mb-3`, darkMode ? 'text-gray-300' : 'text-gray-600')}>
-               Are you sure you want to permanently delete this file?
-             </p>
-             {/* Display filename */}
-             <div className={cn(
-                 `font-medium max-w-full truncate overflow-hidden whitespace-nowrap my-3 p-2 rounded text-sm`,
-                  darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700 border border-gray-200'
-             )}>
-               {file.filename}
+        <div ref={deleteModalRef} className={cn("fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fadeIn")} aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className={cn(
+             "relative rounded-lg shadow-xl w-full max-w-sm p-6 transform transition-all",
+              darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'
+           )}>
+             <div className="text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className={cn("mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 mb-4", darkMode ? 'text-red-500' : 'text-red-600')} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h3 className="text-lg leading-6 font-medium" id="modal-title">Delete File</h3>
+                <div className="mt-2">
+                  <p className={cn("text-sm", darkMode ? 'text-gray-400' : 'text-gray-500')}>
+                    Are you sure you want to delete "{file.metadata?.filename || file.filename}"? This action cannot be undone.
+                  </p>
+                </div>
              </div>
-             <p className={cn(`text-sm mb-5`, darkMode ? 'text-gray-400' : 'text-gray-600')}>
-               This action cannot be undone.
-             </p>
-             {/* Buttons */}
-             <div className="flex w-full justify-between gap-3 mt-4">
+             <div className="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse justify-center gap-3">
                <button
-                 onClick={() => setShowDeleteConfirm(false)}
-                 disabled={isActionLoading}
+                 type="button"
                  className={cn(
-                     `flex-1 px-4 py-2 rounded-md font-medium transition-colors text-sm`,
-                      isActionLoading
-                         ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed')
-                         : (darkMode ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-300')
+                    "w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm",
+                    darkMode ? 'bg-red-700 hover:bg-red-600 focus:ring-red-500' : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
                  )}
+                 onClick={deleteFile}
+                 disabled={isActionLoading} // Disable button while action is loading
+               >
+                 {isActionLoading ? (
+                     <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+                 ) : 'Delete'}
+               </button>
+               <button
+                 type="button"
+                 className={cn(
+                   "mt-3 w-full inline-flex justify-center rounded-md border shadow-sm px-4 py-2 text-base font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 sm:mt-0 sm:w-auto sm:text-sm",
+                    darkMode ? 'bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 focus:ring-gray-500' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500'
+                 )}
+                 onClick={() => setShowDeleteConfirm(false)}
+                 disabled={isActionLoading} // Disable cancel while action is loading
                >
                  Cancel
                </button>
-               <button
-                 onClick={deleteFile}
-                 disabled={isActionLoading}
-                 className={cn(
-                     `flex-1 px-4 py-2 rounded-md font-medium transition-colors text-sm text-white flex items-center justify-center gap-2`,
-                     isActionLoading ? 'bg-red-500 cursor-wait' : 'bg-red-600 hover:bg-red-700'
-                 )}
-               >
-                  {isActionLoading && (
-                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
-                  )}
-                 Delete
-               </button>
              </div>
           </div>
         </div>
       )}
+
 
        {/* CSS Animations (shared with FileList, could be moved to a global CSS file) */}
         <style jsx>{`
             @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            .animate-fadeIn { animation: fadeIn 0.2s ease-in-out; }
-            @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-            .animate-modalIn { animation: modalIn 0.25s ease-out; }
+            .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+             @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: .5; }
+            }
+            .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+             .dot {
+                transition: transform 0.2s ease-in-out;
+            }
         `}</style>
-    </>
+    </div>
   );
 };
 

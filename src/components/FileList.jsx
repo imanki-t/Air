@@ -763,7 +763,7 @@ batchOperationLoading}
                           : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
                   )}
               >
-               Prev <span className="hidden sm:inline">Page</span>
+               Previous <span className="hidden sm:inline">Page</span>
               </button>
           )}
 

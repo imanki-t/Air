@@ -14,7 +14,8 @@
     "axios": "^1.6.0",
     "qrcode.react": "4.2.0",
     "jszip": "^3.10.1",
-    "file-saver": "^2.0.5"
+    "file-saver": "^2.0.5",
+    "uuid": "^9.0.1"  // Added uuid dependency here
   },
   "devDependencies": {
     "vite": "^5.0.0",

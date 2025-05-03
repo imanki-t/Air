@@ -15,6 +15,8 @@ function App() {
 
   const location = useLocation();
   const hideHeader = location.pathname === '/' || location.pathname === '/login';
+  // Determine if footer should be shown (only on dashboard)
+  const showFooter = location.pathname === '/dashboard';
 
   const handleAccessGranted = () => {
       setIsLoggedIn(true);
@@ -24,7 +26,7 @@ function App() {
     if (!isLoggedIn) {
         console.log("Not logged in, skipping file fetch.");
         setFiles([]);
-        setError(null);
+        setError(null); // Clear error when logging out
         return;
     }
     console.log("Fetching files...");
@@ -38,7 +40,10 @@ function App() {
       if (err.response && err.response.status === 401) {
          console.log("Backend returned 401, marking as not logged in.");
          setIsLoggedIn(false);
-         setError('Session expired or unauthorized. Please log in.');
+         // Only set session expired error if it's the primary issue
+         if (!error || !error.includes('Backend not configured') || !error.includes('Client error')) {
+            setError('Session expired or unauthorized. Please log in.');
+         }
       } else {
         setError('Failed to load files.');
       }
@@ -47,42 +52,53 @@ function App() {
   };
 
   useEffect(() => {
-    window.onerror = (message, source, lineno, colno, error) => {
+    // Global error handler for unhandled errors
+    const handleGlobalError = (message, source, lineno, colno, error) => {
       console.error('Global error:', message, error);
+      // Avoid overwriting critical config/client errors with generic ones
       if (!error || !error.response) {
-         setError(`Client error: ${message}`);
+          if (!error || !error.message || !error.message.includes('Backend not configured')) {
+               setError(`Client error: ${message}`);
+          }
       }
-      return true;
+      return true; // Prevent default handling
     };
 
+    window.onerror = handleGlobalError;
+
+    // Check for backend URL configuration
     if (!import.meta.env.VITE_BACKEND_URL) {
       console.warn('Backend URL not configured. API calls will fail.');
       setError('Backend not configured. Please set VITE_BACKEND_URL.');
     }
 
+    // Dark mode media query listener
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     setDarkMode(darkModeMediaQuery.matches);
     const handleDarkModeChange = (e) => setDarkMode(e.matches);
     darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
 
+    // Cleanup function
     return () => {
-      window.onerror = null;
+      window.onerror = null; // Remove global error handler
       darkModeMediaQuery.removeEventListener('change', handleDarkModeChange);
     };
-  }, []);
+  }, []); // Empty dependency array ensures this runs only once on mount
 
    useEffect(() => {
        console.log("isLoggedIn state changed:", isLoggedIn);
        if (isLoggedIn) {
            fetchFiles();
        } else {
+           // Clear files and specific login errors when logged out
            setFiles([]);
-           if (!error || !error.includes('Session expired')) {
+           if (error && error.includes('Session expired')) {
                setError(null);
            }
        }
-   }, [isLoggedIn]);
+   }, [isLoggedIn]); // Dependency on isLoggedIn state
 
+  // Render a critical error screen if backend is not configured or major client error occurs
   if (error && (error.includes('Backend not configured') || error.includes('Client error'))) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 text-white p-4">
@@ -106,13 +122,11 @@ function App() {
       {!hideHeader && (
         <header
           className={`p-6 shadow-md transition-all duration-300 ${
-            // Changed header background to white for both dark and light modes
             darkMode ? 'bg-gray-950 border-gray-700' : 'bg-white border-gray-200'
           }`}
         >
           <div className="max-w-6xl mx-auto flex items-center justify-center">
             <div className="text-center">
-              {/* Changed KUWUTEN text color to match homepage */}
               <h1 className={`text-4xl font-vintage tracking-wide ${darkMode ? 'text-white' : 'text-gray-900'}`}>KUWUTEN</h1>
             </div>
           </div>
@@ -144,7 +158,7 @@ function App() {
               isLoggedIn ? (
                 <Navigate to="/dashboard" replace />
               ) : (
-                <AccessGate onAccessGranted={handleAccessGranted} />
+                <AccessGate onAccessGranted={handleAccessGranted} darkMode={darkMode} />
               )
             }
           />
@@ -160,6 +174,7 @@ function App() {
                   )}
                   <UploadForm refresh={fetchFiles} darkMode={darkMode} />
                   <div className={`flex-grow ${files.length === 0 ? 'flex justify-center items-center' : ''}`}>
+                    {/* Pass error related to file fetching to FileList if needed, or handle display here */}
                     <FileList files={files} refresh={fetchFiles} darkMode={darkMode} isLoading={false} />
                   </div>
                 </div>
@@ -172,13 +187,16 @@ function App() {
         </Routes>
       </main>
 
-      <footer
-        className={`p-4 text-center text-sm ${
-          darkMode ? 'text-gray-400' : 'text-gray-500'
-        }`}
-      >
-        © {new Date().getFullYear()} KuwuteN • All Rights Reserved
-      </footer>
+      {/* Conditionally render footer only on the dashboard page */}
+      {showFooter && (
+        <footer
+          className={`p-4 text-center text-sm ${
+            darkMode ? 'text-gray-400' : 'text-gray-500'
+          }`}
+        >
+          © {new Date().getFullYear()} KuwuteN • All Rights Reserved
+        </footer>
+      )}
     </div>
   );
 }

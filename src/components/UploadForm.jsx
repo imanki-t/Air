@@ -9,7 +9,8 @@ import axios from 'axios';
 const UPLOAD_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
 const STORAGE_KEY = 'fileUploadState';
 const STATUS_MESSAGE_TIMEOUT = 15 * 1000; // 15 seconds for status messages to disappear
-const UPLOAD_DELAY = 2000; // 2 second delay before actual upload starts
+const UPLOAD_DELAY = 2000;
+// 2 second delay before actual upload starts
 
 const UploadForm = ({ refresh, darkMode }) => {
   const [file, setFile] = useState(null);
@@ -21,7 +22,6 @@ const UploadForm = ({ refresh, darkMode }) => {
   const [uploadSpeed, setUploadSpeed] = useState(0);
   const [pendingResume, setPendingResume] = useState(null);
   const [messageTimer, setMessageTimer] = useState(null);
-  
   const controllerRef = useRef(null);
   const fileInputRef = useRef(null);
   const uploadFileRef = useRef(null);
@@ -31,18 +31,19 @@ const UploadForm = ({ refresh, darkMode }) => {
   // Check for saved upload state on component mount
   useEffect(() => {
     checkForSavedUploads();
-    
+
     // Also check for saved uploads when window gets focus
     const handleFocus = () => {
       checkForSavedUploads();
     };
-    
+
     window.addEventListener('focus', handleFocus);
-    
+
     return () => {
       window.removeEventListener('focus', handleFocus);
       if (messageTimer) {
         clearTimeout(messageTimer);
+
       }
       if (uploadTimeoutRef.current) {
         clearTimeout(uploadTimeoutRef.current);
@@ -58,7 +59,6 @@ const UploadForm = ({ refresh, darkMode }) => {
 
       const parsedState = JSON.parse(savedUploadState);
       const now = Date.now();
-      
       // Check if the saved state is still valid (within 5 minutes)
       if (parsedState?.timestamp && (now - parsedState.timestamp) < UPLOAD_EXPIRY_TIME) {
         console.log('Found saved upload state:', parsedState);
@@ -67,7 +67,6 @@ const UploadForm = ({ refresh, darkMode }) => {
       } else {
         // Clear expired upload state
         localStorage.removeItem(STORAGE_KEY);
-        
         // If there's a stored file ID, request cleanup on the server
         if (parsedState?.fileId) {
           cleanupIncompleteUpload(parsedState.fileId);
@@ -86,10 +85,10 @@ const UploadForm = ({ refresh, darkMode }) => {
     const updateTruncateLength = () => {
       setTruncateLength(window.innerWidth >= 768 ? 40 : 15);
     };
-    
+
     updateTruncateLength();
     window.addEventListener('resize', updateTruncateLength);
-    
+
     return () => {
       window.removeEventListener('resize', updateTruncateLength);
     };
@@ -97,19 +96,18 @@ const UploadForm = ({ refresh, darkMode }) => {
 
   // Save upload state when upload is interrupted
   const saveUploadState = (uploadData = null) => {
-    const dataToSave = uploadData || (file && {
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      progress: progress,
-      fileId: file.name.replace(/[^a-zA-Z0-9]/g, '_') + Date.now()
-    });
-    
+    const dataToSave = uploadData ||
+      (file && {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        progress: progress,
+        fileId: file.name.replace(/[^a-zA-Z0-9]/g, '_') + Date.now()
+      });
     if (!dataToSave) return;
-    
+
     // Add timestamp
     dataToSave.timestamp = Date.now();
-    
     // If we have the actual file available, save it as a data URL
     if (uploadFileRef.current) {
       const reader = new FileReader();
@@ -121,7 +119,6 @@ const UploadForm = ({ refresh, darkMode }) => {
         dataToSave.fileSignature = truncatedResult;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
       };
-      
       // Only read a small slice of the file to create a signature
       const fileSlice = uploadFileRef.current.slice(0, Math.min(1024 * 1024, uploadFileRef.current.size));
       reader.readAsDataURL(fileSlice);
@@ -137,14 +134,15 @@ const UploadForm = ({ refresh, darkMode }) => {
       if (messageTimer) {
         clearTimeout(messageTimer);
       }
-      
+
       // Set new timer
       const timer = setTimeout(() => {
         setMessage('');
       }, STATUS_MESSAGE_TIMEOUT);
-      
+
       setMessageTimer(timer);
-      
+
+
       return () => {
         clearTimeout(timer);
       };
@@ -172,51 +170,49 @@ const UploadForm = ({ refresh, darkMode }) => {
   // Format time remaining with units
   const formatTimeRemaining = (seconds) => {
     if (!seconds && seconds !== 0) return 'Calculating...';
-    
     if (seconds < 60) {
       return `${Math.round(seconds)} second${Math.round(seconds) !== 1 ? 's' : ''}`;
     } else if (seconds < 3600) {
       const minutes = Math.floor(seconds / 60);
       const remainingSeconds = Math.round(seconds % 60);
-      return `${minutes} minute${minutes !== 1 ? 's' : ''} ${remainingSeconds} second${remainingSeconds !== 1 ? 's' : ''}`;
+      return `${minutes} minute${minutes !== 1 ? 's' : ''} ${remainingSeconds} second${remainingSeconds !== 1 ?
+        's' : ''}`;
     } else if (seconds < 86400) { // Less than 24 hours
       const hours = Math.floor(seconds / 3600);
       const minutes = Math.floor((seconds % 3600) / 60);
-      return `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+      return `${hours} hour${hours !== 1 ?
+        's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`;
     } else { // More than 24 hours
       const days = Math.floor(seconds / 86400);
       const hours = Math.floor((seconds % 86400) / 3600);
-      return `${days} day${days !== 1 ? 's' : ''} ${hours} hour${hours !== 1 ? 's' : ''}`;
+      return `${days} day${days !== 1 ?
+        's' : ''} ${hours} hour${hours !== 1 ? 's' : ''}`;
     }
   };
 
   // Calculate estimated time remaining
   const calculateTimeRemaining = (loaded, total, uploadSpeed) => {
     if (uploadSpeed <= 0) return null;
-    
     const remainingBytes = total - loaded;
     const remainingTimeSeconds = remainingBytes / uploadSpeed;
-    
+
     return formatTimeRemaining(remainingTimeSeconds);
   };
 
   // Format bytes to readable size
   const formatBytes = (bytes, decimals = 2) => {
     if (bytes === 0) return '0 Bytes';
-    
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-    
+
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   };
 
   // Verify if the selected file matches the stored file signature
   const verifyFileSignature = async (selectedFile, fileSignature) => {
     if (!selectedFile || !fileSignature) return false;
-    
     return new Promise((resolve) => {
       // Read first chunk of the selected file
       const reader = new FileReader();
@@ -224,11 +220,12 @@ const UploadForm = ({ refresh, darkMode }) => {
         // Get the start of the selected file data
         const fullResult = event.target.result;
         const selectedSignature = fullResult.slice(0, Math.min(fullResult.length, 1024 * 1024));
-        
+
         // Compare with stored signature
+
         resolve(selectedSignature === fileSignature);
       };
-      
+
       // Only read a small slice of the file
       const fileSlice = selectedFile.slice(0, Math.min(1024 * 1024, selectedFile.size));
       reader.readAsDataURL(fileSlice);
@@ -239,7 +236,7 @@ const UploadForm = ({ refresh, darkMode }) => {
   const performUpload = async (fileToUpload) => {
     const formData = new FormData();
     formData.append('file', fileToUpload);
-    
+
     // Add metadata to help with resumable uploads on the server side
     if (pendingResume) {
       formData.append('resumableUploadId', pendingResume.fileId);
@@ -248,7 +245,6 @@ const UploadForm = ({ refresh, darkMode }) => {
 
     const controller = new AbortController();
     controllerRef.current = controller;
-
     try {
       setMessage('');
       setProgress(pendingResume ? pendingResume.progress : 0);
@@ -264,13 +260,14 @@ const UploadForm = ({ refresh, darkMode }) => {
           saveUploadState({
             fileName: fileToUpload.name,
             fileSize: fileToUpload.size,
+
             fileType: fileToUpload.type,
             progress: progress,
             fileId: fileToUpload.name.replace(/[^a-zA-Z0-9]/g, '_') + Date.now()
           });
         }
       };
-      
+
       // Add the event listener
       window.addEventListener('unload', handleUnload);
       window.addEventListener('beforeunload', handleUnload);
@@ -284,39 +281,43 @@ const UploadForm = ({ refresh, darkMode }) => {
             'Content-Type': 'multipart/form-data'
           },
           onUploadProgress: (event) => {
-            // Ensure we have total size (may not be available in some browsers)
+            // Ensure we
             if (!event.total) {
               setMessage('Unable to calculate upload progress. Upload is continuing...');
               return;
             }
 
             const percent = Math.round((event.loaded * 100) / event.total);
+
             setProgress(percent);
-            
+
             // Calculate upload speed
             const now = Date.now();
             const timeDiff = now - lastProgressUpdateRef.current.time;
             if (timeDiff > 500) { // Update speed every 500ms for stability
-              const loadedDiff = event.loaded - lastProgressUpdateRef.current.loaded;
-              const speedBps = (loadedDiff / timeDiff) * 1000; // bytes per second
+              const loadedDiff =
+                event.loaded - lastProgressUpdateRef.current.loaded;
+              const speedBps = (loadedDiff / timeDiff) * 1000;
+              // bytes per second
               setUploadSpeed(speedBps);
               lastProgressUpdateRef.current = { time: now, loaded: event.loaded };
-              
+
               // Calculate estimated time remaining based on current speed
               if (speedBps > 0) {
                 const remaining = calculateTimeRemaining(event.loaded, event.total, speedBps);
                 setEstimatedTime(remaining);
               }
             }
-            
+
             if (percent === 100) {
               setEstimatedTime('Finalizing...');
             }
-            
+
             // Continuously update the saved state during upload
             if (percent < 100 && percent % 5 === 0) { // Save every 5%
               saveUploadState({
                 fileName: fileToUpload.name,
+
                 fileSize: fileToUpload.size,
                 fileType: fileToUpload.type,
                 progress: percent,
@@ -330,12 +331,10 @@ const UploadForm = ({ refresh, darkMode }) => {
       // Remove the event listeners after upload completes
       window.removeEventListener('unload', handleUnload);
       window.removeEventListener('beforeunload', handleUnload);
-
       // Clear any saved upload state on successful upload
       localStorage.removeItem(STORAGE_KEY);
       setPendingResume(null);
       uploadFileRef.current = null;
-      
       setMessage('File uploaded successfully.');
       setFile(null);
       refresh(); // Call the refresh function provided as prop
@@ -343,7 +342,7 @@ const UploadForm = ({ refresh, darkMode }) => {
       // Remove the event listeners if there's an error
       window.removeEventListener('unload', handleUnload);
       window.removeEventListener('beforeunload', handleUnload);
-      
+
       if (axios.isCancel(err) || err.code === 'ERR_CANCELED') {
         setMessage('Upload cancelled.');
         // Reset state to show drag and drop area
@@ -352,16 +351,18 @@ const UploadForm = ({ refresh, darkMode }) => {
       } else {
         console.error('Upload error:', err);
         // More descriptive error message based on error type
-        const errorMessage = err.response?.status === 413 
-          ? 'File too large. Please upload a smaller file.'
+        const errorMessage = err.response?.status === 413
+          ?
+          'File too large. Please upload a smaller file.'
           : err.response?.status === 415
-            ? 'Unsupported file type. Please try a different file.'
+            ?
+            'Unsupported file type. Please try a different file.'
             : err.response?.status >= 500
-              ? 'Server error. Please try again later.'
+              ?
+              'Server error. Please try again later.'
               : 'Upload failed. Please try again.';
-        
+
         setMessage(errorMessage);
-        
         // Save upload state for possible resume
         saveUploadState({
           fileName: fileToUpload.name,
@@ -390,27 +391,26 @@ const UploadForm = ({ refresh, darkMode }) => {
   };
 
   // Find the handleUpload function and fix it - around line 375
-const handleUpload = async (e) => {
-  if (e) e.preventDefault();
-  
-  // Use the file ref for upload
-  const fileToUpload = uploadFileRef.current || file;
-  if (!fileToUpload) {
-    setMessage('Error: Please select a file to upload');
-    return;
-  }
+  const handleUpload = async (e) => {
+    if (e) e.preventDefault();
+    // Use the file ref for upload
+    const fileToUpload = uploadFileRef.current || file;
+    if (!fileToUpload) {
+      setMessage('Error: Please select a file to upload');
+      return;
+    }
 
-  // Set uploading state immediately so UI shows upload progress
-  setIsUploading(true);
-  setMessage('');
-  setProgress(pendingResume ? pendingResume.progress : 0);
-  
-  // Set a timeout for the actual upload - this happens in the background
-  // The user already sees the uploading UI state
-  uploadTimeoutRef.current = setTimeout(() => {
-    performUpload(fileToUpload);
-  }, UPLOAD_DELAY); // 2 second delay
-};
+    // Set uploading state immediately so UI shows upload progress
+    setIsUploading(true);
+    setMessage('');
+    setProgress(pendingResume ? pendingResume.progress : 0);
+    // Set a timeout for the actual upload - this happens in the background
+    // The user already sees the uploading UI state
+    uploadTimeoutRef.current = setTimeout(() => {
+      performUpload(fileToUpload);
+    }, UPLOAD_DELAY);
+    // 2 second delay
+  };
 
   // Handle cancel upload
   const handleCancel = () => {
@@ -419,27 +419,26 @@ const handleUpload = async (e) => {
       clearTimeout(uploadTimeoutRef.current);
       uploadTimeoutRef.current = null;
     }
-    
+
     // If we have an active controller, abort the request
     if (controllerRef.current) {
       controllerRef.current.abort();
       controllerRef.current = null;
     }
-    
+
     // Clean up the stored upload state
     localStorage.removeItem(STORAGE_KEY);
     setPendingResume(null);
     uploadFileRef.current = null;
-    
+
     // Reset UI state
     setIsUploading(false);
     setFile(null);
-    
     // If we had a file ID, request cleanup on the server
     if (pendingResume?.fileId) {
       cleanupIncompleteUpload(pendingResume.fileId);
     }
-    
+
     setMessage('Upload cancelled.');
   };
 
@@ -450,7 +449,7 @@ const handleUpload = async (e) => {
     setProgress(0);
     setPendingResume(null);
     uploadFileRef.current = null;
-    
+
     localStorage.removeItem(STORAGE_KEY);
 
     // If there was a file ID, cleanup on the server
@@ -463,7 +462,7 @@ const handleUpload = async (e) => {
   const handleDrop = useCallback(async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Check if files were dropped
     if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) {
       setMessage('No valid file detected. Please try again.');
@@ -474,15 +473,17 @@ const handleUpload = async (e) => {
     if (droppedFile) {
       setMessage('');
       setFile(droppedFile);
-      uploadFileRef.current = droppedFile;
-      
+      uploadFileRef.current =
+        droppedFile;
+
       // Check if this is a resume situation
       if (pendingResume) {
-        if (pendingResume.fileName === droppedFile.name && 
-            pendingResume.fileSize === droppedFile.size) {
-            
+        if (pendingResume.fileName === droppedFile.name &&
+          pendingResume.fileSize === droppedFile.size) {
+
           // Verify file signature if available
           if (pendingResume.fileSignature) {
+
             const isMatchingFile = await verifyFileSignature(droppedFile, pendingResume.fileSignature);
             if (isMatchingFile) {
               setMessage('Resume file verified. Ready to resume upload.');
@@ -513,7 +514,7 @@ const handleUpload = async (e) => {
     e.preventDefault();
     e.stopPropagation();
   }, []);
-  
+
   // Handle file input change
   const handleFileInputChange = async (e) => {
     if (!e.target.files || e.target.files.length === 0) {
@@ -525,15 +526,16 @@ const handleUpload = async (e) => {
       setMessage('');
       setFile(selectedFile);
       uploadFileRef.current = selectedFile;
-      
+
       // Check if this is a resume situation
       if (pendingResume) {
-        if (pendingResume.fileName === selectedFile.name && 
-            pendingResume.fileSize === selectedFile.size) {
-            
+        if (pendingResume.fileName === selectedFile.name &&
+          pendingResume.fileSize === selectedFile.size) {
+
           // Verify file signature if available
           if (pendingResume.fileSignature) {
-            const isMatchingFile = await verifyFileSignature(selectedFile, pendingResume.fileSignature);
+            const isMatchingFile =
+              await verifyFileSignature(selectedFile, pendingResume.fileSignature);
             if (isMatchingFile) {
               setMessage('Resume file verified. Ready to resume upload.');
               // Auto-start upload when correct file is detected
@@ -557,34 +559,41 @@ const handleUpload = async (e) => {
       }
     }
   };
-  
+
   // Handle resume upload - this will prompt user to select the file again
   const handleResumeUpload = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
-  
+
   // Handle cancel resume
   const handleCancelResume = () => {
     // Clean up the stored upload state
     localStorage.removeItem(STORAGE_KEY);
     setPendingResume(null);
-    
+
+    // Clear the message immediately
+    setMessage('');
+
     // If we had a file ID, request cleanup on the server
     if (pendingResume?.fileId) {
       cleanupIncompleteUpload(pendingResume.fileId);
     }
   };
 
+
   // Determine message color based on content
   const getMessageColor = (messageText) => {
     if (messageText.includes('successfully')) {
-      return darkMode ? 'text-blue-400' : 'text-blue-600';  // Changed from green to blue
+      return darkMode ?
+        'text-blue-400' : 'text-blue-600';  // Changed from green to blue
     } else if (messageText.includes('verified') || messageText.includes('Ready to resume')) {
-      return darkMode ? 'text-blue-400' : 'text-blue-600';  // Changed from green to blue
+      return darkMode ?
+        'text-blue-400' : 'text-blue-600';  // Changed from green to blue
     } else if (messageText.includes('Different file')) {
-      return darkMode ? 'text-amber-400' : 'text-amber-600';
+      return darkMode ?
+        'text-amber-400' : 'text-amber-600';
     } else if (messageText.includes('cancelled')) {
       return darkMode ? 'text-blue-400' : 'text-blue-600';
     } else {
@@ -604,39 +613,44 @@ const handleUpload = async (e) => {
       </h3>
 
       {/* Resume Notice */}
-      {pendingResume && !isUploading && !file && (
-        <div className={`mb-6 p-5 rounded-lg ${darkMode ? 'bg-blue-800/40 border border-blue-600' : 'bg-blue-50 border border-blue-400'}`}>
-          <div className="mb-4">
-            <h4 className={`text-lg font-semibold ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-              Resume Previous Upload
-            </h4>
-            <p className={`text-sm mt-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Your previous upload of "{getTruncatedFileName(pendingResume.fileName)}" 
-              was interrupted at {pendingResume.progress}%.
-            </p>
+      {pendingResume && !isUploading && !file &&
+        (
+          <div className={`mb-6 p-5 rounded-lg ${darkMode ? 'bg-blue-800/40 border border-blue-600' : 'bg-blue-50 border border-blue-400'}`}>
+            <div className="mb-4">
+              <h4 className={`text-lg font-semibold ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                Resume Previous Upload
+              </h4>
+              <p className={`text-sm mt-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+
+                Your previous upload of "{getTruncatedFileName(pendingResume.fileName)}"
+                was interrupted at {pendingResume.progress}%.
+              </p>
+            </div>
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={handleResumeUpload}
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
+              >
+
+                Resume
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelResume}
+                className={`px-4 py-2.5 rounded-md font-medium transition-colors ${
+                  darkMode
+                    ?
+                    'bg-gray-700 hover:bg-gray-600 text-white'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                }`}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-          <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={handleResumeUpload}
-              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
-            >
-              Resume
-            </button>
-            <button
-              type="button"
-              onClick={handleCancelResume}
-              className={`px-4 py-2.5 rounded-md font-medium transition-colors ${
-                darkMode 
-                  ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-              }`}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+
+        )}
 
       {/* Upload area - only show if not currently uploading */}
       {(!isUploading && (!pendingResume || file)) && (
@@ -645,6 +659,7 @@ const handleUpload = async (e) => {
           className={`block w-full cursor-pointer px-4 py-8 rounded-lg mb-5 text-center transition-colors ${
             darkMode
               ? 'bg-gray-700 hover:bg-gray-600 border-2 border-dashed border-gray-600'
+
               : 'bg-gray-100 hover:bg-gray-200 border-2 border-dashed border-gray-300'
           } ${file ? (darkMode ? 'border-blue-500' : 'border-blue-400') : ''}`}
           title={file ? file.name : 'Drag and drop file or click to browse'}
@@ -652,25 +667,32 @@ const handleUpload = async (e) => {
           onDragOver={handleDragOver}
         >
           <div className="flex flex-col items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className={`h-12 w-12 mb-3 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-12 w-12 mb-3 ${darkMode ?
+              'text-gray-400' : 'text-gray-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
             {file
-              ? <div>
-                  <span className={`font-medium break-words ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                    {getTruncatedFileName(file.name)}
-                  </span>
-                  {file.size && (
-                    <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                      {formatBytes(file.size)}
-                    </p>
-                  )}
-                </div>
-              : <span className={`text-lg ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                  {pendingResume 
-                    ? `Select "${getTruncatedFileName(pendingResume.fileName)}" to resume upload` 
-                    : "Drag and drop file or click to browse"}
-                </span>}
+              ?
+              <div>
+                <span className={`font-medium break-words ${darkMode ?
+                  'text-blue-400' : 'text-blue-600'}`}>
+                  {getTruncatedFileName(file.name)}
+                </span>
+                {file.size && (
+                  <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+
+                    {formatBytes(file.size)}
+                  </p>
+                )}
+              </div>
+              : <span className={`text-lg ${darkMode ?
+                'text-gray-300' : 'text-gray-600'}`}>
+                {pendingResume
+                  ?
+                  `Select "${getTruncatedFileName(pendingResume.fileName)}" to resume upload`
+                  : "Drag and drop file or click to browse"}
+              </span>}
           </div>
         </label>
       )}
@@ -678,6 +700,7 @@ const handleUpload = async (e) => {
       <input
         id="fileInput"
         type="file"
+
         ref={fileInputRef}
         onChange={handleFileInputChange}
         className="hidden"
@@ -688,35 +711,42 @@ const handleUpload = async (e) => {
         <div className="mb-4">
           {/* Progress bar */}
           <div className={`w-full rounded-full h-6 mb-3 overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+
             <div
               className="bg-blue-600 h-full transition-all duration-200 ease-in-out"
               style={{ width: `${progress}%` }}
             >
               {/* Fill animation for progress bar */}
               <div className="w-full h-full opacity-30 bg-gradient-to-r from-transparent via-white to-transparent animate-pulse"></div>
+
             </div>
           </div>
-          
+
           {/* Progress info container - fixed height and properly spaced */}
           <div className="mb-8">
             <div className="flex justify-between items-center mb-2">
-              <div className={`text-base font-medium ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+              <div className={`text-base font-medium ${darkMode ?
+                'text-gray-200' : 'text-gray-700'}`}>
                 Progress: {progress}%
               </div>
             </div>
-            
-            <div className={`text-sm mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              Upload speed: {uploadSpeed > 0 ? formatBytes(uploadSpeed) + '/s' : 'Calculating...'}
+
+            <div className={`text-sm mb-2 ${darkMode ?
+              'text-gray-300' : 'text-gray-600'}`}>
+              Upload speed: {uploadSpeed > 0 ?
+                formatBytes(uploadSpeed) + '/s' : 'Calculating...'}
             </div>
-            
-            <div className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+
+            <div className={`text-sm ${darkMode ?
+              'text-gray-300' : 'text-gray-600'}`}>
               Estimated time: {estimatedTime}
             </div>
           </div>
-          
+
           {/* Cancel button with proper spacing */}
           <div className="mt-4">
             <button
+
               type="button"
               onClick={handleCancel}
               className="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors"
@@ -725,6 +755,7 @@ const handleUpload = async (e) => {
             </button>
           </div>
         </div>
+
       )}
 
       {/* Action buttons - only show when file is selected and not uploading */}
@@ -733,8 +764,8 @@ const handleUpload = async (e) => {
           <button
             type="submit"
             className={`flex-1 px-4 py-2.5 text-white rounded-md font-medium transition-colors ${
-              message.includes('Different file') 
-                ? 'bg-blue-400 cursor-not-allowed' 
+              message.includes('Different file')
+                ? 'bg-blue-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700'
             }`}
             disabled={message.includes('Different file')}
@@ -748,6 +779,7 @@ const handleUpload = async (e) => {
           >
             Remove
           </button>
+
         </div>
       )}
 

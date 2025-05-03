@@ -4,26 +4,15 @@ import React, { useState, useEffect } from 'react';
 // Accept onAccessGranted prop
 const AccessGate = ({ onAccessGranted }) => {
   const [passkey, setPasskey] = useState('');
-  const [username, setUsername] = useState(''); // Added username state
+  const [username, setUsername] = useState(''); // Added state for username
   const [error, setError] = useState('');
   const [fadeOut, setFadeOut] = useState(false);
+  // Removed the local 'unlocked' state as App.jsx manages it now
   const [loading, setLoading] = useState(true);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [mouseMovePosition, setMouseMovePosition] = useState({ x: 0, y: 0 });
   const [showPhases, setShowPhases] = useState(false);
   const [darkMode, setDarkMode] = useState(false); // Added dark mode state
-
-  // Detect system theme preference on component mount and listen for changes
-  useEffect(() => {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setDarkMode(prefersDark);
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e) => setDarkMode(e.matches);
-    mediaQuery.addEventListener('change', handleChange);
-
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
 
   const quotes = [
     // ... (your existing quotes) ...
@@ -145,6 +134,15 @@ const AccessGate = ({ onAccessGranted }) => {
   const [phaseOpacity, setPhaseOpacity] = useState(0);
 
   useEffect(() => {
+    // Detect system theme preference on component mount
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setDarkMode(prefersDark);
+
+    // Listen for system theme changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e) => setDarkMode(e.matches);
+    mediaQuery.addEventListener('change', handleChange);
+
     const quote = quotes[Math.floor(Math.random() * quotes.length)];
     setCurrentQuote(quote);
     let index = 0;
@@ -170,7 +168,10 @@ const AccessGate = ({ onAccessGranted }) => {
       setMouseMovePosition({ x, y });
     };
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      mediaQuery.removeEventListener('change', handleChange); // Clean up theme listener
+    };
   }, []);
 
   useEffect(() => {
@@ -226,14 +227,13 @@ const AccessGate = ({ onAccessGranted }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const correctPasskey = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone';
-    // You can add a check for a username environment variable here if needed, e.g.:
-    // const correctUsername = import.meta.env.VITE_SITE_USERNAME || 'admin';
-    // if (passkey === correctPasskey && username === correctUsername) {
-    if (passkey === correctPasskey) {
-      const audio = new Audio('/access-granted.mp3');
+    const correct = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone'; // Ensure this ENV var is set in Render
+    if (passkey === correct) {
+      const audio = new Audio('/access-granted.mp3'); // Make sure this file is in your public directory
       audio.play().catch(() => {});
       setFadeOut(true);
+      // Notify the parent (App.jsx) that access is granted
+      // Removed sessionStorage.setItem('access_granted', 'true');
       if (onAccessGranted) {
            setTimeout(() => onAccessGranted(), 800);
       }
@@ -253,13 +253,16 @@ const AccessGate = ({ onAccessGranted }) => {
     setPasswordVisible(!passwordVisible);
   };
 
+  // AccessGate no longer renders children or checks 'unlocked' locally
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ease-in-out overflow-hidden ${fadeOut ? 'opacity-0' : 'opacity-100'} ${darkMode ? 'bg-gray-950' : 'bg-white'}`} // Apply background color based on dark mode
+      className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ease-in-out overflow-hidden ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
+      // Updated background color based on dark mode
+      style={{ background: darkMode ? '#0f172a' : '#ffffff' }}
     >
       {/* Background Grid and Animations */}
       <div className="absolute inset-0 overflow-hidden">
-        {/* Grid background - Applied conditionally based on dark mode */}
+         {/* Grid background - Applied conditionally based on dark mode */}
         <div
           className={`absolute inset-0 opacity-10`}
           style={{
@@ -268,16 +271,15 @@ const AccessGate = ({ onAccessGranted }) => {
                  linear-gradient(to bottom, rgba(66, 135, 245, 0.2) 1px, transparent 1px)` // Blue grid for dark mode
               : `linear-gradient(to right, rgba(139, 0, 0, 0.3) 1px, transparent 1px),
                  linear-gradient(to bottom, rgba(139, 0, 0, 0.3) 1px, transparent 1px)`, // Red grid for light mode
-            backgroundSize: '30px 30px', // Adjust grid spacing here
-            transform: `translate(${mouseMovePosition.x}px, ${mouseMovePosition.y}px)`,
-            transition: 'transform 0.5s ease-out',
-             backgroundColor: darkMode ? '#0f172a' : '#ffffff', // Explicitly set background color based on mode
+            backgroundSize: '30px 30px', // Adjust grid spacing here (same for both modes)
+             // Removed transform translate for grid to keep it static like homepage
           }}
         />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none">
+           {/* Rotating Rings - Updated colors based on dark mode */}
           {[1, 2, 3, 4].map(ring => (
             <div key={ring}
-              className={`absolute rounded-full border ${darkMode ? 'border-blue-500/20' : 'border-red-500/20'}`} // Conditional ring color
+              className={`absolute rounded-full border ${darkMode ? 'border-blue-500/20' : 'border-red-500/20'}`}
               style={{
                 top: '50%',
                 left: '50%',
@@ -290,9 +292,11 @@ const AccessGate = ({ onAccessGranted }) => {
           ))}
         </div>
         <div className="absolute inset-0">
+           {/* Floating Particles - Updated colors and slowed down animation */}
           {Array.from({ length: 30 }).map((_, i) => (
             <div key={i}
-              className={`absolute rounded-full ${darkMode ? 'bg-blue-300' : 'bg-red-300'}`} // Conditional particle color
+              // Updated gradient colors based on dark mode
+              className={`absolute rounded-full ${darkMode ? 'bg-gradient-to-r from-blue-400 to-blue-500' : 'bg-gradient-to-r from-red-400 to-red-500'}`}
               style={{
                 width: `${Math.random() * 6 + 2}px`,
                 height: `${Math.random() * 6 + 2}px`,
@@ -300,44 +304,47 @@ const AccessGate = ({ onAccessGranted }) => {
                 top: `${Math.random() * 100}%`,
                 opacity: Math.random() * 0.5 + 0.1,
                 filter: 'blur(1px)',
-                animation: `float ${loading ? (Math.random() * 5 + 15) : (Math.random() * 10 + 10)}s linear infinite`, // Slowed down animation duration when loading
-                animationDelay: `${Math.random() * 5}s`
+                animation: `float ${Math.random() * 20 + 20}s linear infinite`, // Increased animation duration
+                animationDelay: `${Math.random() * 10}s` // Increased delay range
               }}
             />
           ))}
         </div>
-        {/* Abstract corner shapes - Adjusted colors */}
-        <div className={`absolute top-1/4 left-1/4 w-64 h-64 rounded-full ${darkMode ? 'bg-blue-500/10' : 'bg-red-500/10'} blur-3xl`}></div>
-        <div className={`absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full ${darkMode ? 'bg-purple-500/10' : 'bg-red-500/10'} blur-3xl`}></div> {/* Kept one purple for variety or change to red */}
+         {/* Abstract corner shapes - Updated colors based on dark mode */}
+         <div className={`absolute top-1/4 left-1/4 w-64 h-64 rounded-full ${darkMode ? 'bg-blue-500/10' : 'bg-red-500/10'} blur-3xl`}></div>
+        <div className={`absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full ${darkMode ? 'bg-blue-500/10' : 'bg-red-500/10'} blur-3xl`}></div>
       </div>
 
       {/* App Header */}
       <header className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4">
         <div className="flex items-center space-x-3">
-          <div className={`flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 ${darkMode ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gradient-to-br from-red-500 to-red-600'} rounded-lg shadow-lg`}> {/* Conditional header logo background */}
+           {/* Logo background - Updated gradient colors based on dark mode */}
+          <div className={`flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 ${darkMode ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gradient-to-br from-red-500 to-red-600'} rounded-lg shadow-lg`}>
             <img
               src="/android-chrome-512x512.png"
               className="h-8 w-8 sm:h-10 sm:w-10"
             />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            <span className={`text-transparent bg-clip-text ${darkMode ? 'bg-gradient-to-r from-blue-400 to-blue-500' : 'bg-gradient-to-r from-red-400 to-red-500'}`}> {/* Conditional KUWUTEN text gradient */}
+            {/* KUWUTEN text gradient - Updated colors based on dark mode */}
+            <span className={`text-transparent bg-clip-text ${darkMode ? 'bg-gradient-to-r from-blue-400 to-blue-500' : 'bg-gradient-to-r from-red-400 to-red-500'}`}>
               KUWUTEN
             </span>
           </h1>
         </div>
       </header>
 
+
       {/* Main Content Area (Loading or Login) */}
       <div className="relative z-10 w-full max-w-md mx-auto px-4 mt-24 sm:mt-28">
         {loading ? (
-          // Loading Screen - INCREASED RING SIZES BY 2X
+          // Loading Screen - INCREASED RING SIZES BY 2X - Updated colors based on dark mode
           <div className="flex flex-col items-center justify-center p-8">
             <div className="relative w-56 h-56 md:w-80 md:h-80 mb-6">
               <div className="absolute inset-0">
-                <div className={`absolute inset-0 rounded-full border-4 ${darkMode ? 'border-t-blue-500' : 'border-t-red-500'} border-r-transparent border-b-transparent border-l-transparent animate-spin`}></div> {/* Conditional loading ring color */}
-                <div className={`absolute inset-6 rounded-full border-4 border-t-transparent ${darkMode ? 'border-r-blue-500' : 'border-r-red-500'} border-b-transparent border-l-transparent animate-spin`} style={{ animationDuration: '1.5s' }}></div> {/* Conditional loading ring color */}
-                <div className={`absolute inset-12 rounded-full border-4 border-t-transparent border-r-transparent ${darkMode ? 'border-b-blue-500' : 'border-b-red-500'} border-l-transparent animate-spin`} style={{ animationDuration: '2s' }}></div> {/* Conditional loading ring color */}
+                <div className={`absolute inset-0 rounded-full border-4 ${darkMode ? 'border-t-blue-500' : 'border-t-red-500'} border-r-transparent border-b-transparent border-l-transparent animate-spin`}></div>
+                <div className={`absolute inset-6 rounded-full border-4 border-t-transparent ${darkMode ? 'border-r-blue-500' : 'border-r-red-500'} border-b-transparent border-l-transparent animate-spin`} style={{ animationDuration: '1.5s' }}></div>
+                <div className={`absolute inset-12 rounded-full border-4 border-t-transparent border-r-transparent ${darkMode ? 'border-b-blue-500' : 'border-b-red-500'} border-l-transparent animate-spin`} style={{ animationDuration: '2s' }}></div>
               </div>
               {showPhases && phaseVisible && (
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -358,13 +365,23 @@ const AccessGate = ({ onAccessGranted }) => {
           // Login Form
           <div className="flex flex-col items-center">
             <div className="w-full relative max-w-xs sm:max-w-sm">
-              <div className={`absolute -inset-1 ${darkMode ? 'bg-gradient-to-r from-blue-600 via-blue-600 to-blue-600' : 'bg-gradient-to-r from-red-600 via-red-600 to-red-600'} rounded-2xl opacity-70 blur-sm animate-pulse`}></div> {/* Conditional pulse background color */}
+              {/* Background gradient behind form - Updated colors based on dark mode */}
+              <div className={`absolute -inset-1 ${darkMode ? 'bg-gradient-to-r from-blue-600 via-blue-600 to-blue-600' : 'bg-gradient-to-r from-red-600 via-red-600 to-red-600'} rounded-2xl opacity-70 blur-sm animate-pulse`}></div>
+              {/* Form container */}
               <div className="relative bg-gray-900/90 backdrop-blur-md rounded-xl overflow-hidden border border-gray-800">
-                <div className={`absolute top-0 left-0 right-0 h-1 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'}`}></div> {/* Conditional top border color */}
-                {/* Removed original bg-grid-pattern class */}
+                 {/* Top border gradient - Updated colors based on dark mode */}
+                <div className={`absolute top-0 left-0 right-0 h-1 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'}`}></div>
+                 {/* Inner grid pattern - Updated colors based on dark mode */}
+                <div className={`absolute inset-0 opacity-5`} style={{
+                   backgroundImage: darkMode
+                     ? `radial-gradient(circle, #3b82f6 1px, transparent 1px)`
+                     : `radial-gradient(circle, #ef4444 1px, transparent 1px)`,
+                   backgroundSize: '20px 20px',
+                }}></div>
                 <div className="p-6 pt-10">
                   <div className="text-center mb-6">
-                    <h2 className={`text-xl font-bold text-transparent bg-clip-text ${darkMode ? 'bg-gradient-to-r from-blue-400 to-blue-400' : 'bg-gradient-to-r from-red-400 to-red-400'} mb-1`}> {/* Conditional SECURE ACCESS text gradient */}
+                     {/* SECURE ACCESS text gradient - Updated colors based on dark mode */}
+                    <h2 className={`text-xl font-bold text-transparent bg-clip-text ${darkMode ? 'bg-gradient-to-r from-blue-400 to-blue-400' : 'bg-gradient-to-r from-red-400 to-red-400'} mb-1`}>
                       SECURE ACCESS
                     </h2>
                     <p className="text-gray-400 text-sm">
@@ -372,46 +389,48 @@ const AccessGate = ({ onAccessGranted }) => {
                     </p>
                   </div>
                   <form id="access-form" onSubmit={handleSubmit} className="space-y-4">
-                    {/* Username Input Box */}
+                     {/* Username Input Box */}
                     <div className="relative">
-                      <label htmlFor="username" className="block text-sm font-medium text-gray-400 mb-1">Username</label>
-                       <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg blur opacity-30"></div> {/* Consider making this conditional */}
+                       {/* Background gradient behind input - Updated colors based on dark mode */}
+                      <div className={`absolute -inset-0.5 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'} rounded-lg blur opacity-30`}></div>
                       <div className="relative">
+                         {/* Username Input */}
                         <input
                           type="text"
-                          id="username"
                           value={username}
                           onChange={(e) => setUsername(e.target.value)}
-                          placeholder="Enter username"
-                          className="w-full px-4 py-3 bg-gray-800 text-white border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" // Consider making focus ring conditional
-                          autoComplete="username"
+                          placeholder="Username"
+                          className="w-full px-4 py-3 bg-gray-800 text-white border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          autoComplete="off"
                         />
                       </div>
                     </div>
-                    {/* Passkey Input Box */}
                     <div className="relative">
-                       <label htmlFor="passkey" className="block text-sm font-medium text-gray-400 mb-1">Passkey</label>
-                      <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg blur opacity-30"></div> {/* Consider making this conditional */}
+                      {/* Background gradient behind input - Updated colors based on dark mode */}
+                      <div className={`absolute -inset-0.5 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'} rounded-lg blur opacity-30`}></div>
                       <div className="relative">
+                         {/* Passkey Input */}
                         <input
                           type={passwordVisible ? "text" : "password"}
-                          id="passkey"
                           value={passkey}
                           onChange={(e) => setPasskey(e.target.value)}
-                          placeholder="Enter passkey"
-                          className="w-full px-4 py-3 pr-10 bg-gray-800 text-white border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" // Consider making focus ring conditional
-                          autoComplete="current-password"
+                          placeholder="Passkey" // Changed placeholder to Passkey
+                          className="w-full px-4 py-3 pr-10 bg-gray-800 text-white border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          autoComplete="off"
                         />
+                         {/* Password Visibility Toggle Button - Updated hover color */}
                         <button
                           type="button"
                           onClick={togglePasswordVisibility}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-400 transition-colors" // Consider making hover color conditional
+                          className={`absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 ${darkMode ? 'hover:text-blue-400' : 'hover:text-red-400'} transition-colors`}
                         >
                           {passwordVisible ? (
+                             // Eye-slash icon
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59" />
                             </svg>
                           ) : (
+                             // Eye icon
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -428,21 +447,25 @@ const AccessGate = ({ onAccessGranted }) => {
                         <span>{error}</span>
                       </div>
                     )}
+                    {/* Unlock Access button - Updated gradient colors based on dark mode */}
                     <button
                       type="submit"
-                      className={`w-full py-3 px-4 ${darkMode ? 'bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500' : 'bg-gradient-to-r from-red-600 to-red-600 hover:from-red-500 hover:to-red-500'} text-white font-medium rounded-lg transition-all duration-200 relative overflow-hidden group`} {/* Conditional button colors */}
+                      className={`w-full py-3 px-4 ${darkMode ? 'bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500' : 'bg-gradient-to-r from-red-600 to-red-600 hover:from-red-500 hover:to-red-500'} text-white font-medium rounded-lg transition-all duration-200 relative overflow-hidden group`}
                     >
-                      <span className={`absolute inset-0 w-full h-full ${darkMode ? 'bg-gradient-to-r from-blue-400 to-blue-400' : 'bg-gradient-to-r from-red-400 to-red-400'} opacity-0 group-hover:opacity-20 transition-opacity duration-200`}></span> {/* Conditional hover effect color */}
+                      {/* Hover effect gradient - Updated colors based on dark mode */}
+                      <span className={`absolute inset-0 w-full h-full ${darkMode ? 'bg-gradient-to-r from-blue-400 to-blue-400' : 'bg-gradient-to-r from-red-400 to-red-400'} opacity-0 group-hover:opacity-20 transition-opacity duration-200`}></span>
                       <span className="flex items-center justify-center">
+                         {/* Lock icon */}
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
                         </svg>
                         Unlock Access
                       </span>
                     </button>
-                   </form>
+                  </form>
                 </div>
-                <div className="p-4 border-t border-gray-800 text-center"> {/* Border color remains gray */}
+                {/* Quote section */}
+                <div className="p-4 border-t border-gray-800 text-center">
                   <p className="text-gray-400 text-sm italic">{currentQuote}</p>
                 </div>
               </div>
@@ -451,62 +474,60 @@ const AccessGate = ({ onAccessGranted }) => {
         )}
       </div>
 
-      {/* Bottom-left Security Badges - Fixed position, adjusted text color */}
-      <div className="fixed bottom-4 left-6 text-gray-400 text-sm hidden md:flex flex-col items-start"> {/* Text color adjusted */}
+
+      {/* Bottom-left Security Badges - Fixed position - Updated icon colors */}
+      <div className="fixed bottom-4 left-6 text-gray-500 text-sm hidden md:flex flex-col items-start">
         <div className="flex items-center space-x-1 mb-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-blue-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"> {/* Conditional icon color */}
+          <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-blue-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
           </svg>
           <span>256-bit Encryption</span>
         </div>
         <div className="flex items-center space-x-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-blue-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"> {/* Conditional icon color */}
+          <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-blue-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
           <span>Secure Authentication</span>
         </div>
       </div>
 
-      {/* Copyright Text - Properly positioned in bottom right, adjusted text color */}
-      <div className="hidden md:block fixed bottom-4 right-6 text-gray-400 text-sm max-w-xs text-right"> {/* Text color adjusted */}
+      {/* Copyright Text - Properly positioned in bottom right */}
+      <div className="hidden md:block fixed bottom-4 right-6 text-gray-500 text-sm max-w-xs text-right">
         <span>© {new Date().getFullYear()} Kuwuten • All Rights Reserved</span><br/>
         <span>End-to-End Encrypted</span>
       </div>
 
-      {/* Mobile version - smaller font and multi-line, adjusted text color */}
-      <div className="block md:hidden fixed bottom-4 right-4 text-gray-400 max-w-[180px] text-right"> {/* Text color adjusted */}
+      {/* Mobile version - smaller font and multi-line */}
+      <div className="block md:hidden fixed bottom-4 right-4 text-gray-500 max-w-[180px] text-right">
         <p className="text-[10px] leading-tight">
           © {new Date().getFullYear()} Kuwuten • All Rights Reserved<br/>
           End-to-End Encrypted
         </p>
       </div>
 
-      {/* Additional Decorative Elements - Adjusted colors */}
+      {/* Additional Decorative Elements - Updated circle stroke colors */}
       <div className="fixed top-10 left-10 w-16 h-16 opacity-10 hidden lg:block">
         <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="50" r="40" fill="none" stroke={darkMode ? "#3b82f6" : "#ef4444"} strokeWidth="2" /> {/* Conditional circle color */}
-          <path d="M50,10 L50,90 M10,50 L90,50" stroke={darkMode ? "#3b82f6" : "#ef4444"} strokeWidth="1" /> {/* Conditional path color */}
+          <circle cx="50" cy="50" r="40" fill="none" stroke={darkMode ? "#3b82f6" : "#ef4444"} strokeWidth="2" />
+          <path d="M50,10 L50,90 M10,50 L90,50" stroke={darkMode ? "#3b82f6" : "#ef4444"} strokeWidth="1" />
         </svg>
       </div>
       <div className="fixed bottom-10 left-10 w-16 h-16 opacity-10 hidden lg:block">
         <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="50" r="40" fill="none" stroke={darkMode ? "#8b5cf6" : "#ef4444"} strokeWidth="2" /> {/* Conditional circle color */}
-          <path d="M50,10 L50,90 M10,50 L90,50" stroke={darkMode ? "#8b5cf6" : "#ef4444"} strokeWidth="1" /> {/* Conditional path color */}
+          <circle cx="50" cy="50" r="40" fill="none" stroke={darkMode ? "#8b5cf6" : "#f87171"} strokeWidth="2" />
+          <path d="M50,10 L50,90 M10,50 L90,50" stroke={darkMode ? "#8b5cf6" : "#f87171"} strokeWidth="1" />
         </svg>
       </div>
 
       <style jsx>{`
-        /* Removed .bg-grid-pattern CSS as it's now handled inline */
-
         @keyframes orbital-rotation {
           from { transform: translate(-50%, -50%) rotate(0deg); }
           to { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
-        /* Modified float animation to control speed based on loading state */
         @keyframes float {
           0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-20px); }
+          50% { transform: translateY(-10px); } /* Reduced float distance */
         }
 
         @keyframes shake {

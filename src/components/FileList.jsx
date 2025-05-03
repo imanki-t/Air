@@ -786,7 +786,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                          {currentPage}
                     </span>
                )}
-                of {totalPages}
+                &nbsp;of {totalPages}
             </span>
 
            {/* Next Button */}

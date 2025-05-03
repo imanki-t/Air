@@ -83,7 +83,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
         setShowBatchShareModal(false);
       }
       // Add closing
- for download progress if needed, though it closes automatically
+// for download progress if needed, though it closes automatically
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);

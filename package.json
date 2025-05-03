@@ -8,21 +8,21 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.23.0",
-    "axios": "^1.6.0",
-    "qrcode.react": "4.2.0",
-    "jszip": "^3.10.1",
-    "file-saver": "^2.0.5",
-    "uuid": "^9.0.1",
-    "prop-types": "^15.8.1" 
+    "react": "",
+    "react-dom": "",
+    "react-router-dom": "",
+    "axios": "",
+    "qrcode.react": "",
+    "jszip": "",
+    "file-saver": "",
+    "uuid": "",
+    "prop-types": ""
   },
   "devDependencies": {
-    "vite": "^5.0.0",
-    "@vitejs/plugin-react": "^4.2.0",
-    "tailwindcss": "^3.4.1",
-    "autoprefixer": "^10.4.17",
-    "postcss": "^8.4.31"
+    "vite": "",
+    "@vitejs/plugin-react": "",
+    "tailwindcss": "",
+    "autoprefixer": "",
+    "postcss": ""
   }
 }

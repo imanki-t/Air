@@ -338,13 +338,13 @@ animationDuration:`${Math.random() * 10 + 15}s`,
 Access your dashboard now and experience seamless file management designed just for you.
 </p>
             <div className="mt-8">
-              <Link to={isLoggedIn ? "/dashboard" : "/login"}>
+              <Link to={isLoggedIn ? "/dashboard" : "/signup"}>
 <button className={`px-8 py-3 text-lg font-medium rounded-md shadow-md transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                   darkMode
                     ? 'bg-primaryBlue text-white hover:bg-blue-600 focus:ring-blue-500'
 : 'bg-primaryRed text-white hover:bg-red-600 focus:ring-red-500'
                 }`}>
-                  Go to Dashboard {/* Text remains "Go to Dashboard" */}
+                  Create an Account! {/* Text remains "Go to Dashboard" */}
                 </button>
 </Link>
             </div>

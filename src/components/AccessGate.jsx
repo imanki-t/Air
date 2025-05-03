@@ -1,16 +1,20 @@
-// AccessGate.jsx
+// components/LoginPage.jsx
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom'; // Import Link and useNavigate
+import axios from 'axios'; // Import axios
 
-// Accept onAccessGranted prop
-const AccessGate = ({ onAccessGranted }) => {
-  const [passkey, setPasskey] = useState('');
+// Accept onLoginSuccess prop instead of onAccessGranted
+const LoginPage = ({ onLoginSuccess }) => {
+  const [username, setUsername] = useState(''); // Add username state
+  const [password, setPassword] = useState(''); // Change passkey to password
   const [error, setError] = useState('');
   const [fadeOut, setFadeOut] = useState(false);
-  // Removed the local 'unlocked' state as App.jsx manages it now
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Initial loading is false for login form
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [mouseMovePosition, setMouseMovePosition] = useState({ x: 0, y: 0 });
-  const [showPhases, setShowPhases] = useState(false);
+  const [showPhases, setShowPhases] = useState(false); // Keep phases for potential visual flair
+  const navigate = useNavigate(); // Hook for navigation
+
   const quotes = [
     // ... (your existing quotes) ...
     "Built a dirt house for the nostalgia. Would die for it.",
@@ -125,84 +129,72 @@ const AccessGate = ({ onAccessGranted }) => {
   const [currentQuote, setCurrentQuote] = useState('');
   const [typedQuote, setTypedQuote] = useState('');
 
-  const phases = ["Encrypting", "Securing", "Connecting", "Verifying"];
+  const phases = ["Decrypting", "Authenticating", "Connecting", "Authorizing"]; // Updated phases
   const [currentPhase, setCurrentPhase] = useState(0);
   const [phaseVisible, setPhaseVisible] = useState(false);
   const [phaseOpacity, setPhaseOpacity] = useState(0);
 
+  // Effect for quotes and background animations
   useEffect(() => {
     const quote = quotes[Math.floor(Math.random() * quotes.length)];
     setCurrentQuote(quote);
     let index = 0;
+    // Type out quote (optional, could be removed for faster load)
     const typeInterval = setInterval(() => {
       setTypedQuote((prev) => prev + quote.charAt(index));
       index++;
       if (index === quote.length) clearInterval(typeInterval);
-    }, 50);
+    }, 50); // Typing speed
 
-    // Start loading phases after initial delay
-    setTimeout(() => {
-      setShowPhases(true);
-    }, 3000); // Wait 3 seconds before showing phases
-
-    // Set total loading time
-    setTimeout(() => {
-      setLoading(false);
-    }, 3000 + (phases.length * 1000)); // 3s initial delay + 1s per phase
-
+    // Background mouse move effect
     const handleMouseMove = (e) => {
       const x = (e.clientX / window.innerWidth) * 10;
       const y = (e.clientY / window.innerHeight) * 10;
       setMouseMovePosition({ x, y });
     };
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+
+     // Removed initial loading and phase display logic from here
+     // Loading/phases will be shown during login attempt
+
+    return () => {
+      clearInterval(typeInterval);
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
   }, []);
 
-  useEffect(() => {
-    if (loading && showPhases) {
-      setPhaseVisible(true);
-      setPhaseOpacity(0);
-      const fadeInSteps = 10;
-      const fadeInInterval = 300 / fadeInSteps;
+   // Effect for showing loading phases during authentication attempt
+   useEffect(() => {
+       if (loading) { // Only show phases when loading state is true
+           setTypedQuote(''); // Clear quote when loading
+           setShowPhases(true);
+           setCurrentPhase(0); // Reset phase counter
+           setPhaseVisible(true);
+           setPhaseOpacity(0);
 
-      let step = 0;
-      const fadeInTimer = setInterval(() => {
-        step++;
-        setPhaseOpacity(step / fadeInSteps);
-        if (step >= fadeInSteps) clearInterval(fadeInTimer);
-      }, fadeInInterval);
+           const phaseTimer = setInterval(() => {
+               setCurrentPhase(prev => (prev < phases.length - 1 ? prev + 1 : prev));
+           }, 1000); // Change phase every 1 second
 
-      const fadeOutTimer = setTimeout(() => {
-        const fadeOutSteps = 8;
-        const fadeOutInterval = 300 / fadeOutSteps;
+           return () => clearInterval(phaseTimer);
+       } else {
+           setShowPhases(false);
+           setPhaseVisible(false);
+           setPhaseOpacity(0);
+           // Restore quote typing after loading is done (optional)
+           const quote = quotes[Math.floor(Math.random() * quotes.length)];
+           setCurrentQuote(quote);
+           let index = 0;
+           const typeInterval = setInterval(() => {
+             setTypedQuote((prev) => prev + quote.charAt(index));
+             index++;
+             if (index === quote.length) clearInterval(typeInterval);
+           }, 50); // Typing speed
+           return () => clearInterval(typeInterval);
+       }
+   }, [loading]); // Depend on loading state
 
-        let outStep = 0;
-        const intervalId = setInterval(() => {
-          outStep++;
-          setPhaseOpacity(1 - (outStep / fadeOutSteps));
-
-          if (outStep >= fadeOutSteps) {
-            clearInterval(intervalId);
-            setPhaseVisible(false);
-          }
-        }, fadeOutInterval);
-      }, 600);
-
-      const nextTimer = setTimeout(() => {
-        if (currentPhase < phases.length - 1) {
-          setCurrentPhase(prev => prev + 1);
-        }
-      }, 1000);
-
-      return () => {
-        clearInterval(fadeInTimer);
-        clearTimeout(fadeOutTimer);
-        clearTimeout(nextTimer);
-      };
-    }
-  }, [currentPhase, loading, showPhases]);
-
+  // Effect for error message timeout
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => setError(''), 5000);
@@ -210,31 +202,114 @@ const AccessGate = ({ onAccessGranted }) => {
     }
   }, [error]);
 
-  const handleSubmit = (e) => {
+  // Effect for phase opacity transitions
+  useEffect(() => {
+      if (phaseVisible) {
+          const fadeInSteps = 10;
+          const fadeInInterval = 300 / fadeInSteps; // 300ms fade-in
+
+          let step = 0;
+          const fadeInTimer = setInterval(() => {
+            step++;
+            setPhaseOpacity(step / fadeInSteps);
+            if (step >= fadeInSteps) clearInterval(fadeInTimer);
+          }, fadeInInterval);
+
+          // Start fade out before next phase, or after last phase
+          const fadeOutTimer = setTimeout(() => {
+              const fadeOutSteps = 8;
+              const fadeOutInterval = 300 / fadeOutSteps; // 300ms fade-out
+
+              let outStep = 0;
+              const intervalId = setInterval(() => {
+                outStep++;
+                setPhaseOpacity(1 - (outStep / fadeOutSteps));
+
+                if (outStep >= fadeOutSteps) {
+                  clearInterval(intervalId);
+                  // Only set phaseVisible false if not loading anymore or it's the last phase
+                  if (!loading || currentPhase === phases.length - 1) {
+                       setPhaseVisible(false);
+                  }
+                }
+              }, fadeOutInterval);
+          }, 700); // Fade out starts after 700ms (allowing 300ms fade-in + some display time)
+
+
+          return () => {
+            clearInterval(fadeInTimer);
+            clearTimeout(fadeOutTimer);
+          };
+      }
+  }, [currentPhase, phaseVisible, loading]); // Depend on currentPhase, phaseVisible, and loading
+
+
+  // Handle login form submission
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const correct = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone';
-    // Ensure this ENV var is set in Render
-    if (passkey === correct) {
-      const audio = new Audio('/access-granted.mp3');
-      // Make sure this file is in your public directory
-      audio.play().catch(() => {});
-      setFadeOut(true);
-      // Notify the parent (App.jsx) that access is granted
-      // Removed sessionStorage.setItem('access_granted', 'true');
-      if (onAccessGranted) {
-           setTimeout(() => onAccessGranted(), 800);
+    setError(''); // Clear previous errors
+    setLoading(true); // Start loading animation
+
+    try {
+      // Send login request to backend
+      const res = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/auth/login`, {
+        username,
+        password,
+      });
+
+      // Assuming backend sends back { token: '...' } on success
+      const token = res.data.token;
+      if (token) {
+        // Play success audio (optional)
+        const audio = new Audio('/access-granted.mp3'); // Ensure path is correct
+        audio.play().catch(() => {});
+
+        setFadeOut(true); // Start fade out animation
+
+        // Notify App.jsx of successful login
+        if (onLoginSuccess) {
+           // Pass token and user info to parent
+           onLoginSuccess({ token, username: res.data.username });
+           // Add a small delay to allow fadeOut animation
+           setTimeout(() => navigate('/dashboard', { replace: true }), 800);
+        } else {
+            // If onLoginSuccess is not provided (shouldn't happen if routed correctly),
+            // still store token and navigate.
+            localStorage.setItem('token', token); // Store token
+            setTimeout(() => navigate('/dashboard', { replace: true }), 800);
+        }
+
+      } else {
+         // Should not happen if backend sends error on failure
+         setError('Login failed: Invalid response from server.');
+         setLoading(false); // Stop loading
       }
 
-    } else {
-      setError('Access Denied: Invalid Passkey');
-      setPasskey('');
-      const form = document.getElementById('access-form');
+    } catch (err) {
+      console.error('Login error:', err);
+      setLoading(false); // Stop loading
+      // Handle specific error responses from backend
+      if (err.response) {
+        if (err.response.status === 401) {
+          setError('Invalid username or password');
+        } else if (err.response.data && err.response.data.message) {
+          setError(`Login failed: ${err.response.data.message}`);
+        } else {
+          setError('Login failed. Please try again.');
+        }
+      } else {
+         setError('Network error. Please check your connection.');
+      }
+
+       // Add shake animation on error
+      const form = document.getElementById('login-form');
       if (form) {
         form.classList.add('animate-shake');
         setTimeout(() => form.classList.remove('animate-shake'), 500);
       }
     }
   };
+
 
   const togglePasswordVisibility = () => {
     setPasswordVisible(!passwordVisible);
@@ -348,28 +423,46 @@ const AccessGate = ({ onAccessGranted }) => {
                 <div className="p-6 pt-10">
                   <div className="text-center mb-6">
                     <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 mb-1">
-                      SECURE ACCESS
+                      SECURE LOGIN
                     </h2>
                     <p className="text-gray-400 text-sm">
-                      Enter your passkey to access your secure files!
+                      Enter your credentials to access your secure files.
                     </p>
                   </div>
-                  <form id="access-form" onSubmit={handleSubmit} className="space-y-4">
+                  <form id="login-form" onSubmit={handleSubmit} className="space-y-4"> {/* Renamed form ID */}
+                    {/* Username Field */}
+                    <div className="relative">
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg blur opacity-30"></div>
+                      <div className="relative">
+                        <input
+                          type="text" // Text input for username
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          placeholder="Username" // Placeholder
+                          className="w-full px-4 py-3 bg-gray-800 text-white border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          autoComplete="username" // AutoComplete hint
+                          required // Make required
+                        />
+                      </div>
+                    </div>
+                    {/* Password Field */}
                     <div className="relative">
                       <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg blur opacity-30"></div>
                       <div className="relative">
                         <input
                           type={passwordVisible ? "text" : "password"}
-                          value={passkey}
-                          onChange={(e) => setPasskey(e.target.value)}
-                          placeholder=""
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Password" // Placeholder
                           className="w-full px-4 py-3 pr-10 bg-gray-800 text-white border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          autoComplete="off"
+                          autoComplete="current-password" // AutoComplete hint
+                          required // Make required
                         />
                         <button
                           type="button"
                           onClick={togglePasswordVisibility}
                           className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-400 transition-colors"
+                          aria-label={passwordVisible ? "Hide password" : "Show password"}
                         >
                           {passwordVisible ? (
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -394,17 +487,25 @@ const AccessGate = ({ onAccessGranted }) => {
                     )}
                     <button
                       type="submit"
-                      className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-medium rounded-lg transition-all duration-200 relative overflow-hidden group"
+                      disabled={loading} // Disable button while loading
+                      className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-medium rounded-lg transition-all duration-200 relative overflow-hidden group disabled:opacity-50 disabled:cursor-wait"
                     >
                       <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-400 to-purple-400 opacity-0 group-hover:opacity-20 transition-opacity duration-200"></span>
                       <span className="flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                        </svg>
-                        Unlock Access
+                         {loading && (
+                            <svg className="animate-spin h-5 w-5 mr-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                         )}
+                         {loading ? 'Logging In...' : 'Login'} {/* Button text changes */}
                       </span>
                     </button>
                    </form>
+                   {/* Link to Signup Page */}
+                   <div className="text-center mt-4 text-sm">
+                       <span className="text-gray-400">Don't have an account? </span>
+                       <Link to="/signup" className="text-blue-400 hover:text-blue-300 transition-colors">
+                           Create a new account
+                       </Link>
+                   </div>
                 </div>
                 <div className="p-4 border-t border-gray-800 text-center">
                   <p className="text-gray-400 text-sm italic">{currentQuote}</p>
@@ -421,13 +522,13 @@ const AccessGate = ({ onAccessGranted }) => {
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
           </svg>
-          <span>256-bit Encryption</span>
+          <span>Secure Authentication</span> {/* Changed text */}
         </div>
         <div className="flex items-center space-x-1">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
-          <span>Secure Authentication</span>
+          <span>User Accounts</span> {/* Changed text */}
         </div>
       </div>
 
@@ -489,4 +590,4 @@ const AccessGate = ({ onAccessGranted }) => {
   );
 };
 
-export default AccessGate;
+export default LoginPage;

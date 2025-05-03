@@ -329,7 +329,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
 
         {/* Action Buttons Group */}
         <div className="flex gap-2 items-center flex-wrap justify-center md:justify-end flex-grow md:flex-grow-0">
-          {/* Toggle Selection */}
+                    {/* Toggle Selection */}
           <button
             onClick={toggleSelectionMode}
             className={cn(
@@ -342,12 +342,14 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
             aria-pressed={selectionMode}
             title={selectionMode ? "Exit selection mode" : "Select multiple files"}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            {/* Replaced SVG icon */}
+            <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-5 w-5', selectionMode ? '' : (darkMode ? 'text-gray-300' : 'text-gray-600'))} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               {selectionMode
                 ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /> // Exit icon
-                : <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />} {/* List-like icon for entering selection */}
+                : <path strokeLinecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v16c0 1.1.9 2 2 2h12a2 2 0 002-2V8l-6-6H6a2 2 0 00-2 2zM14 3v5h5" />} {/* New icon for entering selection */}
             </svg>
           </button>
+          
 
           {/* Toggle Metadata */}
           <button

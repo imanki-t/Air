@@ -1,4 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+// components/FileList.jsx
+// This component displays the list of files and handles filtering, sorting,
+// view toggling, selection, and batch operations.
+// Includes JWT authentication headers for API calls for multi-user support.
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import FileItem from './FileItem';
 import axios from 'axios';
 import JSZip from 'jszip';
@@ -8,791 +13,854 @@ import { QRCodeSVG } from 'qrcode.react';
 // Utility for conditional class names
 const cn = (...classes) => classes.filter(Boolean).join(' ');
 
+// Helper function to get the JWT token from localStorage
+const getToken = () => localStorage.getItem('token');
+
+
 // Skeleton Loading Placeholder
-const FileItemSkeleton = ({ darkMode }) => (
+const FileItemSkeleton = ({ darkMode, viewType = 'grid' }) => (
   <div className={cn(
-      'w-full h-[180px] flex flex-col p-3 rounded-xl shadow-md border animate-pulse',
-      darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      'w-full flex flex-col p-3 rounded-xl shadow-md border animate-pulse',
+      darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200',
+      viewType === 'list' ? 'h-[100px] flex-row items-center space-x-4' : 'h-[180px]' // Adjust height/layout for list view
     )}>
-    <div className={cn('h-28 mb-2 rounded-md', darkMode ? 'bg-gray-700' : 'bg-gray-200')}></div>
-    <div className={cn('h-4 w-3/4 rounded-md', darkMode ? 'bg-gray-700' : 'bg-gray-200')}></div>
-    <div className="mt-2 space-y-2">
-      <div className={cn('h-3 w-1/2 rounded-md', darkMode ? 'bg-gray-700' : 'bg-gray-200')}></div>
-    </div>
+      {viewType === 'grid' ? (
+          <>
+            <div className={cn('h-28 mb-2 rounded-md', darkMode ? 'bg-gray-700' : 'bg-gray-200')}></div>
+            <div className={cn('h-4 w-3/4 rounded-md', darkMode ? 'bg-gray-700' : 'bg-gray-200')}></div>
+            <div className="mt-2 space-y-2">
+              <div className={cn('h-3 w-1/2 rounded-md', darkMode ? 'bg-gray-700' : 'bg-gray-200')}></div>
+            </div>
+          </>
+      ) : ( // List view layout
+          <>
+            <div className={cn('w-16 h-16 mb-2 rounded-md flex-shrink-0', darkMode ? 'bg-gray-700' : 'bg-gray-200')}></div>
+            <div className="flex-grow space-y-2">
+                 <div className={cn('h-4 w-3/4 rounded-md', darkMode ? 'bg-gray-700' : 'bg-gray-200')}></div>
+                 <div className={cn('h-3 w-1/3 rounded-md', darkMode ? 'bg-gray-700' : 'bg-gray-200')}></div>
+            </div>
+          </>
+      )}
+
   </div>
 );
+
 
 const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   // --- UI State ---
   const [filter, setFilter] = useState('all');
-  const [view, setView] = useState('grid'); // Default view is grid
+  const [view, setView] = useState('grid'); // 'grid' or 'list'
   const [searchInput, setSearchInput] = useState('');
-  const [showMetadata, setShowMetadata] = useState(false);
-  const [sortOption, setSortOption] = useState('default'); // Default sort
-  const [showSortOptions, setShowSortOptions] = useState(false);
+  const [showMetadata, setShowMetadata] = useState(false); // Toggle for extra file details
+  const [sortOption, setSortOption] = useState('default'); // 'default', 'name', 'size', 'date'
+  const [showSortOptions, setShowSortOptions] = useState(false); // For dropdown visibility
 
-  // --- Batch Operations State ---
+  // --- Selection State (for batch operations) ---
   const [selectionMode, setSelectionMode] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [selectedFiles, setSelectedFiles] = useState([]); // Array of selected file IDs
+
+  // --- Batch Operation State ---
   const [batchOperationLoading, setBatchOperationLoading] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [showBatchShareModal, setShowBatchShareModal] = useState(false);
   const [batchShareLink, setBatchShareLink] = useState('');
   const [showBatchDownloadProgress, setShowBatchDownloadProgress] = useState(false);
-  const [batchDownloadProgress, setBatchDownloadProgress] = useState(0);
-  const [copied, setCopied] = useState(false);
+  const [batchDownloadProgress, setBatchDownloadProgress] = useState(0); // 0-100 percentage
+  const [copied, setCopied] = useState(false); // For copy link button state
 
-  // --- Refs ---
-  const sortOptionsRef = useRef(null);
-  const deleteConfirmModalRef = useRef(null);
-  const batchShareModalRef = useRef(null);
-  const sortButtonRef = useRef(null);
-  const batchDownloadModalRef = useRef(null);
+   // --- Refs ---
+   const sortDropdownRef = useRef(null);
+   const batchShareModalRef = useRef(null);
+   const batchDownloadModalRef = useRef(null); // Ref for the download progress modal
+   const fileListContainerRef = useRef(null); // Ref for the main file list container
 
-  // Reset selections when files list changes or selection mode exits
-  useEffect(() => {
-      if (!selectionMode) {
-          setSelectedFiles([]);
-      }
-  }, [selectionMode]);
 
-  useEffect(() => {
-      setSelectedFiles([]); // Clear selection if the file list itself changes
-  }, [files]);
+  // --- Effects ---
 
-  // Click-outside handler for dropdowns/modals
-  useEffect(() => {
-    const handleClickOutside = e => {
-      if (
-  sortOptionsRef.current &&
-  !sortOptionsRef.current.contains(e.target) &&
-  !sortButtonRef.current?.contains(e.target)
-) {
-  setShowSortOptions(false);
-      }
-      if (deleteConfirmModalRef.current && !deleteConfirmModalRef.current.contains(e.target)) {
-        setShowDeleteConfirmModal(false);
-      }
-      if (batchShareModalRef.current && !batchShareModalRef.current.contains(e.target) && !batchOperationLoading) {
-        setShowBatchShareModal(false);
-      }
-      // Add closing for download progress if needed, though it closes automatically
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [batchOperationLoading]); // Re-run if loading state changes
+   // Close sort options dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            // Check if the clicked element is inside the dropdown or the button that opens it
+            if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+                setShowSortOptions(false);
+            }
+        };
+        // Add event listener to the whole document
+        document.addEventListener("mousedown", handleClickOutside);
 
-  // --- Filtering and Sorting ---
-  const filtered = files.filter(f => filter === 'all' || f.metadata?.type === filter);
-  const visible = filtered.filter(f =>
-    f.filename.toLowerCase().includes(searchInput.toLowerCase())
-  );
+        return () => {
+            // Clean up the event listener
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [sortDropdownRef]); // Depend on sortDropdownRef
 
-  const sortedFiles = [...visible].sort((a, b) => {
+
+     // Effect to reset selection mode when filter, search, or sort changes
+    useEffect(() => {
+        // Only reset if selection mode is active and there are selected files
+        if (selectionMode && selectedFiles.length > 0) {
+             setSelectionMode(false);
+             setSelectedFiles([]);
+        }
+         // Optional: scroll to top when filtering/sorting
+         if (fileListContainerRef.current) {
+             fileListContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+         }
+    }, [filter, searchInput, sortOption]); // Depend on filter, searchInput, sortOption
+
+     // Effect to deselect all files when selection mode is turned OFF
+    useEffect(() => {
+        if (!selectionMode) {
+            setSelectedFiles([]);
+        }
+    }, [selectionMode]); // Depend on selectionMode state
+
+
+   // Effect for share link copied state
+   useEffect(() => {
+       if (copied) {
+           const timer = setTimeout(() => setCopied(false), 2000);
+           return () => clearTimeout(timer);
+       }
+   }, [copied]);
+
+
+  // --- Filtering, Searching, Sorting Logic ---
+
+  const filteredFiles = files.filter(file => {
+    const matchesFilter = filter === 'all' || (file.metadata?.type || 'other') === filter;
+    const matchesSearch = searchInput === '' || (file.metadata?.filename || '').toLowerCase().includes(searchInput.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
+  const sortedFiles = [...filteredFiles].sort((a, b) => {
+    const aMeta = a.metadata || {};
+    const bMeta = b.metadata || {};
+
     switch (sortOption) {
-      case 'name': return a.filename.localeCompare(b.filename);
-      case 'size': return (a.length || 0) - (b.length || 0);
-      case 'date': return new Date(a.uploadDate) - new Date(b.uploadDate);
-      case 'default':
-      default:    // Default sort (Latest First)
-        return new Date(b.uploadDate) - new Date(a.uploadDate);
+      case 'name':
+        // Case-insensitive and locale-aware comparison
+        return (aMeta.filename || '').toLowerCase().localeCompare((bMeta.filename || '').toLowerCase());
+      case 'size':
+        return (a.length || 0) - (b.length || 0); // 'length' in GridFS file object is file size
+      case 'date':
+        return new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime(); // Latest first (timestamp comparison)
+      case 'default': // Latest first by uploadDate
+      default:
+        return new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime();
     }
   });
 
-  // --- Selection Handlers ---
-  const toggleSelectionMode = () => {
-    setSelectionMode(prev => !prev);
-    // Selection is cleared via useEffect hook above
-  };
 
-  const handleSelectFile = id => {
-    if (!selectionMode) return;
-    setSelectedFiles(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
+   // --- Selection Handlers ---
 
-  const toggleSelectAll = () => {
-    setSelectedFiles(prev =>
-      prev.length === sortedFiles.length
-        ? [] // Deselect all
-        : sortedFiles.map(f => f._id) // Select all visible/sorted files
-    );
-  };
+   const handleFileSelect = (fileId) => {
+       setSelectedFiles(prevSelected => {
+           if (prevSelected.includes(fileId)) {
+               // Deselect
+               return prevSelected.filter(id => id !== fileId);
+           } else {
+               // Select
+               return [...prevSelected, fileId];
+           }
+       });
+   };
+
+   const toggleSelectionMode = () => {
+       setSelectionMode(prev => !prev);
+       // Selection state is automatically cleared by the useEffect that depends on selectionMode
+   };
+
+   const selectAllFiles = () => {
+       // Select all files that are currently visible after filtering/sorting
+       setSelectedFiles(sortedFiles.map(file => file._id));
+   };
+
+   const deselectAllFiles = () => {
+       setSelectedFiles([]);
+   };
+
 
   // --- Batch Operations ---
+
   const batchDelete = async () => {
-    setBatchOperationLoading(true);
-    try {
-      // API endpoint: /api/files/:id
-      await Promise.allSettled(selectedFiles.map(id =>
-        axios.delete(`${backendUrl}/api/files/${id}`)
-      ));
-      refresh(); // Refresh file list
+      if (selectedFiles.length === 0) return; // Should not happen if button is disabled
       setShowDeleteConfirmModal(false); // Close modal
-      setSelectionMode(false); // Exit selection mode automatically
-    } catch (err) {
-      console.error('Error deleting files:', err);
-      alert('Error deleting files. Please try again.');
-    } finally {
-      setBatchOperationLoading(false);
-    }
+      setBatchOperationLoading(true);
+
+      const token = getToken(); // Get token for auth
+       if (!token) {
+          alert('Batch delete failed: Not authenticated. Please log in.');
+          setBatchOperationLoading(false);
+           // Potentially trigger a global logout in App.jsx here
+          return;
+       }
+
+      try {
+          // Use Promise.allSettled to continue even if some deletions fail
+          const results = await Promise.allSettled(selectedFiles.map(id =>
+            axios.delete(`${backendUrl}/api/files/${id}`, {
+                 headers: { Authorization: `Bearer ${token}` } // *** Add Auth header ***
+            })
+          ));
+
+           // Check results for failures (optional, but good for detailed feedback)
+           const failedDeletions = results.filter(result => result.status === 'rejected');
+           if (failedDeletions.length > 0) {
+               console.error("Some batch deletions failed:", failedDeletions);
+               // You might want to show a partial success/failure message or retry option
+           }
+
+          setSelectedFiles([]); // Clear selection after attempt
+          setSelectionMode(false); // Exit selection mode
+          if (refresh) refresh(); // Refresh the file list
+      } catch (err) {
+           console.error('Batch delete error:', err);
+            // Handle unauthorized error specifically
+           if (err.response && err.response.status === 401) {
+               alert('Session expired or unauthorized. Please log in again.');
+               // Potentially trigger a global logout in App.jsx here
+           } else if (err.response && err.response.data && err.response.data.error) {
+               alert(`Batch delete failed: ${err.response.data.error}`);
+           }
+           else {
+               alert('Failed to perform batch delete.');
+           }
+      } finally {
+          setBatchOperationLoading(false);
+      }
   };
 
-  const batchDownload = async () => {
-    if (selectedFiles.length === 0) return;
-    setBatchOperationLoading(true);
-    setShowBatchDownloadProgress(true);
-    setBatchDownloadProgress(0);
-    const zip = new JSZip();
-    let done = 0;
-    const toDownload = selectedFiles
-      .map(id => files.find(f => f._id === id))
-      .filter(Boolean); // Ensure we only process found files
+   const batchDownload = async () => {
+       if (selectedFiles.length === 0) return; // Should not happen if button is disabled
+       setBatchOperationLoading(true);
+       setShowBatchDownloadProgress(true); // Show progress modal
+       setBatchDownloadProgress(0);
 
-    try {
-      for (const file of toDownload) {
-        if (!file) continue;
-        const res = await axios.get(`${backendUrl}/api/files/download/${file._id}`, {
-          responseType: 'blob'
-        });
-        zip.file(file.filename, res.data);
-        done++;
-        setBatchDownloadProgress(Math.round((done / toDownload.length) * 100));
-      }
-      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
-      saveAs(blob, `batch_download_${Date.now()}.zip`);
-      setSelectionMode(false); // Exit selection mode after download
-    } catch (err) {
-       console.error('Error preparing batch download:', err);
-       alert('Error preparing batch download. Please try again.');
-    } finally {
-      setBatchOperationLoading(false);
-      // Hide progress modal after a short delay
-      setTimeout(() => {
-        setShowBatchDownloadProgress(false);
-        setBatchDownloadProgress(0);
-      }, 1500);
+       const zip = new JSZip();
+       const filesToZip = sortedFiles.filter(file => selectedFiles.includes(file._id));
+
+       const token = getToken(); // Get token for auth
+       if (!token) {
+          alert('Batch download failed: Not authenticated. Please log in.');
+          setBatchOperationLoading(false);
+          setShowBatchDownloadProgress(false);
+          // Potentially trigger a global logout in App.jsx here
+          return;
+       }
+
+
+       try {
+           for (let i = 0; i < filesToZip.length; i++) {
+               const file = filesToZip[i];
+               try {
+                   const response = await axios.get(`${backendUrl}/api/files/download/${file._id}`, {
+                       responseType: 'blob', // Get file data as Blob
+                        headers: { Authorization: `Bearer ${token}` } // *** Add Auth header ***
+                   });
+                   // Add file to zip. Use file.metadata.filename for the name if available, fallback to file.filename
+                   const filenameInZip = file.metadata?.filename || file.filename || `file_${file._id}.${getFileExtension(file.filename)}`;
+                   zip.file(filenameInZip, response.data);
+                   // Update progress (basic: based on number of files added)
+                   setBatchDownloadProgress(Math.round(((i + 1) / filesToZip.length) * 100));
+
+               } catch (downloadError) {
+                   console.error(`Failed to download file ${file._id} for zipping:`, downloadError);
+                   // Decide how to handle individual file download errors in a batch.
+                   // For now, we log and continue, but the file won't be in the zip.
+                   // You might want to skip the file, show a warning, or stop the whole process.
+               }
+           }
+
+           // Generate the zip file
+           const zipBlob = await zip.generateAsync({
+               type: "blob",
+               compression: "DEFLATE", // Use DEFLATE for compression
+               compressionOptions: {
+                   level: 6 // Compression level 0-9 (6 is default)
+               }
+            });
+
+           // Save the zip file to the user's computer
+           saveAs(zipBlob, `KUWUTEN_Files_${Date.now()}.zip`);
+
+           setSelectedFiles([]); // Clear selection after download attempt
+           setSelectionMode(false); // Exit selection mode
+
+       } catch (zipError) {
+           console.error('Batch zip or save error:', zipError);
+            // Handle unauthorized error specifically if it happens during download attempt inside the loop
+           if (zipError.response && zipError.response.status === 401) {
+              alert('Session expired or unauthorized during download. Please log in again.');
+              // Potentially trigger a global logout in App.jsx here
+           } else {
+                alert('Failed to create batch download zip.');
+           }
+       } finally {
+           setBatchOperationLoading(false);
+           setShowBatchDownloadProgress(false); // Hide progress modal
+           setBatchDownloadProgress(0); // Reset progress
+       }
+   };
+
+    const batchShare = async () => {
+        if (selectedFiles.length === 0) return; // Should not happen if button is disabled
+        setBatchOperationLoading(true);
+        setBatchShareLink(''); // Clear previous share link
+
+        const token = getToken(); // Get token for auth
+       if (!token) {
+          alert('Batch share failed: Not authenticated. Please log in.');
+          setBatchOperationLoading(false);
+           // Potentially trigger a global logout in App.jsx here
+          return;
+       }
+
+        // Create a zip file client-side first, then upload it to a special endpoint
+        const zip = new JSZip();
+        const filesToZip = sortedFiles.filter(file => selectedFiles.includes(file._id));
+
+        try {
+            for (const file of filesToZip) {
+                 try {
+                    const response = await axios.get(`${backendUrl}/api/files/download/${file._id}`, {
+                        responseType: 'blob',
+                         headers: { Authorization: `Bearer ${token}` } // *** Add Auth header ***
+                    });
+                     const filenameInZip = file.metadata?.filename || file.filename || `file_${file._id}.${getFileExtension(file.filename)}`;
+                    zip.file(filenameInZip, response.data);
+                 } catch (downloadError) {
+                     console.error(`Failed to download file ${file._id} for batch sharing:`, downloadError);
+                     // Decide how to handle individual file download errors in a batch share scenario
+                     // For now, log and skip the file in the zip.
+                 }
+            }
+
+             // Generate the zip file as a Blob
+            const zipBlob = await zip.generateAsync({
+                 type: "blob",
+                 compression: "DEFLATE",
+                 compressionOptions: { level: 6 }
+            });
+
+            // Create FormData to send the zip Blob to the backend
+            const formData = new FormData();
+            // Use a consistent filename like 'shared_archive.zip' or timestamped
+            formData.append('zipFile', zipBlob, `shared_archive_${Date.now()}.zip`);
+
+
+            // Upload the zip file to a new backend endpoint designed for sharing
+            const uploadResponse = await axios.post(`${backendUrl}/api/files/share-zip`, formData, {
+                 headers: {
+                   'Content-Type': 'multipart/form-data',
+                   Authorization: `Bearer ${token}` // *** Add Auth header ***
+                 },
+                 // Optional: add onUploadProgress for the zip upload itself if needed
+            });
+
+            // Assuming backend responds with { url: '...' }
+            if (uploadResponse.data && uploadResponse.data.url) {
+                setBatchShareLink(uploadResponse.data.url);
+                setShowBatchShareModal(true); // Show the share modal with the generated link
+            } else {
+                 // If backend doesn't return a URL but success status, something is wrong.
+                 throw new Error('Backend did not return a share URL.');
+            }
+
+            setSelectedFiles([]); // Clear selection after attempt
+            setSelectionMode(false); // Exit selection mode
+
+
+        } catch (err) {
+            console.error('Batch share error:', err);
+             // Handle unauthorized error specifically
+           if (err.response && err.response.status === 401) {
+              alert('Session expired or unauthorized during batch share. Please log in again.');
+              // Potentially trigger a global logout in App.jsx here
+           } else if (err.response && err.response.data && err.response.data.error) {
+              alert(`Batch share failed: ${err.response.data.error}`);
+           }
+           else {
+               alert('Failed to generate batch share link.');
+           }
+            setBatchShareLink(''); // Ensure link is cleared on error
+        } finally {
+            setBatchOperationLoading(false);
+        }
+    };
+
+
+  // --- Render Methods ---
+
+  const renderFileItems = () => {
+    // Show skeletons if loading OR if files array is null/undefined (initial state)
+    if (isLoading || files === null) {
+      const skeletonCount = view === 'grid' ? 12 : 6; // More skeletons for grid
+      return Array.from({ length: skeletonCount }).map((_, i) => (
+        <FileItemSkeleton key={i} darkMode={darkMode} viewType={view} />
+      ));
     }
+
+    // Show "No files found" if files array is empty AFTER loading is complete
+    if (files.length === 0 && !isLoading) {
+       return (
+         <div className={cn("text-center p-8", darkMode ? "text-gray-400" : "text-gray-600")}>
+           You haven't uploaded any files yet.
+         </div>
+       );
+    }
+
+     // Show "No files match" if the FILTERED/SORTED list is empty, but original files exist
+     if (sortedFiles.length === 0 && files.length > 0) {
+         return (
+            <div className={cn("text-center p-8", darkMode ? "text-gray-400" : "text-gray-600")}>
+               No files match your filter or search criteria.
+            </div>
+         );
+     }
+
+
+    // Render actual file items from the sorted and filtered list
+    return sortedFiles.map(file => (
+      <FileItem
+        key={file._id}
+        file={file}
+        refresh={refresh} // Pass refresh down
+        showDetails={showMetadata} // Pass metadata toggle state
+        darkMode={darkMode}
+        isSelected={selectedFiles.includes(file._id)} // Check if selected
+        onSelect={handleFileSelect} // Pass selection handler
+        selectionMode={selectionMode} // Pass selection mode state
+        viewType={view} // Pass current view type
+      />
+    ));
   };
 
-    // Replace the existing batchShare function in FileList.jsx with this:
-  const batchShare = async () => {
-     if (selectedFiles.length === 0) return;
-    setBatchOperationLoading(true);
-    setShowBatchShareModal(true); // Show the modal early
-    setBatchShareLink('');
-    setCopied(false);
-    // Optional: Add progress state if zipping/uploading takes time
-    // const [batchShareProgress, setBatchShareProgress] = useState(0); // Add this near other state hooks if using progress
+   // Helper to format bytes
+   const formatBytes = (bytes, decimals = 2) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    };
 
-    try {
-      // 1. Create a ZIP file like in batchDownload
-      const zip = new JSZip(); // 
-      let done = 0;
-      const filesToZip = selectedFiles
-        .map(id => files.find(f => f._id === id))
-        .filter(Boolean); // Ensure we only process found files
+     // Helper to format date
+    const formatDate = (dateString) => {
+        if (!dateString) return 'N/A';
+        const options = { year: 'numeric', month: 'short', day: 'numeric' };
+        return new Date(dateString).toLocaleDateString(undefined, options);
+    };
 
-      if (filesToZip.length === 0) {
-          throw new Error("No valid files selected for zipping.");
-      }
+    // Helper to get file extension
+    const getFileExtension = (filename) => {
+        if (!filename) return '';
+        const parts = filename.split('.');
+        return parts.length > 1 ? parts.pop() : ''; // Return extension without capitalization
+    };
 
-      console.log('Starting batch share zip process...'); // Debug log
-      for (const file of filesToZip) {
-        console.log(`Fetching file: ${file.filename} (${file._id})`); // Debug log
-        // Fetch file data using the download endpoint
-        const res = await axios.get(`${backendUrl}/api/files/download/${file._id}`, { // 
-          responseType: 'blob'
-        });
-        console.log(`Adding ${file.filename} to zip`); // Debug log
-        // Add file to zip
-        zip.file(file.filename, res.data); // 
-        done++;
-        // Optional: Update progress state for zipping
-        // setBatchShareProgress(Math.round((done / filesToZip.length) * 50));
-      }
 
-      console.log('Generating ZIP blob...'); // Debug log
-      // Generate the ZIP blob
-      const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }); // 
-      console.log('ZIP blob generated, size:', zipBlob.size); // Debug log
-      // Optional: Update progress state
-      // setBatchShareProgress(50);
-
-      // 2. Upload the ZIP blob to the new backend endpoint
-      const formData = new FormData();
-      const zipFilename = `shared_files_${Date.now()}.zip`;
-      // *** Use 'zipFile' as the field name, matching the backend route ***
-      formData.append('zipFile', zipBlob, zipFilename);
-
-      console.log(`Uploading ${zipFilename} to ${backendUrl}/api/files/share-zip`); // Debug log
-
-      // **NEW**: Call the backend endpoint to upload the zip and get a link
-      const uploadResponse = await axios.post(`${backendUrl}/api/files/share-zip`, formData, { // Use the new backend endpoint 
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        // Optional: Add progress tracking for upload
-        // onUploadProgress: (progressEvent) => {
-        //   const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-        //   setBatchShareProgress(50 + percentCompleted * 0.5); // Example: 50% allocated for upload
-        // }
-      });
-
-      console.log('Upload response received:', uploadResponse.data); // Debug log
-
-      // Check if the backend returned a URL in the expected format
-      const shareUrl = uploadResponse.data?.url; // 
-      if (!shareUrl) {
-        console.error("Backend response missing URL:", uploadResponse.data); // Debug log
-        throw new Error("Failed to generate the link.");
-      }
-
-      // 3. Set the link for the modal
-      setBatchShareLink(shareUrl); // 
-      console.log('Batch share link set:', shareUrl); // Debug log
-      // Optional: Final progress update
-      // setBatchShareProgress(100);
-
-    } catch (err) {
-       // Log the detailed error
-       console.error('Error creating or sharing ZIP file:', err.response ? err.response.data : err.message, err.stack);
-       // Provide a user-friendly message
-       const errorMessage = err.response?.data?.error || err.message || 'Please try again.';
-       alert(`Error sharing files: ${errorMessage}`);
-       setShowBatchShareModal(false); // Close modal on error
-    } finally {
-      setBatchOperationLoading(false); // 
-      // Optional: Reset progress state after a delay
-      // setTimeout(() => setBatchShareProgress(0), 1500);
-      console.log('Batch share operation finished.'); // Debug log
-    }
-  };
-  
-
-  const copyToClipboard = async () => {
-    if (!batchShareLink) return;
-    try {
-      await navigator.clipboard.writeText(batchShareLink); // Copy the generated link (or combined links)
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-       console.error('Failed to copy batch link:', err);
-       alert('Failed to copy link.');
-    }
-  };
-
-  // --- Render ---
   return (
-    <div className={cn(
-      'transition-colors duration-300 rounded-lg p-4 shadow-lg w-full mx-auto max-w-7xl my-4 border', // Added margin-y and base 'border' class
-      darkMode ? 'bg-gray-900 text-gray-200 border-gray-700' : 'bg-white text-gray-800 border-gray-200' // Added theme-specific border colors
-    )}>
-      {/* Header */}
-      <div className="text-center mb-6">
-        <h2 className={cn('text-2xl font-semibold mb-2', darkMode ? 'text-white' : 'text-gray-900')}>
-          Your Files
-        </h2>
-        <span className={cn('text-sm px-3 py-1 rounded-full inline-block transition-all duration-200',
-          darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
-        )}>
-          {visible.length} item{visible.length !== 1 ? 's' : ''}{filter !== 'all' ? ` (${filter})` : ''}
-        </span>
-      </div>
+    <div ref={fileListContainerRef} className={`flex-grow w-full overflow-y-auto pr-2 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}> {/* Added overflow-y-auto and padding */}
+       {/* Header with controls */}
+        <div className="sticky top-0 z-10 flex flex-col md:flex-row md:items-center md:justify-between mb-6 space-y-4 md:space-y-0 py-2 backdrop-blur-sm"
+             className={cn("sticky top-0 z-10 flex flex-col md:flex-row md:items-center md:justify-between mb-6 space-y-4 md:space-y-0 py-2", darkMode ? 'bg-gray-900/80' : 'bg-gray-50/80')} // Added sticky header with backdrop
+        >
+             {/* File count and Batch actions */}
+             <div className="flex items-center space-x-4">
+                 <h3 className={`text-xl font-semibold ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                     {isLoading ? 'Loading...' : `${files.length} File${files.length !== 1 ? 's' : ''}`}
+                 </h3>
 
-      {/* Controls Row */}
-      <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-6 items-center justify-between flex-wrap">
-        {/* Search Input */}
-        <div className="relative flex-grow w-full md:w-auto md:flex-grow-[2]"> {/* Allow search to grow more */}
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-            <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-5 w-5', darkMode ? 'text-gray-400' : 'text-gray-500')} viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <input
-            type="text"
-            placeholder=""
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            className={cn(
-              'w-full pl-10 pr-4 py-2 rounded-lg transition-colors duration-200 border text-sm', // Reduced text size slightly
-              darkMode
-                ? 'bg-gray-800 text-white border-gray-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500'
-                : 'bg-gray-50 text-gray-900 border-gray-300 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 placeholder-gray-400'
-            )}
-            aria-label="Search files" // Keep aria-label
-          />
-        </div>
-
-        {/* Action Buttons Group */}
-        <div className="flex gap-2 items-center flex-wrap justify-center md:justify-end flex-grow md:flex-grow-0">
-          {/* Toggle Selection */}
-          <button
-            onClick={toggleSelectionMode}
-            className={cn(
-              'p-2 rounded-md transition-colors duration-200',
-              selectionMode
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-            )}
-            aria-label={selectionMode ? "Exit selection mode" : "Enter selection mode"}
-            aria-pressed={selectionMode}
-            title={selectionMode ? "Exit selection mode" : "Select multiple files"}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              {selectionMode
-                ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /> // Exit icon
-                : <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />} {/* List-like icon for entering selection */}
-            </svg>
-          </button>
-
-          {/* Toggle Metadata */}
-          <button
-            onClick={() => setShowMetadata(!showMetadata)}
-            className={cn(
-              'p-2 rounded-md transition-colors duration-200',
-              showMetadata
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-             )}
-            aria-label={showMetadata ? "Hide file details" : "Show file details"}
-            aria-pressed={showMetadata}
-            title={showMetadata ? "Hide details" : "Show details"}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </button>
-
-          {/* Sort & Filter Dropdown */}
-          <div className="relative">
-            <button
-  ref={sortButtonRef}
-  onClick={() => setShowSortOptions(prev => !prev)}
-              className={cn(
-                'p-2 rounded-md transition-colors duration-200',
-                sortOption !== 'default' || filter !== 'all' // Highlight if sort or filter is active
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-              )}
-              aria-label="Sort and filter options"
-              aria-haspopup="true"
-              aria-expanded={showSortOptions}
-              title="Sort & Filter"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9M3 12h9m-9 4h9m5-4v.01M12 20h5.5a2.5 2.5 0 002.5-2.5V6.5A2.5 2.5 0 0017.5 4h-11" /> {/* Filter icon combined */}
-              </svg>
-            </button>
-            {/* Dropdown Panel */}
-            {showSortOptions && (
-              <div
-                ref={sortOptionsRef}
-                className={cn(
-                  'absolute right-0 mt-2 w-56 rounded-lg shadow-xl z-20 border overflow-hidden', // Kept width fixed for consistency
-                  'max-h-[40vh] sm:max-h-[75vh] overflow-y-auto', // **FIX 1: Adjusted max-h for mobile**
-                  darkMode ? 'bg-gray-800 border-gray-700 divide-gray-700' : 'bg-white border-gray-200 divide-gray-200',
-                  'divide-y' // Adds separators between sections
-                )}
-                role="menu"
-              >
-                {/* Sort Section */}
-                <div>
-                    <div className={cn('px-4 py-2 text-xs font-semibold uppercase tracking-wider', darkMode ? 'text-gray-400' : 'text-gray-500')}>Sort by</div>
-                    {[
-                      { label: 'Default', id: 'default' }, // Changed label
-                      { label: 'Name', id: 'name' },
-                      { label: 'Size', id: 'size' },
-                      { label: 'Date', id: 'date' },
-                    ].map(opt => (
-                      <button
-                        key={opt.id}
-                        onClick={() => { setSortOption(opt.id); setShowSortOptions(false); }}
-                        className={cn(
-                          'flex items-center w-full px-4 py-2 text-sm transition-colors duration-150 text-left',
-                          sortOption === opt.id
-                            ? (darkMode ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-700 font-medium')
-                            : (darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100')
-                        )}
-                        role="menuitemradio" aria-checked={sortOption === opt.id}
-                       >
-                        {opt.label}
-                      </button>
-                    ))}
-                </div>
-                {/* Filter Section */}
-                <div>
-                    <div className={cn('px-4 py-2 text-xs font-semibold uppercase tracking-wider', darkMode ? 'text-gray-400' : 'text-gray-500')}>Filter by Type</div>
-                    {['all', 'image', 'video', 'audio', 'document', 'other'].map(type => (
-                      <button
-                        key={type}
-                        onClick={() => { setFilter(type); setShowSortOptions(false); }}
-                        className={cn(
-                          'flex items-center w-full px-4 py-2 text-sm transition-colors duration-150 text-left',
-                          filter === type
-                            ? (darkMode ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-700 font-medium')
-                            : (darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100')
-                        )}
-                        role="menuitemradio" aria-checked={filter === type}
-                       >
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </button>
-                    ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* View Toggle */}
-          <div className={cn('flex items-center rounded-md overflow-hidden', darkMode ? 'bg-gray-700' : 'bg-gray-200')}>
-            <button
-              onClick={() => setView('list')}
-              className={cn('p-2 transition-colors duration-200',
-                view === 'list' ? 'bg-blue-600 text-white' : darkMode ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-600 hover:bg-gray-300'
-              )}
-              aria-label="List view" aria-pressed={view === 'list'} title="List View"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
-            </button>
-            <button
-              onClick={() => setView('grid')}
-              className={cn('p-2 transition-colors duration-200',
-                 view === 'grid' ? 'bg-blue-600 text-white' : darkMode ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-600 hover:bg-gray-300'
-              )}
-              aria-label="Grid view" aria-pressed={view === 'grid'} title="Grid View"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Batch Selection Bar */}
-      {selectionMode && (
-        <div className={cn(
-          'mb-6 p-3 rounded-lg border transition-all duration-300 ease-in-out',
-          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-blue-50 border-blue-200'
-        )}>
-          <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4 flex-wrap">
-            {/* Select/Deselect All Button */}
-            <div className="w-full md:w-auto">
-              <button
-                onClick={toggleSelectAll}
-                className={cn(
-                  'w-full md:w-auto py-2 px-4 rounded-md text-sm font-medium text-center transition-colors duration-200 border',
-                    selectedFiles.length === sortedFiles.length
-                     // Deselect All: Red text
-                    ? `border-red-400 ${darkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-white hover:bg-red-50'}`
-                    // Select All: Blue text
-                    : `border-blue-400 ${darkMode ? 'text-blue-300 bg-gray-700 hover:bg-gray-600' : 'text-blue-600 bg-white hover:bg-blue-50'}`
-                )}
-              >
-                {selectedFiles.length === sortedFiles.length ? 'Deselect All' : 'Select All'}
-              </button>
-            </div>
-
-            {/* Selected Count Indicator */}
-            <div className={cn('text-sm flex-grow text-center md:text-left order-last md:order-none w-full md:w-auto pt-2 md:pt-0', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-              {selectedFiles.length} of {sortedFiles.length} selected
-            </div>
-
-            {/* Batch Action Buttons */}
-            <div className="w-full md:w-auto flex flex-wrap justify-center md:justify-end gap-2">
-               {/* Theme Colors & Themed Disabled State */}
-              <button
-                onClick={batchDownload}
-                disabled={selectedFiles.length === 0 || batchOperationLoading}
-                className={cn(
-                  'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
-                  selectedFiles.length === 0 || batchOperationLoading
-                    ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed') // Themed disabled
-                    : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white') // Enabled
-                )}
-                title={selectedFiles.length > 0 ? `Download ${selectedFiles.length} items` : "Select files to download"}
-              >
-                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                 <span className="hidden sm:inline">Download</span> ({selectedFiles.length})
-              </button>
-              <button
-                onClick={batchShare}
-                disabled={selectedFiles.length === 0 || batchOperationLoading}
-                className={cn(
-                  'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
-                 selectedFiles.length === 0 || batchOperationLoading
-                    ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
-                    : (darkMode ? 'bg-green-700 hover:bg-green-600 text-white' : 'bg-green-600 hover:bg-green-700 text-white')
-                )}
-                 title={selectedFiles.length > 0 ? `Share ${selectedFiles.length} items` : "Select files to share"}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                 <span className="hidden sm:inline">Share</span> ({selectedFiles.length})
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirmModal(true)}
-                disabled={selectedFiles.length === 0 || batchOperationLoading}
-                className={cn(
-                  'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
-                 selectedFiles.length === 0 || batchOperationLoading
-                    ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
-                    : (darkMode ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-red-600 hover:bg-red-700 text-white')
-                )}
-                 title={selectedFiles.length > 0 ? `Delete ${selectedFiles.length} items` : "Select files to delete"}
-              >
-                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                 <span className="hidden sm:inline">Delete</span> ({selectedFiles.length})
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* **FIX 2: Wrapper for Files Display Area with min-height** */}
-      <div className="min-h-[250px]">
-        {/* Files Display Area */}
-        {isLoading ? (
-          <div className={cn(
-            'grid gap-4',
-             // MODIFIED: Changed grid-cols-1 to grid-cols-2 for mobile grid view
-            view === 'grid' ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1'
-          )}>
-            {/* Render Skeletons */}
-            {Array(view === 'grid' ? 10 : 5).fill().map((_, i) => (
-              <FileItemSkeleton key={`skel-${i}`} darkMode={darkMode} />
-            ))}
-          </div>
-        ) : sortedFiles.length > 0 ? (
-          <div className={cn(
-            'grid gap-4',
-             // MODIFIED: Changed grid-cols-1 to grid-cols-2 for mobile grid view
-             view === 'grid' ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1'
-          )}>
-            {/* Render File Items */}
-            {sortedFiles.map(file => (
-              <FileItem
-                key={file._id}
-                file={file}
-                darkMode={darkMode}
-                showDetails={showMetadata}
-                viewType={view}
-                onSelect={handleSelectFile}
-                isSelected={selectedFiles.includes(file._id)}
-                selectionMode={selectionMode}
-                refresh={refresh}
-              />
-            ))}
-          </div>
-        ) : (
-          // No Files Found Message
-          <div className={cn(
-              'text-center py-16 rounded-lg border-2 border-dashed min-h-[200px]', // Existing min-h for styling
-              darkMode ? 'text-gray-500 border-gray-700 bg-gray-800/30' : 'text-gray-400 border-gray-300 bg-gray-50/50'
-          )}>
-            <svg className="mx-auto h-12 w-12 mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-            </svg>
-            <h3 className="text-lg font-medium mb-1 text-gray-500">No files found</h3>
-            <p className="text-sm text-gray-400">
-              {searchInput ? 'Try adjusting your search or filter.' : 'Upload some files to see them here.'}
-            </p>
-          </div>
-        )}
-      </div> {/* **FIX 2: Closing tag for wrapper** */}
-
-
-      {/* --- Modals --- */}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirmModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 animate-fadeIn backdrop-blur-sm">
-          <div
-            ref={deleteConfirmModalRef}
-            className={cn(
-              'p-6 rounded-lg shadow-xl max-w-md w-full border animate-modalIn',
-              darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'
-             )}
-            role="alertdialog" aria-modal="true" aria-labelledby="delete-modal-title" aria-describedby="delete-modal-description"
-          >
-            <h2 id="delete-modal-title" className="font-semibold text-lg mb-4">
-              Confirm Deletion
-            </h2>
-            <p id="delete-modal-description" className="text-sm mb-6">
-              Are you sure you want to permanently delete {selectedFiles.length} selected {selectedFiles.length === 1 ? 'item' : 'items'}? This action cannot be undone.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirmModal(false)}
-                disabled={batchOperationLoading}
-                className={cn(
-                  'flex-1 px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm',
-                  darkMode
-                   ? 'bg-gray-600 text-gray-200 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500'
-                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300 border border-gray-300 disabled:bg-gray-100 disabled:text-gray-400'
+                 {/* Batch Action Buttons */}
+                 {selectedFiles.length > 0 && (
+                     <div className="flex space-x-3">
+                         {/* Batch Delete */}
+                         <button
+                             onClick={() => setShowDeleteConfirmModal(true)} // Show confirmation modal
+                             disabled={batchOperationLoading}
+                             className={cn(
+                                 "px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-wait",
+                                 darkMode ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-red-600 hover:bg-red-700 text-white'
+                             )}
+                         >
+                            {batchOperationLoading && ( // Show spinner if any batch op is loading
+                                 <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+                             )}
+                             Delete ({selectedFiles.length})
+                         </button>
+                          {/* Batch Download */}
+                         <button
+                             onClick={batchDownload}
+                              disabled={batchOperationLoading}
+                             className={cn(
+                                 "px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-wait",
+                                 darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
+                             )}
+                         >
+                              {batchOperationLoading && ( // Show spinner if any batch op is loading
+                                 <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+                             )}
+                             Download ({selectedFiles.length})
+                         </button>
+                          {/* Batch Share */}
+                         <button
+                              onClick={batchShare}
+                               disabled={batchOperationLoading}
+                             className={cn(
+                                 "px-3 py-1 rounded text-sm font-medium transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-wait",
+                                 darkMode ? 'bg-purple-700 hover:bg-purple-600 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'
+                             )}
+                         >
+                              {batchOperationLoading && ( // Show spinner if any batch op is loading
+                                 <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+                             )}
+                             Share ({selectedFiles.length})
+                         </button>
+                         {/* Deselect All */}
+                         <button
+                             onClick={deselectAllFiles}
+                              disabled={batchOperationLoading}
+                             className={cn(
+                                 "px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                                 darkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                             )}
+                         >
+                             Deselect All
+                         </button>
+                     </div>
                  )}
-                >
-                Cancel
-              </button>
-              <button
-                onClick={batchDelete}
-                disabled={batchOperationLoading}
-                className={cn(
-                    'flex-1 px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm text-white flex items-center justify-center gap-2',
-                     batchOperationLoading
-                       ? 'bg-red-500 cursor-wait'
-                       : 'bg-red-600 hover:bg-red-700'
-                 )}
-              >
-                {batchOperationLoading && (
-                   <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
-                )}
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Download Progress Modal */}
-      {showBatchDownloadProgress && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 animate-fadeIn backdrop-blur-sm">
-          <div
-            ref={batchDownloadModalRef}
-            className={cn(
-              'p-6 rounded-lg shadow-xl max-w-sm w-full border animate-modalIn',
-                 darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'
-            )}
-            role="alertdialog" aria-modal="true" aria-labelledby="download-progress-title"
-          >
-            <h2 id="download-progress-title" className="text-center font-semibold text-lg mb-5">Preparing Download</h2>
-            <div className="my-6 px-2">
-              <div className="flex justify-between mb-1 text-sm font-medium">
-                <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Compressing files...</span>
-                <span className={darkMode ? 'text-gray-100' : 'text-gray-800'}>{batchDownloadProgress}%</span>
-              </div>
-              <div className={cn('h-2.5 rounded-full overflow-hidden w-full', darkMode ? 'bg-gray-700' : 'bg-gray-200')}>
-                 <div className="h-full bg-blue-600 transition-all duration-300 ease-out rounded-full" style={{ width: `${batchDownloadProgress}%` }} />
-              </div>
-            </div>
-            <p className={cn("text-sm text-center mt-5", darkMode ? "text-gray-400" : "text-gray-500")}>
-              Creating ZIP archive ({selectedFiles.length} {selectedFiles.length !== 1 ? 'items' : 'item'}).
-            </p>
-          </div>
-        </div>
-      )}
+                 {/* Toggle Selection Mode */}
+                  <button
+                      onClick={toggleSelectionMode}
+                       disabled={isLoading || files.length === 0} // Disable if loading or no files
+                      className={cn(
+                          "px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+                          selectionMode
+                             ? (darkMode ? 'bg-yellow-700 hover:bg-yellow-600 text-white' : 'bg-yellow-600 hover:bg-yellow-700 text-white')
+                             : (darkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-200 hover:bg-gray-300 text-gray-700')
+                      )}
+                  >
+                      {selectionMode ? 'Exit Selection Mode' : 'Select Files'}
+                  </button>
+             </div>
 
-      {/* Share Modal */}
-      {showBatchShareModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 animate-fadeIn backdrop-blur-sm">
-          <div
-            ref={batchShareModalRef}
-            className={cn(
-              'p-6 rounded-lg shadow-xl max-w-md w-full relative border animate-modalIn',
-               darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'
-             )}
-            role="dialog" aria-modal="true" aria-labelledby="share-modal-title"
-          >
-            {/* Close Button */}
-            <button
-  onClick={() => { // Modified onClick handler
-      if (!batchOperationLoading) {
-          setShowBatchShareModal(false);
-          refresh(); // Added refresh call
-      }
-  }}
-  className={cn(
-      "absolute top-3 right-3 p-1.5 rounded-full transition-colors disabled:opacity-50",
-       batchOperationLoading ? "cursor-not-allowed" : (darkMode ? "hover:bg-gray-700 text-gray-400" : "hover:bg-gray-100 text-gray-500")
-   )}
-  disabled={batchOperationLoading} aria-label="Close share dialog"
->
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"> <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /> </svg>
-            </button>
 
-            {/* MODIFIED: Changed title text */}
-            <h2 id="share-modal-title" className="text-center font-semibold text-lg mb-5">Share</h2>
-
-             {/* QR Code Section */}
-            <div className="flex justify-center mb-5">
-               <div className={cn("p-2 rounded-lg border", darkMode ? "border-gray-600 bg-gray-900" : "border-gray-300 bg-gray-50")}> {/* Added themed bg */}
-                  {batchOperationLoading && !batchShareLink ? (
-                    <div className="w-[150px] h-[150px] flex items-center justify-center">
-                      <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
-                    </div>
-                   ) : batchShareLink ? (
-                     <QRCodeSVG
-                       value={batchShareLink} // Using first link or combined placeholder
-                       size={150}
-                       bgColor="transparent" // Keep QR background transparent
-                       fgColor={darkMode ? '#FFFFFF' : '#000000'} // Foreground matches theme
-                       level="M" // Level M is usually sufficient
-                       includeMargin={false}
-                      />
-                   ) : (
-                     <div className="w-[150px] h-[150px] flex items-center justify-center text-center text-xs text-red-500 p-2">Error generating QR code. Link might be invalid or too long.</div>
-                   )}
-                </div>
-            </div>
-
-            {/* Link and Copy Button - Vertical Layout */}
-            <div className="flex flex-col gap-2.5">
-               <input
-                  type="text"
-                  value={batchOperationLoading ? 'Generating link...' : batchShareLink || 'Error - No link generated'}
-                  readOnly
-                  className={cn(
-                    'w-full p-2 rounded-md border text-xs font-mono', // Smaller text for link
-                    'overflow-x-auto', // Allow horizontal scroll if link is very long
-                    darkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-300 text-gray-700'
-                  )}
-                  aria-label="Shareable link"
-                  onClick={(e) => e.target.select()} // Select text on click
+            {/* Search, Filter, Sort, View Controls */}
+            <div className="flex items-center space-x-3">
+                {/* Search Input */}
+                <input
+                    type="text"
+                    placeholder="Search files..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    className={cn(
+                        "px-3 py-1.5 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+                         darkMode ? 'bg-gray-700 border border-gray-600 text-white placeholder-gray-400' : 'border border-gray-300 text-gray-800 placeholder-gray-500'
+                    )}
                  />
-               <button
-                  onClick={copyToClipboard}
-                  disabled={!batchShareLink || copied || batchOperationLoading}
-                  className={cn(
-                    'w-full px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2',
-                    copied
-                      ? 'bg-green-600 text-white cursor-default'
-                      : !batchShareLink || batchOperationLoading
-                        ? (darkMode ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
-                        : (darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
-                   )}
-                >
-                 {copied ? (
-                    <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</>
-                 ) : (
-                     'Copy Link'
-                 )}
-                </button>
-            </div>
 
-            {batchShareLink && (
-  <div className="mt-4 text-center">
-    <p className={cn("text-xs", darkMode ? "text-gray-400" : "text-gray-600")}>
-      Anyone with the link can access the selected file{selectedFiles.length > 1 ? 's' : ''}.
-    </p>
-  </div>
-)}
+                {/* Sort/Filter Dropdown Toggle */}
+                <div className="relative" ref={sortDropdownRef}>
+                     <button
+                         onClick={() => setShowSortOptions(!showSortOptions)}
+                         className={cn(
+                             "px-3 py-1.5 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500",
+                             darkMode ? 'bg-gray-700 hover:bg-gray-600 text-gray-200' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                         )}
+                     >
+                         Options
+                         <svg className={cn("ml-2 -mr-0.5 h-4 w-4 transition-transform", showSortOptions ? 'rotate-180' : 'rotate-0')} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                         </svg>
+                     </button>
+                     {/* Sort/Filter Dropdown Content */}
+                     {showSortOptions && (
+                         <div className={cn(
+                            "absolute right-0 mt-2 w-56 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50",
+                            darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+                         )} role="menu" aria-orientation="vertical" aria-labelledby="menu-button">
+                             <div className="py-1" role="none">
+                                  {/* Sort Options */}
+                                  <div className={cn("px-4 py-2 text-xs font-semibold", darkMode ? 'text-gray-400' : 'text-gray-500')}>Sort by</div>
+                                  {['default', 'name', 'size', 'date'].map(option => (
+                                     <button
+                                         key={option}
+                                         onClick={() => { setSortOption(option); setShowSortOptions(false); }}
+                                         className={cn(
+                                             "block w-full text-left px-4 py-2 text-sm",
+                                             darkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100',
+                                             sortOption === option && (darkMode ? 'bg-gray-700 font-semibold' : 'bg-gray-100 font-semibold')
+                                         )}
+                                         role="menuitem"
+                                     >
+                                        {option === 'default' ? 'Latest' : option.charAt(0).toUpperCase() + option.slice(1)} {/* Capitalize or use 'Latest' */}
+                                     </button>
+                                  ))}
+                                   <div className={cn("border-t my-1", darkMode ? 'border-gray-700' : 'border-gray-200')}></div> {/* Divider */}
+                                   {/* Filter Options */}
+                                  <div className={cn("px-4 py-2 text-xs font-semibold", darkMode ? 'text-gray-400' : 'text-gray-500')}>Filter by Type</div>
+                                   {['all', 'image', 'video', 'audio', 'document', 'other'].map(type => (
+                                     <button
+                                         key={type}
+                                         onClick={() => { setFilter(type); setShowSortOptions(false); }}
+                                         className={cn(
+                                             "block w-full text-left px-4 py-2 text-sm",
+                                             darkMode ? 'text-gray-200 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100',
+                                             filter === type && (darkMode ? 'bg-gray-700 font-semibold' : 'bg-gray-100 font-semibold')
+                                         )}
+                                         role="menuitem"
+                                     >
+                                        {type.charAt(0).toUpperCase() + type.slice(1)} {/* Capitalize first letter */}
+                                     </button>
+                                  ))}
+                                   <div className={cn("border-t my-1", darkMode ? 'border-gray-700' : 'border-gray-200')}></div> {/* Divider */}
+                                   {/* Show Metadata Toggle */}
+                                   <div className={cn("flex items-center justify-between px-4 py-2 text-sm", darkMode ? 'text-gray-200' : 'text-gray-700')}>
+                                       <span>Show Details</span>
+                                       <label htmlFor="showMetadataToggle" className="flex items-center cursor-pointer">
+                                           <div className="relative">
+                                               <input
+                                                   type="checkbox"
+                                                   id="showMetadataToggle"
+                                                   className="sr-only"
+                                                   checked={showMetadata}
+                                                   onChange={() => setShowMetadata(!showMetadata)}
+                                                />
+                                               <div className={cn("block w-10 h-6 rounded-full transition-colors", darkMode ? 'bg-gray-600' : 'bg-gray-300', showMetadata ? 'bg-blue-600' : '')}></div>
+                                               <div className={cn("dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform", showMetadata ? 'transform translate-x-full' : '')}></div>
+                                           </div>
+                                       </label>
+                                   </div>
+                             </div>
+                         </div>
+                     )}
+                 </div>
+
+
+                {/* View Toggles (Grid/List) */}
+                 <div className="flex space-x-1">
+                     <button
+                         onClick={() => setView('grid')}
+                         className={cn(
+                             "p-1.5 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500",
+                             view === 'grid'
+                                ? (darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-300 text-gray-800')
+                                : (darkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-200')
+                         )}
+                         aria-label="Grid View"
+                     >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                             <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM11 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2h-2zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z" />
+                          </svg>
+                     </button>
+                     <button
+                         onClick={() => setView('list')}
+                          className={cn(
+                             "p-1.5 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500",
+                             view === 'list'
+                                ? (darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-300 text-gray-800')
+                                : (darkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-200')
+                         )}
+                         aria-label="List View"
+                     >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                         </svg>
+                     </button>
+                 </div>
+             </div>
+
+        </div>
+
+
+      {/* File List / Grid Container */}
+      <div className={cn(
+          'grid gap-6',
+          view === 'grid' ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1'
+       )}>
+         {renderFileItems()}
+      </div>
+
+      {/* Batch Delete Confirmation Modal */}
+      {showDeleteConfirmModal && (
+        <div className={cn("fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fadeIn")} aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className={cn(
+             "relative rounded-lg shadow-xl w-full max-w-sm p-6 transform transition-all",
+              darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'
+           )}>
+             <div className="text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className={cn("mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 mb-4", darkMode ? 'text-red-500' : 'text-red-600')} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <h3 className="text-lg leading-6 font-medium" id="modal-title">Delete Selected Files</h3>
+                <div className="mt-2">
+                  <p className={cn("text-sm", darkMode ? 'text-gray-400' : 'text-gray-500')}>
+                    Are you sure you want to delete {selectedFiles.length} selected file{selectedFiles.length > 1 ? 's' : ''}? This action cannot be undone.
+                  </p>
+                </div>
+             </div>
+             <div className="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse justify-center gap-3">
+               <button
+                 type="button"
+                 className={cn(
+                    "w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm",
+                    darkMode ? 'bg-red-700 hover:bg-red-600 focus:ring-red-500' : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                 )}
+                 onClick={batchDelete}
+                 disabled={batchOperationLoading} // Disable while loading
+               >
+                 {batchOperationLoading ? (
+                     <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+                 ) : 'Delete'}
+               </button>
+               <button
+                 type="button"
+                 className={cn(
+                   "mt-3 w-full inline-flex justify-center rounded-md border shadow-sm px-4 py-2 text-base font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 sm:mt-0 sm:w-auto sm:text-sm",
+                    darkMode ? 'bg-gray-700 border-gray-600 text-gray-200 hover:bg-gray-600 focus:ring-gray-500' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500'
+                 )}
+                 onClick={() => setShowDeleteConfirmModal(false)}
+                  disabled={batchOperationLoading} // Disable while loading
+               >
+                 Cancel
+               </button>
+             </div>
           </div>
         </div>
       )}
+
+      {/* Batch Download Progress Modal */}
+      {showBatchDownloadProgress && (
+         <div ref={batchDownloadModalRef} className={cn("fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fadeIn")} aria-labelledby="download-progress-title" role="dialog" aria-modal="true">
+            <div className={cn(
+              "relative rounded-lg shadow-xl w-full max-w-xs p-6 transform transition-all text-center",
+               darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'
+             )}>
+               <svg className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 mb-4 text-blue-500 animate-bounce" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+               </svg>
+               <h3 className="text-lg leading-6 font-medium" id="download-progress-title">Preparing Download</h3>
+               <div className="mt-4">
+                 <p className={cn("text-sm mb-2", darkMode ? 'text-gray-400' : 'text-gray-500')}>
+                   Zipping {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''}...
+                 </p>
+                 <div className={cn(`w-full rounded-full h-2.5`, darkMode ? 'bg-gray-700' : 'bg-gray-200')}>
+                    <div
+                        className="h-2.5 rounded-full bg-blue-600 transition-all duration-100"
+                        style={{ width: `${batchDownloadProgress}%` }}
+                    ></div>
+                 </div>
+                 <p className={cn("text-sm mt-2", darkMode ? 'text-gray-400' : 'text-gray-500')}>{batchDownloadProgress}%</p>
+               </div>
+            </div>
+         </div>
+      )}
+
+
+       {/* Batch Share Link Modal */}
+      {showBatchShareModal && (
+        <div ref={batchShareModalRef} className={cn("fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-fadeIn")} aria-labelledby="share-link-title" role="dialog" aria-modal="true">
+          <div className={cn(
+             "relative rounded-lg shadow-xl w-full max-w-sm p-6 transform transition-all text-center",
+              darkMode ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'
+           )}>
+             <svg xmlns="http://www.w3.org/2000/svg" className={cn("mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 mb-4", darkMode ? 'text-purple-500' : 'text-purple-600')} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6.632l6.632-3.316m0 6.632a3 3 0 110-2.684a3 3 0 010 2.684z" />
+             </svg>
+             <h3 className="text-lg leading-6 font-medium" id="share-link-title">Share Selected Files</h3>
+             <div className="mt-4 text-center">
+                {batchShareLink ? (
+                    <>
+                     {/* QR Code */}
+                     <div className="flex justify-center mb-4">
+                       <QRCodeSVG
+                         value={batchShareLink}
+                         size={128}
+                         level={"H"}
+                         includeMargin={false}
+                         fgColor={darkMode ? "#d1d5db" : "#1f2937"} // qr code color
+                         bgColor={darkMode ? "#1f2937" : "#ffffff"} // qr code background color
+                       />
+                     </div>
+                     {/* Share Link Input */}
+                     <div className={cn("relative rounded-md shadow-sm mt-2", darkMode ? 'bg-gray-700' : 'bg-gray-100')}>
+                         <input
+                             type="text"
+                             value={batchShareLink}
+                             readOnly
+                             className={cn(
+                                 "w-full px-3 py-2 pr-10 text-sm rounded-md border focus:outline-none",
+                                 darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'border-gray-300 text-gray-700'
+                             )}
+                          />
+                         <button
+                              onClick={() => {
+                                  navigator.clipboard.writeText(batchShareLink);
+                                  setCopied(true);
+                              }}
+                              className={cn(
+                                  "absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 font-medium focus:outline-none",
+                                   darkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'
+                               )}
+                           >
+                                {copied ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                ) : (
+                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h6a2 2 0 002-2v-6a2 2 0 00-2-2h-6a2 2 0 00-2 2v6a2 2 0 002 2z" /></svg>
+                                )}
+                           </button>
+                      </div>
+                    </>
+                ) : (
+                    <p className={cn("text-sm", darkMode ? 'text-gray-400' : 'text-gray-500')}>Generating link...</p>
+                )}
+             </div>
+             <div className="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse justify-center"> {/* Adjusted layout */}
+               <button
+                 type="button"
+                 className={cn(
+                   "w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:w-auto sm:text-sm",
+                   darkMode ? 'bg-blue-700 hover:bg-blue-600 focus:ring-blue-500' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                 )}
+                 onClick={() => {
+                    setShowBatchShareModal(false);
+                    setBatchShareLink(''); // Clear share link when closing modal
+                    setCopied(false); // Reset copied state
+                 }}
+               >
+                 Close
+               </button>
+             </div>
+
+            {/* Disclaimer below the link */}
+            {batchShareLink && (
+              <div className="mt-4 text-center">
+                <p className={cn("text-xs", darkMode ? "text-gray-400" : "text-gray-600")}>
+                  Anyone with the link can access the selected file{selectedFiles.length > 1 ? 's' : ''}.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
 
       {/* CSS Animations */}
       <style jsx>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .animate-fadeIn { animation: fadeIn 0.2s ease-in-out; }
-        @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-        .animate-modalIn { animation: modalIn 0.25s ease-out; }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+         .dot {
+            transition: transform 0.2s ease-in-out;
+        }
       `}</style>
     </div>
   );
 };
 
 export default FileList;
+               

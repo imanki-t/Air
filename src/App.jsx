@@ -1,12 +1,12 @@
 // App.jsx
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-// Import useLocation, useNavigate
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'; // Import useLocation, useNavigate
 import UploadForm from './components/UploadForm';
 import FileList from './components/FileList';
 // Import LoginPage and SignupPage
-import LoginPage from './components/LoginPage'; // Renamed AccessGate to LoginPage
-import SignupPage from './components/SignupPage'; // Import SignupPage
+// Corrected import path for LoginPage - ensure .jsx extension is specified
+import LoginPage from './components/LoginPage.jsx'; // Corrected Import
+import SignupPage from './components/SignupPage.jsx'; // Ensure .jsx extension is specified for SignupPage too
 import Homepage from './components/Homepage';
 import axios from 'axios';
 
@@ -30,7 +30,7 @@ function App() {
       setIsLoggedIn(true);
       setUserInfo({ username }); // Store basic user info
       setError(null); // Clear any login errors
-      // navigate('/dashboard', { replace: true }); // Navigation handled in LoginPage
+      // Navigation handled in LoginPage after fade out
   };
 
   // Function to handle logout
@@ -97,7 +97,7 @@ function App() {
                       setUserInfo({ username: res.data.username });
                       setError(null); // Clear any previous errors
                       console.log("User authenticated via token:", res.data.username);
-                      // If on login page with a valid token, redirect to dashboard
+                      // If on login page or signup page with a valid token, redirect to dashboard
                       if (location.pathname === '/login' || location.pathname === '/signup') {
                           navigate('/dashboard', { replace: true });
                       }
@@ -270,7 +270,7 @@ function App() {
                   <UploadForm refresh={fetchFiles} darkMode={darkMode} />
                   <div className={`flex-grow ${files.length === 0 ? 'flex justify-center items-center' : ''}`}>
                     {/* Pass files and refresh to FileList */}
-                    <FileList files={files} refresh={fetchFiles} darkMode={darkMode} isLoading={false} />
+                    <FileList files={files} refresh={fetchFiles} darkMode={darkMode} isLoading={false} /> {/* Add isLoading prop if you have one */}
                   </div>
                 </>
               ) : (
@@ -281,6 +281,7 @@ function App() {
           />
 
            {/* Fallback Route (Optional: Redirect to homepage or a 404 page) */}
+           {/* This catches any paths that don't match the defined routes */}
            <Route path="*" element={<Navigate to="/" replace />} />
 
         </Routes>
@@ -289,7 +290,7 @@ function App() {
       {/* Footer (Optional: You might only show this when logged in or always) */}
       <footer
         className={`p-4 text-center text-sm ${
-          darkMode ? 'text-gray-400' : 'text-gray-500'
+         darkMode ? 'text-gray-400' : 'text-gray-500'
         }`}
       >
         © {new Date().getFullYear()} KuwuteN • All Rights Reserved
@@ -299,3 +300,4 @@ function App() {
 }
 
 export default App;
+             

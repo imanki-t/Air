@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const fileRoutes = require('./routes/fileRoutes');
+const authRoutes = require('./routes/authRoutes'); // Import auth routes
 
 dotenv.config();
 const app = express();
@@ -17,6 +18,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/files', fileRoutes);
+app.use('/api/auth', authRoutes); // Add auth routes
 
 // Root route
 app.get('/', (req, res) => {

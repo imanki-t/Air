@@ -224,22 +224,33 @@ const AccessGate = ({ onAccessGranted }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const correctUsername = import.meta.env.VITE_SITE_USERNAME || 'admin';
     const correctPasskey = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone';
 
-    if (passkey === correctPasskey) {
-      const audio = new Audio('/access-granted.mp3');
-      audio.play().catch(() => {});
-      setFadeOut(true);
-      if (onAccessGranted) {
-           setTimeout(() => onAccessGranted(), 800);
+    if (username !== correctUsername) {
+      setError('Access Denied: Invalid Username');
+      setUsername('');
+      setPasskey('');
+      const form = document.getElementById('access-form');
+      if (form) {
+        form.classList.add('animate-shake');
+        setTimeout(() => form.classList.remove('animate-shake'), 500);
       }
-    } else {
+    } else if (passkey !== correctPasskey) {
       setError('Access Denied: Invalid Passkey');
       setPasskey('');
       const form = document.getElementById('access-form');
       if (form) {
         form.classList.add('animate-shake');
         setTimeout(() => form.classList.remove('animate-shake'), 500);
+      }
+    } else {
+      setError('');
+      const audio = new Audio('/access-granted.mp3');
+      audio.play().catch(() => {});
+      setFadeOut(true);
+      if (onAccessGranted) {
+           setTimeout(() => onAccessGranted(), 800);
       }
     }
   };
@@ -402,21 +413,6 @@ const AccessGate = ({ onAccessGranted }) => {
                           className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 ${darkMode ? 'bg-gray-800 text-white border border-gray-700 focus:ring-blue-500 focus:border-transparent' : 'bg-gray-100 text-gray-800 border border-gray-300 focus:ring-red-500 focus:border-transparent'}`} // Styles based on dark mode
                           autoComplete="off"
                         />
-                      </div>
-                    </div>
-                    <div className="relative">
-                      {/* Background gradient behind input */}
-                      <div className={`absolute -inset-0.5 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'} rounded-lg blur opacity-30`}></div>
-                      <div className="relative">
-                         {/* Passkey Input */}
-                        <input
-                          type={passwordVisible ? "text" : "password"}
-                          value={passkey}
-                          onChange={(e) => setPasskey(e.target.value)}
-                          placeholder="Passkey"
-                          className={`w-full px-4 py-3 pr-10 rounded-lg focus:outline-none focus:ring-2 ${darkMode ? 'bg-gray-800 text-white border border-gray-700 focus:ring-blue-500 focus:border-transparent' : 'bg-gray-100 text-gray-800 border border-gray-300 focus:ring-red-500 focus:border-transparent'}`} // Styles based on dark mode
-                          autoComplete="off"
-                        />
                          {/* Password Visibility Toggle Button */}
                         <button
                           type="button"
@@ -484,7 +480,7 @@ const AccessGate = ({ onAccessGranted }) => {
         </div>
         <div className="flex items-center space-x-1">
           <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-blue-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 0 002-2v-6a2 0 00-2-2H6a2 0 00-2 2v6a2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 0 002-2v-6a2 0 00-2-2H6a2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
           <span className={darkMode ? 'text-gray-500' : 'text-gray-600'}>Secure Authentication</span> {/* Text color based on dark mode */}
         </div>
@@ -524,7 +520,7 @@ const AccessGate = ({ onAccessGranted }) => {
         </svg>
       </div>
        <div className="fixed bottom-20 left-20 w-24 h-24 opacity-10 hidden lg:block">
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/1000/svg">
           <rect x="10" y="10" width="80" height="80" rx="15" ry="15" fill="none" stroke={darkMode ? "#a78bfa" : "#f472b6"} strokeWidth="3"/>
            <line x1="20" y1="80" x2="80" y2="20" stroke={darkMode ? "#a78bfa" : "#f472b6"} strokeWidth="2"/>
            <line x1="20" y1="20" x2="80" y2="80" stroke={darkMode ? "#a78bfa" : "#f472b6"} strokeWidth="2"/>
@@ -560,5 +556,4 @@ const AccessGate = ({ onAccessGranted }) => {
 AccessGate.propTypes = {
   onAccessGranted: PropTypes.func,
 };
-
 export default AccessGate;

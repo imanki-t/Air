@@ -247,7 +247,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
           alert('Batch download failed: Not authenticated. Please log in.');
           setBatchOperationLoading(false);
           setShowBatchDownloadProgress(false);
-          // Potentially trigger a global logout in App.jsx here
+           // Potentially trigger a global logout in App.jsx here
           return;
        }
 
@@ -268,7 +268,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
 
                } catch (downloadError) {
                    console.error(`Failed to download file ${file._id} for zipping:`, downloadError);
-                   // Decide how to handle individual file download errors in a batch.
+                   // Decide how to handle individual file download errors in a batch
                    // For now, we log and continue, but the file won't be in the zip.
                    // You might want to skip the file, show a warning, or stop the whole process.
                }
@@ -452,7 +452,12 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
         const options = { year: 'numeric', month: 'short', day: 'numeric' };
-        return new Date(dateString).toLocaleDateString(undefined, options);
+        try {
+           return new Date(dateString).toLocaleDateString(undefined, options);
+        } catch (e) {
+           console.error("Error formatting date:", dateString, e);
+           return 'Invalid Date';
+        }
     };
 
     // Helper to get file extension
@@ -466,8 +471,9 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   return (
     <div ref={fileListContainerRef} className={`flex-grow w-full overflow-y-auto pr-2 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}> {/* Added overflow-y-auto and padding */}
        {/* Header with controls */}
-        <div className="sticky top-0 z-10 flex flex-col md:flex-row md:items-center md:justify-between mb-6 space-y-4 md:space-y-0 py-2 backdrop-blur-sm"
-             className={cn("sticky top-0 z-10 flex flex-col md:flex-row md:items-center md:justify-between mb-6 space-y-4 md:space-y-0 py-2", darkMode ? 'bg-gray-900/80' : 'bg-gray-50/80')} // Added sticky header with backdrop
+        {/* Corrected: Removed the duplicate className attribute */}
+        <div
+             className={cn("sticky top-0 z-10 flex flex-col md:flex-row md:items-center md:justify-between mb-6 space-y-4 md:space-y-0 py-2", darkMode ? 'bg-gray-900/80' : 'bg-gray-50/80', 'backdrop-blur-sm')} // Combined classes using cn
         >
              {/* File count and Batch actions */}
              <div className="flex items-center space-x-4">
@@ -863,4 +869,3 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
 };
 
 export default FileList;
-               

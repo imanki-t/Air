@@ -160,12 +160,14 @@ const AccessGate = ({ onAccessGranted }) => {
     setTimeout(() => {
       setLoading(false);
     }, initialDelay + (phases.length * phaseDuration));
+
     // Cleanup
     return () => {
       clearInterval(typeInterval);
       mediaQuery.removeEventListener('change', handleChange);
     };
   }, []);
+
   useEffect(() => {
     // Phase transition effects
     if (loading && showPhases) {
@@ -210,6 +212,7 @@ const AccessGate = ({ onAccessGranted }) => {
       };
     }
   }, [currentPhase, loading, showPhases, phases.length]);
+
   useEffect(() => {
     // Error message timeout
     if (error) {
@@ -217,6 +220,7 @@ const AccessGate = ({ onAccessGranted }) => {
       return () => clearTimeout(timer);
     }
   }, [error]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const correctPasskey = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone';
@@ -244,6 +248,7 @@ const AccessGate = ({ onAccessGranted }) => {
   const togglePasswordVisibility = () => {
     setPasswordVisible(!passwordVisible);
   };
+
   // Calculate margin-bottom for mobile to prevent footer overlap
   const mobileMarginBottom = loading ? 'mb-0' : 'mb-20';
   // Adjust 20 as needed based on footer height
@@ -263,8 +268,8 @@ const AccessGate = ({ onAccessGranted }) => {
             backgroundImage: darkMode
               ? `linear-gradient(to right, rgba(66, 135, 245, 0.2) 1px, transparent 1px),
                  linear-gradient(to bottom, rgba(66, 135, 245, 0.2) 1px, transparent 1px)`
-              : `linear-gradient(to right, rgba(139, 0, 0, 0.3) 1px, transparent 1px),
-                 linear-gradient(to bottom, rgba(139, 0, 0, 0.3) 1px, transparent 1px)`,
+              : `linear-gradient(to right, rgba(0, 0, 0, 0.5) 1px, transparent 1px),
+                 linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 1px, transparent 1px)`,
             backgroundSize: '30px 30px',
           }}
         />
@@ -284,26 +289,9 @@ const AccessGate = ({ onAccessGranted }) => {
             />
           ))}
         </div>
-        <div className="absolute inset-0">
-           {/* Floating Particles (Dots) - Speed adjusted */}
-          {Array.from({ length: 30 }).map((_, i) => (
-            <div key={i}
-              className={`absolute rounded-full ${darkMode ? 'bg-gradient-to-r from-blue-400 to-blue-500' : 'bg-gradient-to-r from-red-400 to-red-500'}`}
-              style={{
-                width: `${Math.random() * 6 + 2}px`,
-                height: `${Math.random() * 6 + 2}px`,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                opacity: Math.random() * 0.5 + 0.1,
-                filter: 'blur(1px)',
-                animation: `float ${Math.random() * 200 + 200}s linear infinite`, // Adjusted animation duration
-                animationDelay: `${Math.random() * 10}s`
-              }}
-            />
-          ))}
-        </div>
+        {/* Removed Floating Particles (Dots) */}
          {/* Abstract corner shapes (Doodles for Desktop) */}
-         <div className={`absolute top-1/4 left-1/4 w-64 h-64 rounded-full ${darkMode ? 'bg-blue-500/10' : 'bg-red-500/10'} blur-3xl hidden lg:block`}></div>
+        <div className={`absolute top-1/4 left-1/4 w-64 h-64 rounded-full ${darkMode ? 'bg-blue-500/10' : 'bg-red-500/10'} blur-3xl hidden lg:block`}></div>
         <div className={`absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full ${darkMode ? 'bg-blue-500/10' : 'bg-red-500/10'} blur-3xl hidden lg:block`}></div>
          {/* More Doodles for Desktop */}
          <div className={`absolute top-1/2 left-10 w-48 h-48 rounded-full ${darkMode ? 'bg-teal-500/10' : 'bg-green-500/10'} blur-3xl hidden lg:block`}></div>
@@ -371,7 +359,7 @@ const AccessGate = ({ onAccessGranted }) => {
                 <div className={`absolute inset-0 opacity-5`} style={{
                    backgroundImage: darkMode
                      ? `radial-gradient(circle, #3b82f6 1px, transparent 1px)`
-                     : `radial-gradient(circle, #ef4444 1px, transparent 1px)`,
+                     : `radial-gradient(circle, #000000 1px, transparent 1px)`, // Adjusted for darker grid in light mode
                    backgroundSize: '20px 20px',
                 }}></div>
                 <div className="p-6 pt-10">
@@ -426,7 +414,7 @@ const AccessGate = ({ onAccessGranted }) => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59" />
                             </svg>
                           ) : (
-                             // Eye icon
+                            // Eye icon
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -481,7 +469,7 @@ const AccessGate = ({ onAccessGranted }) => {
         </div>
         <div className="flex items-center space-x-1">
           <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-blue-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 0 002-2v-6a2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
           <span className={darkMode ? 'text-gray-500' : 'text-gray-600'}>Secure Authentication</span> {/* Text color based on dark mode */}
         </div>

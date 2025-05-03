@@ -712,26 +712,30 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       </div>
 
       {/* Pagination Controls at the bottom */}
-      {isPaginationEnabled && totalPages > 0 && ( {/* Only show if pagination enabled and pages exist */}
-        <div className={cn(
-            'flex justify-center items-center gap-4 mt-6',
-            darkMode ? 'text-gray-300' : 'text-gray-700'
-        )}>
-           {/* Previous Button */}
-           {currentPage > 1 && (
-               <button
-                   onClick={handlePreviousPage}
-                   disabled={currentPage === 1}
-                   className={cn(
-                       'px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200',
-                       currentPage === 1
-                           ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
-                           : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
-                   )}
-               >
-                   Previous Page
-               </button>
-           )}
+{isPaginationEnabled && totalPages > 0 && (
+  <div className={cn(
+    'flex justify-center items-center gap-4 mt-6',
+    darkMode ? 'text-gray-300' : 'text-gray-700'
+  )}>
+    {/* Only show if pagination enabled and pages exist */}
+    
+    {/* Previous Button */}
+    {currentPage > 1 && (
+      <button
+        onClick={handlePreviousPage}
+        disabled={currentPage === 1}
+        className={cn(
+          'px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200',
+          currentPage === 1
+            ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+            : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
+        )}
+      >
+        Previous Page
+      </button>
+    )}
+  </div>
+)}
 
            {/* Page Indicator/Input */}
            <span className="text-sm flex flex-col sm:flex-row items-center sm:items-baseline"> {/* Flex column on mobile, row on sm+ */}

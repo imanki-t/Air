@@ -243,7 +243,7 @@ backgroundSize: '30px 30px', // Adjust grid spacing here (same for both modes)
               </div> {/* END ADDED */}
               {/* Image taken from public directory */}
               {/* MODIFIED: Increased mobile height, kept desktop height */}
-              <img src="/feature1.jpg" alt="Feature 1" className="w-full h-56 md:h-48 mt-4 rounded-md object-cover" />
+              <img src="/feature1.jpg" alt="Feature 1" className="w-full h-64 md:h-56 mt-4 rounded-md object-cover" />
             </div>
 
             {/* Feature Card 2 */}
@@ -266,7 +266,7 @@ darkMode
               </div> {/* END ADDED */}
                {/* Image taken from public directory */}
                {/* MODIFIED: Increased mobile height, kept desktop height */}
-              <img src="/feature2.jpg" alt="Feature 2" className="w-full h-56 md:h-48 mt-4 rounded-md object-cover" />
+              <img src="/feature2.jpg" alt="Feature 2" className="w-full h-64 md:h-56 mt-4 rounded-md object-cover" />
             </div>
 
             {/* Feature Card 3 */}
@@ -289,7 +289,7 @@ darkMode
                </div> {/* END ADDED */}
               {/* Image taken from public directory */}
               {/* MODIFIED: Increased mobile height, kept desktop height */}
-              <img src="/feature3.jpg" alt="Feature 3" className="w-full h-56 md:h-48 mt-4 rounded-md object-cover" />
+              <img src="/feature3.jpg" alt="Feature 3" className="w-full h-64 md:h-56 mt-4 rounded-md object-cover" />
             </div>
           </div>
         </div>

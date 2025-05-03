@@ -627,7 +627,7 @@ const UploadForm = ({ refresh, darkMode }) => {
               </p>
             </div>
             {/* Adjusted button container: removed gap-4 from flex, added mr-4 to first button */}
-            <div className="flex justify-center space-x-2 mt-4">
+            <div className="flex justify-center space-x-1 mt-2">
               <button
                 type="button"
                 onClick={handleResumeUpload}

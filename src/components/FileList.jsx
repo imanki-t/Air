@@ -599,7 +599,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
             </svg>
             <h3 className="text-lg font-medium mb-1 text-gray-500">No files found</h3>
             <p className="text-sm text-gray-400">
-              {searchInput ? 'Try adjusting your search or filter.' : 'Upload some files to see them here.'}
+              {searchInput ? 'Try adjusting your search or filter.' : 'Upload some files!'}
             </p>
           </div>
         )}

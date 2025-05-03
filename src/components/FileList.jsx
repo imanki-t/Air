@@ -30,13 +30,17 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   const [view, setView] = useState('grid');
   const [searchInput, setSearchInput] = useState('');
   const [showMetadata, setShowMetadata] = useState(false);
-  const [sortOption, setSortOption] = useState('default'); // Default sort
+  const [sortOption, setSortOption] = useState('default');
+  // Default sort
   const [showSortOptions, setShowSortOptions] = useState(false);
 
   // --- Pagination State ---
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 15; // Set to 12 items per page
-  const [isPaginationEnabled, setIsPaginationEnabled] = useState(true); // Pagination toggle, default ON
+  const itemsPerPage = 15; // Increased to 15 items per page
+  const [isPaginationEnabled, setIsPaginationEnabled] = useState(true);
+  // Pagination toggle, default ON
+  const [isEditingPage, setIsEditingPage] = useState(false); // New state for page editing
+  const [editPageValue, setEditPageValue] = useState(''); // New state for edited page value
 
   // --- Batch Operations State ---
   const [selectionMode, setSelectionMode] = useState(false);
@@ -55,6 +59,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   const batchShareModalRef = useRef(null);
   const sortButtonRef = useRef(null);
   const batchDownloadModalRef = useRef(null);
+  const pageInputRef = useRef(null); // Ref for the page input field
 
   // Reset selections when files list changes or selection mode exits
   useEffect(() => {
@@ -72,7 +77,6 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     setCurrentPage(1);
   }, [filter, sortOption, searchInput]);
 
-
   // Click-outside handler for dropdowns/modals
   useEffect(() => {
     const handleClickOutside = e => {
@@ -89,19 +93,29 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       if (batchShareModalRef.current && !batchShareModalRef.current.contains(e.target) && !batchOperationLoading) {
         setShowBatchShareModal(false);
       }
-      // Add closing for download progress if needed, though it closes automatically
+      // Close page input if clicking outside
+      if (isEditingPage && pageInputRef.current && !pageInputRef.current.contains(e.target)) {
+          setIsEditingPage(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [batchOperationLoading]);
-  // Re-run if loading state changes
+  }, [batchOperationLoading, isEditingPage]); // Add isEditingPage to dependencies
+
+  // Focus the page input when editing starts
+  useEffect(() => {
+    if (isEditingPage && pageInputRef.current) {
+      pageInputRef.current.focus();
+      pageInputRef.current.select(); // Select the current value
+    }
+  }, [isEditingPage]);
+
 
   // --- Filtering and Sorting ---
   const filtered = files.filter(f => filter === 'all' || f.metadata?.type === filter);
   const visible = filtered.filter(f =>
     f.filename.toLowerCase().includes(searchInput.toLowerCase())
   );
-
   const sortedFiles = [...visible].sort((a, b) => {
     switch (sortOption) {
       case 'name': return a.filename.localeCompare(b.filename);
@@ -131,6 +145,42 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     }
   };
 
+  // --- Page Editing Handlers ---
+   const handlePageClick = () => {
+      if (isPaginationEnabled && totalPages > 0) { // Only allow editing if pagination is enabled and there are pages
+        setIsEditingPage(true);
+        setEditPageValue(currentPage.toString()); // Initialize with current page number
+      }
+   };
+
+   const handlePageInputKeyDown = (e) => {
+       if (e.key === 'Enter') {
+           const page = parseInt(editPageValue, 10);
+           // Check for valid number and range
+           if (!isNaN(page) && page >= 1 && page <= totalPages) {
+               setCurrentPage(page);
+               setIsEditingPage(false); // Exit editing on valid input + Enter
+           } else {
+               // Invalid input - just exit editing, onBlur will handle value reset
+               setIsEditingPage(false);
+           }
+       } else if (e.key === 'Escape') {
+           setIsEditingPage(false); // Cancel editing on Escape
+       }
+   };
+
+   const handlePageInputBlur = () => {
+       const page = parseInt(editPageValue, 10);
+        // Reset value if invalid when blurring, but only if not empty
+       if (isNaN(page) || page < 1 || page > totalPages || editPageValue === '') {
+           setEditPageValue(currentPage.toString());
+       } else {
+           // If it's a valid number, update the page (redundant if Enter was pressed, but safe)
+           setCurrentPage(page);
+       }
+       setIsEditingPage(false); // Always exit editing on blur
+   };
+
   // --- Selection Handlers ---
   const toggleSelectionMode = () => {
     setSelectionMode(prev => !prev);
@@ -144,12 +194,17 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   };
 
   const toggleSelectAll = () => {
-    setSelectedFiles(prev =>
-      prev.length === sortedFiles.length
-        ? [] // Deselect all
-        : sortedFiles.map(f => f._id) // Select all visible/sorted files
-    );
+      if (selectedFiles.length === (isPaginationEnabled ? paginatedFiles.length : sortedFiles.length)) {
+          // Deselect all if all on current page (or all visible) are selected
+          setSelectedFiles([]);
+      } else {
+          // Select all files on the current page if pagination is enabled,
+          // otherwise select all visible files.
+          const filesToSelect = isPaginationEnabled ? paginatedFiles : sortedFiles;
+          setSelectedFiles(filesToSelect.map(f => f._id));
+      }
   };
+
 
   // --- Batch Operations ---
   const batchDelete = async () => {
@@ -169,7 +224,6 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       setBatchOperationLoading(false);
     }
   };
-
   const batchDownload = async () => {
     if (selectedFiles.length === 0) return;
     setBatchOperationLoading(true);
@@ -180,7 +234,6 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     const toDownload = selectedFiles
       .map(id => files.find(f => f._id === id))
       .filter(Boolean);
-
     try {
       for (const file of toDownload) {
         if (!file) continue;
@@ -212,14 +265,12 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     setShowBatchShareModal(true); // Show the modal early
     setBatchShareLink('');
     setCopied(false);
-
     try {
       const zip = new JSZip();
       let done = 0;
       const filesToZip = selectedFiles
         .map(id => files.find(f => f._id === id))
         .filter(Boolean);
-
       if (filesToZip.length === 0) {
           throw new Error("No valid files selected for zipping.");
       }
@@ -243,7 +294,6 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       const zipFilename = `shared_files_${Date.now()}.zip`;
       formData.append('zipFile', zipBlob, zipFilename);
       console.log(`Uploading ${zipFilename} to ${backendUrl}/api/files/share-zip`);
-
       const uploadResponse = await axios.post(`${backendUrl}/api/files/share-zip`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -264,7 +314,8 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
        const errorMessage = err.response?.data?.error || err.message ||
        'Please try again.';
        alert(`Error sharing files: ${errorMessage}`);
-       setShowBatchShareModal(false); // Close modal on error
+       setShowBatchShareModal(false);
+       // Close modal on error
     } finally {
       setBatchOperationLoading(false);
       console.log('Batch share operation finished.');
@@ -313,7 +364,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
           </div>
           <input
             type="text"
-            placeholder=""
+            placeholder="Search files..."
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
             className={cn(
@@ -328,7 +379,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
 
         {/* Action Buttons Group */}
         <div className="flex gap-2 items-center flex-wrap justify-center md:justify-end flex-grow md:flex-grow-0">
-           {/* Pagination Toggle */}
+            {/* Pagination Toggle */}
             <button
                 onClick={() => setIsPaginationEnabled(prev => !prev)}
                 className={cn(
@@ -359,16 +410,14 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                 ? 'bg-blue-600 text-white hover:bg-blue-700'
                 : darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
             )}
-            aria-label={selectionMode ?
-"Exit selection mode" : "Enter selection mode"}
+            aria-label={selectionMode ? "Exit selection mode" : "Enter selection mode"}
             aria-pressed={selectionMode}
-            title={selectionMode ?
-"Exit selection mode" : "Select multiple files"}
+            title={selectionMode ? "Exit selection mode" : "Select multiple files"}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-5 w-5', selectionMode ? '' : (darkMode ? 'text-gray-300' : 'text-gray-600'))} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               {selectionMode
                 ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                : <path strokeLinecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v16c0 1.1.9 2 2 2h12a2 2 0 002-2V8l-6-6H6a2 2 0 00-2 2zM14 3v5h5" />}
+                : <path strokeLinecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v16c0 1.1-.9 2-2 2h12a2 2 0 002-2V8l-6-6H6a2 2 0 00-2 2zM14 3v5h5" />}
             </svg>
           </button>
 
@@ -380,12 +429,10 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
               showMetadata
                 ? 'bg-blue-600 text-white hover:bg-blue-700'
                 : darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-             )}
-            aria-label={showMetadata ?
-"Hide file details" : "Show file details"}
+            )}
+            aria-label={showMetadata ? "Hide file details" : "Show file details"}
             aria-pressed={showMetadata}
-            title={showMetadata ?
-"Hide details" : "Show details"}
+            title={showMetadata ? "Hide details" : "Show details"}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -434,18 +481,17 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                       { label: 'Size', id: 'size' },
                       { label: 'Date', id: 'date' },
                     ].map(opt => (
-                      <button
+                        <button
                         key={opt.id}
                         onClick={() => { setSortOption(opt.id); setShowSortOptions(false); }}
                         className={cn(
        'flex items-center w-full px-4 py-2 text-sm transition-colors duration-150 text-left',
                           sortOption === opt.id
-                            ?
-(darkMode ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-700 font-medium')
+                            ? (darkMode ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-700 font-medium')
                             : (darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100')
                         )}
                         role="menuitemradio" aria-checked={sortOption === opt.id}
-                      >
+                        >
                         {opt.label}
                       </button>
                     ))}
@@ -454,18 +500,17 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                 <div>
                     <div className={cn('px-4 py-2 text-xs font-semibold uppercase tracking-wider', darkMode ? 'text-gray-400' : 'text-gray-500')}>Filter by Type</div>
                     {['all', 'image', 'video', 'audio', 'document', 'other'].map(type => (
-                      <button
+                        <button
                         key={type}
                         onClick={() => { setFilter(type); setShowSortOptions(false); }}
                         className={cn(
-          'flex items-center w-full px-4 py-2 text-sm transition-colors duration-150 text-left',
+           'flex items-center w-full px-4 py-2 text-sm transition-colors duration-150 text-left',
                           filter === type
-                                 ?
-(darkMode ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-700 font-medium')
+                                 ? (darkMode ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-700 font-medium')
                             : (darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100')
                         )}
                         role="menuitemradio" aria-checked={filter === type}
-                      >
+                        >
                         {type.charAt(0).toUpperCase() + type.slice(1)}
                       </button>
                     ))}
@@ -490,8 +535,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
             <button
               onClick={() => setView('grid')}
               className={cn('p-2 transition-colors duration-200',
-                 view === 'grid' ?
-'bg-blue-600 text-white' : darkMode ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-600 hover:bg-gray-300'
+                 view === 'grid' ? 'bg-blue-600 text-white' : darkMode ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-600 hover:bg-gray-300'
               )}
               aria-label="Grid view" aria-pressed={view === 'grid'} title="Grid View"
             >
@@ -516,21 +560,18 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                 onClick={toggleSelectAll}
                 className={cn(
                   'w-full md:w-auto py-2 px-4 rounded-md text-sm font-medium text-center transition-colors duration-200 border',
-selectedFiles.length === sortedFiles.length
-                    ?
-`border-red-400 ${darkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-white hover:bg-red-50'}`
-                    : `border-blue-400 ${darkMode ?
-'text-blue-300 bg-gray-700 hover:bg-gray-600' : 'text-blue-600 bg-white hover:bg-blue-50'}`
+selectedFiles.length === (isPaginationEnabled ? paginatedFiles.length : sortedFiles.length)
+                    ? `border-red-400 ${darkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-white hover:bg-red-50'}`
+                    : `border-blue-400 ${darkMode ? 'text-blue-300 bg-gray-700 hover:bg-gray-600' : 'text-blue-600 bg-white hover:bg-blue-50'}`
                 )}
               >
-                {selectedFiles.length === sortedFiles.length ?
-'Deselect All' : 'Select All'}
+                {selectedFiles.length === (isPaginationEnabled ? paginatedFiles.length : sortedFiles.length) ? 'Deselect All' : 'Select All'}
               </button>
             </div>
 
             {/* Selected Count Indicator */}
             <div className={cn('text-sm flex-grow text-center md:text-left order-last md:order-none w-full md:w-auto pt-2 md:pt-0', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-              {selectedFiles.length} of {sortedFiles.length} selected
+              {selectedFiles.length} of {isPaginationEnabled ? paginatedFiles.length : sortedFiles.length} selected {isPaginationEnabled ? 'on this page' : ''}
             </div>
 
             {/* Batch Action Buttons */}
@@ -542,45 +583,38 @@ selectedFiles.length === sortedFiles.length
                 className={cn(
                   'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
                   selectedFiles.length === 0 || batchOperationLoading
-                    ? (darkMode ?
-'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                    ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
                     : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
                 )}
-                title={selectedFiles.length > 0 ?
-`Download ${selectedFiles.length} items` : "Select files to download"}
+                title={selectedFiles.length > 0 ? `Download ${selectedFiles.length} items` : "Select files to download"}
               >
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                  <span className="hidden sm:inline">Download</span> ({selectedFiles.length})
               </button>
               <button
                 onClick={batchShare}
-                disabled={selectedFiles.length === 0 ||
-batchOperationLoading}
+                disabled={selectedFiles.length === 0 || batchOperationLoading}
                 className={cn(
                   'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
                  selectedFiles.length === 0 || batchOperationLoading
                     ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
                     : (darkMode ? 'bg-green-700 hover:bg-green-600 text-white' : 'bg-green-600 hover:bg-green-700 text-white')
                 )}
-                 title={selectedFiles.length > 0 ?
-`Share ${selectedFiles.length} items` : "Select files to share"}
+                 title={selectedFiles.length > 0 ? `Share ${selectedFiles.length} items` : "Select files to share"}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                 <span className="hidden
-sm:inline">Share</span> ({selectedFiles.length})
+                 <span className="hidden sm:inline">Share</span> ({selectedFiles.length})
               </button>
               <button
                 onClick={() => setShowDeleteConfirmModal(true)}
-                disabled={selectedFiles.length === 0 ||
-batchOperationLoading}
+                disabled={selectedFiles.length === 0 || batchOperationLoading}
                 className={cn(
                   'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
                  selectedFiles.length === 0 || batchOperationLoading
                     ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
                     : (darkMode ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-red-600 hover:bg-red-700 text-white')
                 )}
-                 title={selectedFiles.length > 0 ?
-`Delete ${selectedFiles.length} items` : "Select files to delete"}
+                 title={selectedFiles.length > 0 ? `Delete ${selectedFiles.length} items` : "Select files to delete"}
               >
                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                  <span className="hidden sm:inline">Delete</span> ({selectedFiles.length})
@@ -593,8 +627,7 @@ batchOperationLoading}
       {/* Files Display Area with min-height */}
       <div className="min-h-[250px]">
         {/* Files Display Area */}
-        {isLoading ?
-(
+        {isLoading ? (
           <div className={cn(
             'grid gap-4',
             view === 'grid' ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1'
@@ -604,8 +637,7 @@ batchOperationLoading}
               <FileItemSkeleton key={`skel-${i}`} darkMode={darkMode} />
             ))}
           </div>
-        ) : paginatedFiles.length > 0 ?
-(
+        ) : paginatedFiles.length > 0 ? (
           <div className={cn(
             'grid gap-4',
             view === 'grid' ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1'
@@ -632,19 +664,18 @@ batchOperationLoading}
               darkMode ? 'text-gray-500 border-gray-700 bg-gray-800/30' : 'text-gray-400 border-gray-300 bg-gray-50/50'
           )}>
             <svg className="mx-auto h-12 w-12 mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
             </svg>
             <h3 className="text-lg font-medium mb-1 text-gray-500">No files found</h3>
             <p className="text-sm text-gray-400">
-              {searchInput ?
-'Try adjusting your search or filter.' : 'Upload some files!'}
+              {searchInput ? 'Try adjusting your search or filter.' : 'Upload some files!'}
             </p>
           </div>
         )}
       </div>
 
       {/* Pagination Controls at the bottom */}
-      {isPaginationEnabled && sortedFiles.length > itemsPerPage && (
+      {isPaginationEnabled && sortedFiles.length > 0 && (
         <div className={cn(
             'flex justify-center items-center gap-4 mt-6',
             darkMode ? 'text-gray-300' : 'text-gray-700'
@@ -665,10 +696,73 @@ batchOperationLoading}
                </button>
            )}
 
-           {/* Page Indicator (Optional, but good for context) */}
-            <span className="text-sm">
-                Page {currentPage} of {totalPages}
-            </span>
+           {/* Page Indicator/Input */}
+            <span className="text-sm">Current Page </span>
+           {isEditingPage ? (
+               <input
+                   ref={pageInputRef}
+                   type="number"
+                   min="1"
+                   max={totalPages}
+                   value={editPageValue}
+                   onChange={(e) => setEditPageValue(e.target.value)}
+                   onKeyDown={handlePageInputKeyDown}
+                   onBlur={handlePageInputBlur}
+                   className={cn(
+                       'w-16 text-center p-1 rounded-md text-sm border',
+                       darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-white border-gray-300 text-gray-800'
+                   )}
+                   aria-label="Current page number input"
+               />
+           ) : (
+                <span
+                    className={cn(
+                        "text-sm cursor-pointer hover:underline", // Hover effect
+                        darkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-700 hover:text-gray-900' // Hover colors
+                    )}
+                    onClick={handlePageClick}
+                    onContextMenu={(e) => { // Handle right-click
+                        e.preventDefault(); // Prevent default context menu
+                        handlePageClick();
+                    }}
+                    // Basic long-press detection (can be enhanced)
+                    onTouchStart={(e) => {
+                        // Store timer ID directly on the element
+                        e.currentTarget.dataset.pressTimer = setTimeout(() => {
+                            handlePageClick();
+                        }, 500); // 500ms for long press
+                    }}
+                    onTouchEnd={(e) => {
+                        // Clear the timer using the stored ID
+                        clearTimeout(e.currentTarget.dataset.pressTimer);
+                    }}
+                    onMouseDown={(e) => {
+                         // Only handle left click for regular click, right click is contextmenu
+                        if (e.button === 0) {
+                             // Store timer ID directly on the element
+                            e.currentTarget.dataset.pressTimer = setTimeout(() => {
+                                handlePageClick();
+                            }, 500); // 500ms for long press
+                        }
+                    }}
+                     onMouseUp={(e) => {
+                         if (e.button === 0) {
+                             // Clear the timer using the stored ID
+                             clearTimeout(e.currentTarget.dataset.pressTimer);
+                         }
+                     }}
+                     onMouseLeave={(e) => {
+                          if (e.button === 0) { // Clear timer if mouse leaves while holding
+                               // Clear the timer using the stored ID
+                              clearTimeout(e.currentTarget.dataset.pressTimer);
+                          }
+                      }}
+
+                >
+                     {currentPage}
+                </span>
+           )}
+            <span className="text-sm"> of {totalPages}</span>
 
            {/* Next Button */}
            {currentPage < totalPages && (
@@ -687,6 +781,12 @@ batchOperationLoading}
            )}
         </div>
       )}
+       {/* Message when pagination is enabled but no files */}
+        {isPaginationEnabled && sortedFiles.length === 0 && (
+             <div className={cn("text-center mt-4 text-sm", darkMode ? "text-gray-500" : "text-gray-400")}>
+                 No files match your criteria for pagination.
+             </div>
+        )}
 
 
       {/* --- Modals --- */}
@@ -706,8 +806,7 @@ batchOperationLoading}
               Confirm Deletion
             </h2>
             <p id="delete-modal-description" className="text-sm mb-6">
-              Are you sure you want to permanently delete {selectedFiles.length} selected {selectedFiles.length === 1 ?
-'item' : 'items'}? This action cannot be undone.
+              Are you sure you want to permanently delete {selectedFiles.length} selected {selectedFiles.length === 1 ? 'item' : 'items'}? This action cannot be undone.
             </p>
             <div className="flex gap-3">
               <button
@@ -725,17 +824,15 @@ batchOperationLoading}
               <button
                 onClick={batchDelete}
                 disabled={batchOperationLoading}
-                className={cn(
-                    'flex-1 px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm text-white flex items-center justify-center gap-2',
+                 className={cn(
+                     'flex-1 px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm text-white flex items-center justify-center gap-2',
                      batchOperationLoading
-                       ?
-'bg-red-500 cursor-wait'
+                       ? 'bg-red-500 cursor-wait'
                        : 'bg-red-600 hover:bg-red-700'
                  )}
               >
                 {batchOperationLoading && (
-                   <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg"
-fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+                   <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
                 )}
                 Delete
               </button>
@@ -751,18 +848,15 @@ fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" 
             ref={batchDownloadModalRef}
             className={cn(
             'p-6 rounded-lg shadow-xl max-w-sm w-full border animate-modalIn',
-                 darkMode ?
-'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'
+                 darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'
             )}
             role="alertdialog" aria-modal="true" aria-labelledby="download-progress-title"
           >
             <h2 id="download-progress-title" className="text-center font-semibold text-lg mb-5">Preparing Download</h2>
             <div className="my-6 px-2">
               <div className="flex justify-between mb-1 text-sm font-medium">
-                <span className={darkMode ?
-'text-gray-300' : 'text-gray-600'}>Compressing files...</span>
-                <span className={darkMode ?
-'text-gray-100' : 'text-gray-800'}>{batchDownloadProgress}%</span>
+                 <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Compressing files...</span>
+                <span className={darkMode ? 'text-gray-100' : 'text-gray-800'}>{batchDownloadProgress}%</span>
               </div>
               <div className={cn('h-2.5 rounded-full overflow-hidden w-full', darkMode ? 'bg-gray-700' : 'bg-gray-200')}>
                  <div className="h-full bg-blue-600 transition-all duration-300 ease-out rounded-full" style={{ width: `${batchDownloadProgress}%` }} />
@@ -770,7 +864,7 @@ fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" 
             </div>
             <p className={cn("text-sm text-center mt-5", darkMode ? "text-gray-400" : "text-gray-500")}>
               Creating ZIP archive ({selectedFiles.length} {selectedFiles.length !== 1 ? 'items' : 'item'}).
-</p>
+            </p>
           </div>
         </div>
       )}
@@ -789,15 +883,14 @@ fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" 
             {/* Close Button */}
             <button
   onClick={() => {
-      if (!batchOperationLoading) {
+       if (!batchOperationLoading) {
           setShowBatchShareModal(false);
           refresh();
       }
   }}
   className={cn(
       "absolute top-3 right-3 p-1.5 rounded-full transition-colors disabled:opacity-50",
-       batchOperationLoading ?
-"cursor-not-allowed" : (darkMode ? "hover:bg-gray-700 text-gray-400" : "hover:bg-gray-100 text-gray-500")
+       batchOperationLoading ? "cursor-not-allowed" : (darkMode ? "hover:bg-gray-700 text-gray-400" : "hover:bg-gray-100 text-gray-500")
    )}
   disabled={batchOperationLoading} aria-label="Close share dialog"
 >
@@ -808,14 +901,12 @@ fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" 
 
              {/* QR Code Section */}
             <div className="flex justify-center mb-5">
-               <div className={cn("p-2 rounded-lg border", darkMode ? "border-gray-600 bg-gray-900" : "border-gray-300 bg-gray-50")}>
-                  {batchOperationLoading &&
-!batchShareLink ? (
+                <div className={cn("p-2 rounded-lg border", darkMode ? "border-gray-600 bg-gray-900" : "border-gray-300 bg-gray-50")}>
+                  {batchOperationLoading && !batchShareLink ? (
                     <div className="w-[150px] h-[150px] flex items-center justify-center">
                       <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
                     </div>
-                   ) : batchShareLink ?
-(
+                   ) : batchShareLink ? (
                      <QRCodeSVG
                        value={batchShareLink}
                        size={150}
@@ -824,7 +915,7 @@ fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" 
                        level="M"
                        includeMargin={false}
                       />
-                   ) : (
+                    ) : (
                      <div className="w-[150px] h-[150px] flex items-center justify-center text-center text-xs text-red-500 p-2">Error generating QR code. Link might be invalid or too long.</div>
                    )}
                </div>
@@ -844,10 +935,9 @@ fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" 
                   aria-label="Shareable link"
                   onClick={(e) => e.target.select()}
                 />
-               <button
+                <button
                   onClick={copyToClipboard}
-                  disabled={!batchShareLink ||
-copied || batchOperationLoading}
+                  disabled={!batchShareLink || copied || batchOperationLoading}
                   className={cn(
                     'w-full px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2',
                     copied
@@ -855,10 +945,9 @@ copied || batchOperationLoading}
                       : !batchShareLink || batchOperationLoading
                         ? (darkMode ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
                         : (darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
-             )}
+                )}
                 >
-                 {copied ?
-(
+                 {copied ? (
                     <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</>
                  ) : (
                      'Copy Link'
@@ -879,14 +968,10 @@ copied || batchOperationLoading}
 
       {/* CSS Animations */}
       <style jsx>{`
-        @keyframes fadeIn { from { opacity: 0;
-} to { opacity: 1; } }
-        .animate-fadeIn { animation: fadeIn 0.2s ease-in-out;
-}
-        @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px);
-} to { opacity: 1; transform: scale(1) translateY(0); } }
-        .animate-modalIn { animation: modalIn 0.25s ease-out;
-}
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fadeIn { animation: fadeIn 0.2s ease-in-out; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .animate-modalIn { animation: modalIn 0.25s ease-out; }
       `}</style>
     </div>
   );

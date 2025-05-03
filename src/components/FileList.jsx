@@ -835,7 +835,7 @@ batchOperationLoading}
                         {currentPage}
                    </span>
               )}
-                of {totalPages}
+                 &nbsp;of {totalPages}
            </span>
 
           {/* Next Button */}

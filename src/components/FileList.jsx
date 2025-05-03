@@ -36,7 +36,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
 
   // --- Pagination State ---
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 6; // Increased to 15 items per page
+  const itemsPerPage = 15; // Increased to 15 items per page
   const [isPaginationEnabled, setIsPaginationEnabled] = useState(true);
   // Pagination toggle, default ON
   const [isEditingPage, setIsEditingPage] = useState(false); // New state for page editing

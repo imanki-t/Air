@@ -1,6 +1,6 @@
 // components/LoginPage.jsx
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom'; // Import Link and useNavigate
+import { Link, useNavigate } from 'react-router-dom'; // Import Link and useNavigate
 import axios from 'axios'; // Import axios
 
 // Accept onLoginSuccess prop instead of onAccessGranted

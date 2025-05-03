@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
-// Utility for conditional class names
-const cn = (...classes) => classes.filter(Boolean).join(' ');
 
 // Helper function to get the JWT token from localStorage
 const getToken = () => localStorage.getItem('token');
+
+// Utility for conditional class names
+const cn = (...classes) => classes.filter(Boolean).join(' ');
 
 const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, selectionMode, viewType }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
@@ -74,10 +75,6 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
   // --- Actions ---
   const download = async () => {
-    setShowMenu(false);
-    setIsActionLoading(true);
-    setDownloadProgress(0);
-
     const token = getToken();
     if (!token) {
       alert('Authentication required to download.');
@@ -85,15 +82,15 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       setDownloadProgress(0);
       return;
     }
-
+    setShowMenu(false);
+    setIsActionLoading(true);
+    setDownloadProgress(0);
     try {
       const response = await axios({
         url: `${backendUrl}/api/files/download/${file._id}`,
         method: 'GET',
         responseType: 'blob',
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
+        headers: { Authorization: `Bearer ${token}` },
         onDownloadProgress: (progressEvent) => {
           if (progressEvent.total) {
              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -123,8 +120,6 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   };
 
   const deleteFile = async () => {
-    setIsActionLoading(true);
-
     const token = getToken();
     if (!token) {
       alert('Authentication required to delete.');
@@ -132,14 +127,10 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       setShowDeleteConfirm(false);
       return;
     }
-
+    setIsActionLoading(true);
     try {
       // API endpoint: /api/files/:id
-      await axios.delete(`${backendUrl}/api/files/${file._id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      await axios.delete(`${backendUrl}/api/files/${file._id}`, { headers: { Authorization: `Bearer ${token}` } });
       setShowDeleteConfirm(false); // Close modal first
       refresh(); // Refresh the list (this item will disappear)
     } catch (err) {
@@ -152,12 +143,6 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   };
 
   const share = async () => {
-    setShowMenu(false);
-    setIsActionLoading(true); // Use isActionLoading for the modal spinner
-    setShareLink('');
-    setCopied(false);
-    setShowShare(true);
-
     const token = getToken();
     if (!token) {
       alert('Authentication required to share.');
@@ -165,16 +150,16 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       setShowShare(false);
       return;
     }
-
+    setShowMenu(false);
+    setIsActionLoading(true); // Use isActionLoading for the modal spinner
+    setShareLink('');
+    setCopied(false);
+    setShowShare(true);
     try {
       const res = await axios.post(
         `${backendUrl}/api/files/share/${file._id}`,
         {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setShareLink(res.data.url);
     } catch (err) {
@@ -216,10 +201,10 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
          year: 'numeric', month: 'short', day: 'numeric',
          hour: 'numeric', minute: '2-digit', hour12: true
        });
-    } catch (e) {
+     } catch (e) {
         console.error("Error formatting date:", dateString, e);
         return 'Invalid date';
-    }
+     }
   };
 
   // Define Icon component for clarity
@@ -260,7 +245,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
           <video src={`${url}#t=0.5`} preload="metadata" className={`${imageVideoPreviewClasses} bg-black`} /> {/* Added bg-black */}
           <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all duration-300">
              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white/70 drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
-               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8.118v3.764a1 1 0 001.555.832l3.197-1.882a1 1 0 000-1.664l-3.197-1.882z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8.118v3.764a1 1 0 001.555.832l3.197-1.882a1 1 0 000-1.664l-3.197-1.882z" clipRule="evenodd" />
               </svg>
           </div>
         </div>
@@ -287,7 +272,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     const menuButton = e.currentTarget.querySelector('[aria-label="File options"]');
     if (menuButton && menuButton.contains(e.target)) {
         return; // Let menu button handle its own click
-    }
+     }
 
     if (selectionMode) {
       e.preventDefault();
@@ -346,7 +331,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                   `mt-2 text-xs space-y-1 pt-2 border-t`,
                   darkMode ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-200'
                  )}>
-                   {file.metadata?.type && <p><span className="font-semibold">Type:</span> {file.metadata.type}</p>}
+                  {file.metadata?.type && <p><span className="font-semibold">Type:</span> {file.metadata.type}</p>}
                   <p><span className="font-semibold">Uploaded:</span> {formatDate(file.uploadDate)}</p>
                   {file.metadata?.dimensions && (
                     <p><span className="font-semibold">Dimensions:</span> {file.metadata.dimensions}</p>
@@ -359,8 +344,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
         {/* Selection Indicator / Kebab Menu Area */}
         <div className="absolute top-1.5 right-1.5 z-10">
-           {selectionMode ?
-           (
+            {selectionMode ? (
                // Selection Checkbox-like Indicator
                <div className={cn(
                  "w-5 h-5 rounded-full flex items-center justify-center border transition-all duration-150",
@@ -383,7 +367,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                     className={cn(
                       `p-1.5 rounded-full transition-colors duration-150`,
                       showMenu ? (darkMode ? 'bg-gray-600 text-gray-100' : 'bg-gray-200 text-gray-700')
-                         : (darkMode ? 'text-gray-400 hover:bg-gray-700/80 hover:text-gray-100' : 'text-gray-500 hover:bg-gray-100/80 hover:text-gray-700'),
+                             : (darkMode ? 'text-gray-400 hover:bg-gray-700/80 hover:text-gray-100' : 'text-gray-500 hover:bg-gray-100/80 hover:text-gray-700'),
                       'backdrop-blur-sm bg-opacity-50' // Add subtle background for visibility over preview
                     )}
                     aria-label="File options" aria-haspopup="true" aria-expanded={showMenu} title="Options"
@@ -432,21 +416,23 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                         'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
                         darkMode ? 'text-red-400' : 'text-red-600' // Keep delete color indication
                       )} role="menuitem">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
+                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
                       </button>
                     </div>
+                  )}
+               </div>
            )}
         </div>
 
-        ///* Download Progress Overlay 
+        {/* Download Progress Overlay */}
         {isActionLoading && downloadProgress > 0 && (
           <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20 rounded-lg backdrop-blur-sm">
-            <div className="w-4/5 max-w-xs text-center">
+             <div className="w-4/5 max-w-xs text-center">
                <div className="mb-1.5 text-xs font-medium text-white">Downloading... {downloadProgress}%</div>
                <div className="w-full bg-gray-600 rounded-full h-1.5 overflow-hidden">
                  <div className="bg-blue-500 h-full rounded-full transition-all duration-150 ease-out" style={{ width: `${downloadProgress}%` }}></div>
                </div>
-            </div>
+             </div>
           </div>
         )}
       </div>
@@ -483,12 +469,11 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
             {/* QR Code */}
             <div className="flex justify-center mb-5">
                 <div className={cn("p-2 border rounded-lg", darkMode ? 'border-gray-600 bg-gray-900' : 'border-gray-300 bg-gray-50')}>
-                 {isActionLoading && !shareLink ? ( // Show spinner while loading link
+                   {isActionLoading && !shareLink ? ( // Show spinner while loading link
                       <div className="w-40 h-40 flex items-center justify-center">
                          <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
                       </div>
-                   ) : shareLink ?
-                   (
+                   ) : shareLink ? (
                      <QRCodeSVG
                        value={shareLink} size={160} bgColor="transparent"
                        fgColor={darkMode ? "#FFFFFF" : "#000000"} level="M" includeMargin={false} className="block"
@@ -497,7 +482,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                       <div className="w-40 h-40 flex items-center justify-center text-center text-xs text-red-500 p-2">Failed to load QR Code.</div>
                    )}
                 </div>
-            </div>
+             </div>
 
             {/* Link Input and Copy Button */}
              <div className="flex flex-col gap-2.5 mb-4">
@@ -518,13 +503,12 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                    className={cn(
                        `w-full px-3 py-2 rounded-md font-medium text-sm transition-colors flex items-center justify-center gap-2`,
                         copied ? 'bg-green-600 text-white cursor-default'
-                       : !shareLink || isActionLoading
+                             : !shareLink || isActionLoading
                                  ? (darkMode ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
                                  : (darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
                    )}
                  >
-                   {copied ?
-                   (
+                   {copied ? (
                       <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</>
                    ) : (
                        'Copy Link'
@@ -599,14 +583,13 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
        {/* CSS Animations (shared with FileList, could be moved to a global CSS file) */}
         <style jsx>{`
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            .animate-fadeIn { animation: fadeIn 0.2s ease-in-out; }
+            @keyframes fadeIn { from { opacity: 0;} to { opacity: 1; } }
+            .animate-fadeIn { animation: fadeIn 0.2s ease-in-out;}
             @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-            .animate-modalIn { animation: modalIn 0.25s ease-out; }
+            .animate-modalIn { animation: modalIn 0.25s ease-out;}
         `}</style>
     </>
   );
 };
 
 export default FileItem;
-   

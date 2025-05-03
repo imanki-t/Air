@@ -44,7 +44,6 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
 
   // --- Batch Operations State ---
   const [selectionMode, setSelectionMode] = useState(false);
-  // selectedFiles now stores IDs of ALL selected files globally
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [batchOperationLoading, setBatchOperationLoading] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
@@ -69,12 +68,11 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       }
   }, [selectionMode]);
 
-   // Clear selection if the file list itself changes or pagination is toggled
   useEffect(() => {
-      setSelectedFiles([]);
-  }, [files, isPaginationEnabled]); // Added isPaginationEnabled dependency
+      setSelectedFiles([]); // Clear selection if the file list itself changes
+  }, [files]);
 
-  // Reset to first page when filter, sort, or search changes
+  // Reset to first page when filter or sort changes
   useEffect(() => {
     setCurrentPage(1);
   }, [filter, sortOption, searchInput]);
@@ -83,11 +81,11 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   useEffect(() => {
     const handleClickOutside = e => {
       if (
-        sortOptionsRef.current &&
-        !sortOptionsRef.current.contains(e.target) &&
-        !sortButtonRef.current?.contains(e.target)
-      ) {
-        setShowSortOptions(false);
+  sortOptionsRef.current &&
+  !sortOptionsRef.current.contains(e.target) &&
+  !sortButtonRef.current?.contains(e.target)
+) {
+  setShowSortOptions(false);
       }
       if (deleteConfirmModalRef.current && !deleteConfirmModalRef.current.contains(e.target)) {
         setShowDeleteConfirmModal(false);
@@ -161,12 +159,11 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
            // Check for valid number and range
            if (!isNaN(page) && page >= 1 && page <= totalPages) {
                setCurrentPage(page);
-               // Do NOT exit editing here immediately, let onBlur handle it for consistency
+               setIsEditingPage(false); // Exit editing on valid input + Enter
            } else {
-               // Invalid input - let onBlur handle value reset and exiting editing
+               // Invalid input - just exit editing, onBlur will handle value reset
+               setIsEditingPage(false);
            }
-           // On Enter, regardless of validity, blur the input to trigger onBlur
-           e.target.blur();
        } else if (e.key === 'Escape') {
            setIsEditingPage(false); // Cancel editing on Escape
        }
@@ -176,14 +173,13 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
        const page = parseInt(editPageValue, 10);
         // Reset value if invalid when blurring, but only if not empty
        if (isNaN(page) || page < 1 || page > totalPages || editPageValue === '') {
-           setEditPageValue(currentPage.toString()); // Reset to current page's value
+           setEditPageValue(currentPage.toString());
        } else {
-           // If it's a valid number, update the page state (safe fallback)
+           // If it's a valid number, update the page (redundant if Enter was pressed, but safe)
            setCurrentPage(page);
        }
        setIsEditingPage(false); // Always exit editing on blur
    };
-
 
   // --- Selection Handlers ---
   const toggleSelectionMode = () => {
@@ -197,29 +193,28 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     );
   };
 
-   const toggleSelectAll = () => {
-       // Determine the files to target based on pagination state
-       const targetFiles = isPaginationEnabled ? paginatedFiles : sortedFiles;
-       const targetFileIds = targetFiles.map(f => f._id);
+  const toggleSelectAll = () => {
+      // Determine the list of files relevant to 'Select All' based on pagination state
+      const filesToConsider = isPaginationEnabled ? paginatedFiles : sortedFiles;
 
-       // Check if ALL targetable files are currently selected globally
-       const allTargetableSelected = targetFileIds.length > 0 && targetFileIds.every(id => selectedFiles.includes(id));
+      // Check if ALL files in the relevant list are currently selected
+      const allRelevantSelected = filesToConsider.every(file => selectedFiles.includes(file._id));
 
-       if (allTargetableSelected) {
-           // If all targetable are selected, deselect them globally
-           // We need to remove the targetable IDs from the global selection
-           setSelectedFiles(prev => prev.filter(id => !targetFileIds.includes(id)));
-       } else {
-           // If not all targetable are selected, add all targetable IDs to the global selection
-           setSelectedFiles(prev => [...new Set([...prev, ...targetFileIds])]); // Add unique IDs to maintain global selection
-       }
-   };
-
-
-   // Check if all files on the current page are selected (for button text/styling)
-   const allOnCurrentPageSelected = paginatedFiles.length > 0 && paginatedFiles.every(f => selectedFiles.includes(f._id));
-   // Check if all visible files (across all pages) are selected (for button text/styling when pagination is off)
-   const allVisibleFilesSelected = sortedFiles.length > 0 && sortedFiles.every(f => selectedFiles.includes(f._id));
+      if (allRelevantSelected && selectedFiles.length >= filesToConsider.length) {
+          // If all relevant files are selected, deselect *only* those relevant files
+          // This ensures global selection state isn't lost if pagination is toggled off and back on
+          setSelectedFiles(prevSelected => prevSelected.filter(id => !filesToConsider.some(file => file._id === id)));
+      } else {
+          // If not all relevant files are selected (or none are), select all relevant files
+          // Merge the new selections with existing global selections
+           setSelectedFiles(prevSelected => {
+                const newSelections = filesToConsider.map(file => file._id);
+                // Create a Set to easily manage unique IDs
+                const combinedSelections = new Set([...prevSelected, ...newSelections]);
+                return Array.from(combinedSelections);
+           });
+      }
+  };
 
 
   // --- Batch Operations ---
@@ -233,7 +228,6 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       refresh(); // Refresh file list
       setShowDeleteConfirmModal(false); // Close modal
       setSelectionMode(false);
-       setSelectedFiles([]); // Clear selection after deletion
     } catch (err) {
       console.error('Error deleting files:', err);
       alert('Error deleting files. Please try again.');
@@ -248,10 +242,10 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     setBatchDownloadProgress(0);
     const zip = new JSZip();
     let done = 0;
-    // Filter original files list based on selected IDs for batch operations
-    const toDownload = files
-      .filter(f => selectedFiles.includes(f._id));
-
+    // Find the full file objects for the selected IDs
+    const toDownload = selectedFiles
+      .map(id => files.find(f => f._id === id))
+      .filter(Boolean); // Filter out any null/undefined if an ID wasn't found
     try {
       for (const file of toDownload) {
         if (!file) continue;
@@ -287,9 +281,10 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
     try {
       const zip = new JSZip();
       let done = 0;
-       // Filter original files list based on selected IDs for batch operations
-      const filesToZip = files
-        .filter(f => selectedFiles.includes(f._id));
+      // Find the full file objects for the selected IDs
+      const filesToZip = selectedFiles
+        .map(id => files.find(f => f._id === id))
+        .filter(Boolean); // Filter out any null/undefined if an ID wasn't found
 
       if (filesToZip.length === 0) {
           throw new Error("No valid files selected for zipping.");
@@ -329,6 +324,10 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
 
       setBatchShareLink(shareUrl);
       console.log('Batch share link set:', shareUrl);
+      // Don't exit selection mode automatically after sharing, user might want to download/delete too
+       // setSelectionMode(false); // Keep selection mode active
+       // setSelectedFiles([]); // Don't clear selection automatically
+
     } catch (err) {
        console.error('Error creating or sharing ZIP file:', err.response ? err.response.data : err.message, err.stack);
        const errorMessage = err.response?.data?.error || err.message ||
@@ -338,10 +337,10 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
        // Close modal on error
     } finally {
       setBatchOperationLoading(false);
-       setSelectedFiles([]); // Clear selection after share
       console.log('Batch share operation finished.');
     }
   };
+
 
   const copyToClipboard = async () => {
     if (!batchShareLink) return;
@@ -422,7 +421,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                  </svg>
             </button>
 
-          {/* Toggle Selection */}
+          {/* Toggle Selection (Batch Mode) */}
           <button
             onClick={toggleSelectionMode}
             className={cn(
@@ -435,16 +434,12 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
             aria-pressed={selectionMode}
             title={selectionMode ? "Exit selection mode" : "Select multiple files"}
           >
-            {/* File/Selection related icon */}
-             <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-5 w-5', selectionMode ? '' : (darkMode ? 'text-gray-300' : 'text-gray-600'))} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                {selectionMode ? (
-                   // Close/Exit icon
-                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  // Simple square/checkbox outline for selection mode toggle
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h18v18H3z" />
-                )}
-             </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-5 w-5', selectionMode ? '' : (darkMode ? 'text-gray-300' : 'text-gray-600'))} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              {selectionMode
+                 ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /> // X icon for exit
+                 : <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h18v18H3V3z" /> // Square icon for enter selection mode
+              }
+            </svg>
           </button>
 
           {/* Toggle Metadata */}
@@ -582,32 +577,23 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
           <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4 flex-wrap">
             {/* Select/Deselect All Button */}
             <div className="w-full md:w-auto">
-              {/* Determine if 'Select All' or 'Deselect All' should be shown */}
-              {/* This checks if ALL currently targetable files (page or all visible) are selected */}
-              {/* The action toggles selection ONLY for the targetable files */}
-               {(() => {
-                   const targetableFiles = isPaginationEnabled ? paginatedFiles : sortedFiles;
-                   const allTargetableSelected = targetableFiles.length > 0 && targetableFiles.every(f => selectedFiles.includes(f._id));
-                   return (
-                       <button
-                           onClick={toggleSelectAll}
-                           className={cn(
-                               'w-full md:w-auto py-2 px-4 rounded-md text-sm font-medium text-center transition-colors duration-200 border',
-                               allTargetableSelected
-                                   ? `border-red-400 ${darkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-white hover:bg-red-50'}`
-                                   : `border-blue-400 ${darkMode ? 'text-blue-300 bg-gray-700 hover:bg-gray-600' : 'text-blue-600 bg-white hover:bg-blue-50'}`
-                           )}
-                       >
-                           {allTargetableSelected ? 'Deselect All' : 'Select All'}
-                       </button>
-                   );
-               })()}
+              <button
+                onClick={toggleSelectAll}
+                className={cn(
+                  'w-full md:w-auto py-2 px-4 rounded-md text-sm font-medium text-center transition-colors duration-200 border',
+                // Determine button state based on whether *all relevant* files are selected
+                (isPaginationEnabled ? paginatedFiles.every(file => selectedFiles.includes(file._id)) : sortedFiles.every(file => selectedFiles.includes(file._id))) && selectedFiles.length > 0
+                    ? `border-red-400 ${darkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-white hover:bg-red-50'}`
+                    : `border-blue-400 ${darkMode ? 'text-blue-300 bg-gray-700 hover:bg-gray-600' : 'text-blue-600 bg-white hover:bg-blue-50'}`
+                )}
+              >
+                {(isPaginationEnabled ? paginatedFiles.every(file => selectedFiles.includes(file._id)) : sortedFiles.every(file => selectedFiles.includes(file._id))) && selectedFiles.length > 0 ? 'Deselect All' : 'Select All'}
+              </button>
             </div>
 
             {/* Selected Count Indicator */}
-             {/* Shows total selected globally vs total visible files */}
             <div className={cn('text-sm flex-grow text-center md:text-left order-last md:order-none w-full md:w-auto pt-2 md:pt-0', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-              {selectedFiles.length} of {sortedFiles.length} selected. {/* Added full stop */}
+              {selectedFiles.length} of {isPaginationEnabled ? paginatedFiles.length : sortedFiles.length} selected {isPaginationEnabled ? 'on this page' : ''}.
             </div>
 
             {/* Batch Action Buttons */}
@@ -687,7 +673,6 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                 showDetails={showMetadata}
                 viewType={view}
                 onSelect={handleSelectFile}
-                // Check if the file is selected globally
                 isSelected={selectedFiles.includes(file._id)}
                 selectionMode={selectionMode}
                 refresh={refresh}
@@ -712,34 +697,31 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
       </div>
 
       {/* Pagination Controls at the bottom */}
-{isPaginationEnabled && totalPages > 0 && (
-  <div className={cn(
-    'flex justify-center items-center gap-4 mt-6',
-    darkMode ? 'text-gray-300' : 'text-gray-700'
-  )}>
-    {/* Only show if pagination enabled and pages exist */}
-    
-    {/* Previous Button */}
-    {currentPage > 1 && (
-      <button
-        onClick={handlePreviousPage}
-        disabled={currentPage === 1}
-        className={cn(
-          'px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200',
-          currentPage === 1
-            ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
-            : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
-        )}
-      >
-        Previous Page
-      </button>
-    )}
-  </div>
-)}
+      {isPaginationEnabled && sortedFiles.length > 0 && (
+        <div className={cn(
+            'flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-4 mt-6',
+            darkMode ? 'text-gray-300' : 'text-gray-700'
+        )}>
+           {/* Previous Button */}
+           {currentPage > 1 && (
+               <button
+                   onClick={handlePreviousPage}
+                   disabled={currentPage === 1}
+                   className={cn(
+                       'px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200',
+                       currentPage === 1
+                           ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                           : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
+                   )}
+               >
+                   Previous Page
+               </button>
+           )}
 
            {/* Page Indicator/Input */}
-           <span className="text-sm flex flex-col sm:flex-row items-center sm:items-baseline"> {/* Flex column on mobile, row on sm+ */}
-              <span className="block sm:inline">Page</span> {/* "Page" on its own line on mobile, inline on sm+ */}
+            <span className="text-sm text-center">
+                <span className="hidden md:inline">Page </span>
+                <span className="inline md:hidden">Page<br className="block sm:hidden"/></span> {/* Line break on mobile */}
                {isEditingPage ? (
                    <input
                        ref={pageInputRef}
@@ -751,7 +733,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                        onKeyDown={handlePageInputKeyDown}
                        onBlur={handlePageInputBlur}
                        className={cn(
-                           'w-16 text-center p-1 rounded-md text-sm border mt-1 sm:mt-0 sm:ml-1', // Add margin top on mobile, left on sm+
+                           'w-16 text-center p-1 rounded-md text-sm border',
                            darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-white border-gray-300 text-gray-800'
                        )}
                        aria-label="Current page number input"
@@ -759,7 +741,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                ) : (
                     <span
                         className={cn(
-                            "text-sm cursor-pointer hover:underline ml-0 sm:ml-1", // Hover effect, remove left margin on mobile
+                            "text-sm cursor-pointer hover:underline", // Hover effect
                             darkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-700 hover:text-gray-900' // Hover colors
                         )}
                         onClick={handlePageClick}
@@ -801,11 +783,11 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                           }}
 
                     >
-                         {currentPage} of {totalPages} {/* Combined number and total pages */}
+                         {currentPage}
                     </span>
                )}
+                of {totalPages}
             </span>
-
 
            {/* Next Button */}
            {currentPage < totalPages && (
@@ -825,21 +807,9 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
         </div>
       )}
        {/* Message when pagination is enabled but no files */}
-        {isPaginationEnabled && totalPages === 0 && sortedFiles.length > 0 && (
+        {isPaginationEnabled && sortedFiles.length === 0 && (
              <div className={cn("text-center mt-4 text-sm", darkMode ? "text-gray-500" : "text-gray-400")}>
-                 No items found on this page.
-             </div>
-        )}
-         {/* Message when no files at all */}
-        {sortedFiles.length === 0 && !isLoading && (
-             <div className={cn("text-center py-16 rounded-lg border-2 border-dashed min-h-[200px]", darkMode ? "text-gray-500 border-gray-700 bg-gray-800/30" : "text-gray-400 border-gray-300 bg-gray-50/50")}>
-                 <svg className="mx-auto h-12 w-12 mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                 </svg>
-                 <h3 className="text-lg font-medium mb-1 text-gray-500">No files found</h3>
-                 <p className="text-sm text-gray-400">
-                   {searchInput ? 'Try adjusting your search or filter.' : 'Upload some files!'}
-                 </p>
+                 No files match your criteria for pagination.
              </div>
         )}
 
@@ -940,7 +910,8 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   onClick={() => {
        if (!batchOperationLoading) {
           setShowBatchShareModal(false);
-          refresh();
+          refresh(); // Refresh list in case shared files were deleted (less likely but safe)
+           setSelectedFiles([]); // Clear selection after closing share modal
       }
   }}
   className={cn(
@@ -1033,3 +1004,4 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
 };
 
 export default FileList;
+           

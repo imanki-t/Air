@@ -438,7 +438,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
            )}
         </div>
 
-        {/* Download Progress Overlay */}
+        ///* Download Progress Overlay 
         {isActionLoading && downloadProgress > 0 && (
           <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20 rounded-lg backdrop-blur-sm">
             <div className="w-4/5 max-w-xs text-center">

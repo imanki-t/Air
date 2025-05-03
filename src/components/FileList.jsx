@@ -747,103 +747,7 @@ batchOperationLoading}
 
      {/* Pagination Controls at the bottom */}
      {isPaginationEnabled && sortedFiles.length > 0 && (
-       <div className={cn(
-           'flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-4 mt-6',
-           darkMode ? 'text-gray-300' : 'text-gray-700'
-       )}>
-          {/* Previous Button */}
-          {currentPage > 1 && (
-              <button
-                  onClick={handlePreviousPage}
-                  disabled={currentPage === 1}
-                  className={cn(
-                      'flex-1 sm:flex-initial w-full sm:w-auto px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200',
-                      currentPage === 1
-                        ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
-                          : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
-                  )}
-              >
-               Previous <span className="hidden sm:inline">Page</span>
-              </button>
-          )}
-
-          {/* Page Indicator/Input */}
-           <span className="text-sm text-center">
-               <span className="hidden md:inline">Page </span>
-              {isEditingPage ?
-(
-                  <input
-                      ref={pageInputRef}
-                      type="number"
-                      min="1"
-                      max={totalPages}
-                      value={editPageValue}
-                      onChange={(e) => setEditPageValue(e.target.value)}
-                      onKeyDown={handlePageInputKeyDown}
-                      onBlur={handlePageInputBlur}
-                      className={cn(
-                          'w-16 text-center p-1 rounded-md text-sm border',
-                          darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-white border-gray-300 text-gray-800'
-                      )}
-                      aria-label="Current page number input"
-                  />
-              ) : (
-                   <span
-                       className={cn(
-                           "text-sm cursor-pointer hover:underline", // Hover effect
-                           darkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-700 hover:text-gray-900' // Hover colors
-                       )}
-                       onClick={handlePageClick}
-                       onContextMenu={(e) => { // Handle right-click
-                           e.preventDefault();
-                           handlePageClick();
-                       }}
-                       // Basic long-press detection (can be enhanced)
-                       onTouchStart={(e) => {
-                           // Store timer ID directly on the element
-                           e.currentTarget.dataset.pressTimer = setTimeout(() => {
-                               handlePageClick();
-                           }, 3000); // 3 seconds for long press
-                       }}
-                       onTouchEnd={(e) => {
-                           // Clear the timer using the stored ID
-                           clearTimeout(e.currentTarget.dataset.pressTimer);
-                       }}
-                       onMouseDown={(e) => {
-                            // Only handle left click for regular click, right click is contextmenu
-                           if (e.button === 0) {
-                               // Store timer ID directly on the element
-                               e.currentTarget.dataset.pressTimer = setTimeout(() => {
-                                 handlePageClick();
-                               }, 3000); // 3 seconds for long press
-                           }
-                       }}
-                        onMouseUp={(e) => {
-                            if (e.button === 0) {
-                                // Clear the timer using the stored ID
-                                clearTimeout(e.currentTarget.dataset.pressTimer);
-                            }
-                        }}
-                        onMouseLeave={(e) => {
-                             if (e.button === 0) { // Clear timer if mouse leaves while holding
-                                 // Clear the timer using the stored ID
-                                 clearTimeout(e.currentTarget.dataset.pressTimer);
-                             }
-                         }}
-
-                   >
-                        {currentPage}
-                   </span>
-              )}
-                 &nbsp;of {totalPages}
-           </span>
-
-          {/* Next Button */}
-          {currentPage < totalPages && (
-              <button
-                  onClick={handleNextPage}
-                  disabled={currentPage === totalPages}
-                  className={cn(
+     className={cn(
                       'flex-1 sm:flex-initial w-full sm:w-auto px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200',
                       currentPage === totalPages
                         ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
@@ -855,12 +759,131 @@ batchOperationLoading}
           )}
        </div>
      )}
+            {/* Pagination Controls at the bottom */}
+      {isPaginationEnabled && sortedFiles.length > 0 && (
+        <div className={cn(
+            // Use flex-col on mobile, flex-row on sm+ screens. Center items.
+            'flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-4 mt-6',
+            darkMode ? 'text-gray-300' : 'text-gray-700'
+        )}>
+
+           {/* Page Indicator/Input (Order 1 on mobile, 2 on sm+) */}
+            <span className={cn(
+                "text-sm text-center flex-shrink-0 order-1 sm:order-2", // Order 1 on mobile, Order 2 on sm+
+                darkMode ? 'text-gray-300' : 'text-gray-700'
+            )}>
+               {/* Removed "Page " text */}
+               {isEditingPage ?
+               (
+                   <input
+                       ref={pageInputRef}
+                       type="number"
+                       min="1"
+                       max={totalPages}
+                       value={editPageValue}
+                       onChange={(e) => setEditPageValue(e.target.value)}
+                       onKeyDown={handlePageInputKeyDown}
+                       onBlur={handlePageInputBlur}
+                       className={cn(
+                           'w-16 text-center p-1 rounded-md text-sm border',
+                           darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-white border-gray-300 text-gray-800'
+                       )}
+                       aria-label="Current page number input"
+                   />
+               ) : (
+                    <span
+                        className={cn(
+                            "text-sm cursor-pointer hover:underline", // Hover effect
+                            darkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-700 hover:text-gray-900' // Hover colors
+                        )}
+                        onClick={handlePageClick}
+                        onContextMenu={(e) => { // Handle right-click
+                            e.preventDefault(); // Prevent default context menu
+                            handlePageClick();
+                        }}
+                        // Long-press detection (3 seconds = 3000ms)
+                        onTouchStart={(e) => {
+                            // Store timer ID directly on the element
+                            e.currentTarget.dataset.pressTimer = setTimeout(() => {
+                                handlePageClick();
+                            }, 3000); // Set long press to 3 seconds
+                        }}
+                        onTouchEnd={(e) => {
+                            // Clear the timer using the stored ID
+                            clearTimeout(e.currentTarget.dataset.pressTimer);
+                        }}
+                        onMouseDown={(e) => {
+                             // Only handle left click for regular click, right click is contextmenu
+                            if (e.button === 0) {
+                                // Store timer ID directly on the element
+                                e.currentTarget.dataset.pressTimer = setTimeout(() => {
+                                  handlePageClick();
+                                }, 3000); // Set long press to 3 seconds
+                            }
+                        }}
+                         onMouseUp={(e) => {
+                             if (e.button === 0) {
+                                 // Clear the timer using the stored ID
+                                 clearTimeout(e.currentTarget.dataset.pressTimer);
+                             }
+                         }}
+                         onMouseLeave={(e) => {
+                              if (e.button === 0) { // Clear timer if mouse leaves while holding
+                                  // Clear the timer using the stored ID
+                                  clearTimeout(e.currentTarget.dataset.pressTimer);
+                              }
+                          }}
+                    >
+                         {currentPage}
+                    </span>
+               )}
+                &nbsp;of {totalPages}
+            </span>
+
+           {/* Previous Button (Order 2 on mobile, 1 on sm+) */}
+           {currentPage > 1 && ( // Keep the conditional rendering
+               <button
+                   onClick={handlePreviousPage}
+                   disabled={currentPage === 1}
+                   className={cn(
+                       // flex-1 makes buttons equal width on mobile within the flex container
+                       'flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200',
+                       'sm:flex-initial sm:w-auto order-2 sm:order-1', // Order 2 on mobile, Order 1 on sm+
+                       currentPage === 1
+                         ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                           : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
+                   )}
+               >
+                Previous {/* Changed from "Previous Page" */}
+               </button>
+           )}
+
+           {/* Next Button (Order 3 on mobile, 3 on sm+) */}
+           {currentPage < totalPages && ( // Keep the conditional rendering
+               <button
+                   onClick={handleNextPage}
+                   disabled={currentPage === totalPages}
+                   className={cn(
+                       // flex-1 makes buttons equal width on mobile within the flex container
+                       'flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200',
+                       'sm:flex-initial sm:w-auto order-3 sm:order-3', // Order 3 on both
+                       currentPage === totalPages
+                         ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                           : (darkMode ? 'bg-blue-700 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
+                   )}
+               >
+                  Next {/* Changed from "Next Page" */}
+               </button>
+           )}
+        </div>
+      )}
       {/* Message when pagination is enabled but no files */}
        {isPaginationEnabled && sortedFiles.length === 0 && (
-           <div className={cn("text-center mt-4 text-sm", darkMode ? "text-gray-500" : "text-gray-400")}>
-                No files match your criteria for pagination.
-           </div>
-       )}
+            <div className={cn("text-center mt-4 text-sm", darkMode ? "text-gray-500" : "text-gray-400")}>
+                 No files match your criteria for pagination.
+            </div>
+        )}
+
 
 
      {/* --- Modals --- */}

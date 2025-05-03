@@ -626,19 +626,19 @@ const UploadForm = ({ refresh, darkMode }) => {
                 was interrupted at {pendingResume.progress}%.
               </p>
             </div>
+            {/* Adjusted button container with flex-1 on buttons */}
             <div className="flex gap-4">
               <button
                 type="button"
                 onClick={handleResumeUpload}
-                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
+                className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors"
               >
-
                 Resume
               </button>
               <button
                 type="button"
                 onClick={handleCancelResume}
-                className={`px-4 py-2.5 rounded-md font-medium transition-colors ${
+                className={`flex-1 px-4 py-2.5 rounded-md font-medium transition-colors ${
                   darkMode
                     ?
                     'bg-gray-700 hover:bg-gray-600 text-white'
@@ -648,6 +648,7 @@ const UploadForm = ({ refresh, darkMode }) => {
                 Cancel
               </button>
             </div>
+
           </div>
 
         )}

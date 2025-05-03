@@ -484,8 +484,7 @@ const AccessGate = ({ onAccessGranted }) => {
       {/* Mobile version - smaller font and multi-line */}
       <div className="block md:hidden fixed bottom-4 right-4 max-w-[180px] text-right">
         <p className={`text-[10px] leading-tight ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}> {/* Text color based on dark mode */}
-          © {new Date().getFullYear()} Kuwuten • All Rights Reserved<br/>
-          End-to-End Encrypted
+          © {new Date().getFullYear()} Kuwuten
         </p>
       </div>
 

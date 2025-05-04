@@ -411,7 +411,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
          </div>
          <input
            type="text"
-           placeholder="Search files..."
+           placeholder=""
            value={searchInput}
            onChange={e => setSearchInput(e.target.value)}
            className={cn(

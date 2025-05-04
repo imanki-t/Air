@@ -72,10 +72,10 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
    const handleResize = () => {
      const mobileBreakpoint = 768; // Adjust breakpoint as needed
      if (window.innerWidth < mobileBreakpoint) {
-       setItemsPerPage(6);
+       setItemsPerPage(10);
        setIsMobileView(true);
      } else if (window.innerWidth >= mobileBreakpoint && window.innerWidth < 1024) {
-       setItemsPerPage(16);
+       setItemsPerPage(15);
        setIsMobileView(false); // Not mobile, but not full PC
      } else {
        setItemsPerPage(20);

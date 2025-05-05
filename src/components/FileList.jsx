@@ -677,8 +677,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                     key={opt.id}
                         onClick={() => { setSortOption(opt.id); setShowSortOptions(false); }}
                         className={cn(
-                          'flex items-center w-full px-4 py-2 text-sm
-  transition-colors duration-150 text-left',
+                          'flex items-center w-full px-4 py-2 text-sm transition-colors duration-150 text-left',
                           sortOption === opt.id
                             ?
   (darkMode ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-700 font-medium')

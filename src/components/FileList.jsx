@@ -280,7 +280,66 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
        setBatchDownloadProgress(Math.round((done / toDownload.length) * 100));
      }
      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
- saveAs(blob, `batch_download_${Date.now()}.zip`);
+ // Function to get the week number of the year
+function getWeekNumber(d) {
+    // Copy date so don't modify original
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    // Set to nearest Thursday: current date + 4 - day number
+    // Day number 0 is Sunday, 6 is Saturday
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+    // Get first day of year
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    // Calculate full weeks to nearest Thursday
+    var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+    return weekNo;
+}
+
+// Function to generate a random character (letter or number)
+function getRandomChar(type) {
+    let characters = '';
+    if (type === 'alphabet') {
+        characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    } else if (type === 'number') {
+        characters = '0123456789';
+    }
+    return characters.charAt(Math.floor(Math.random() * characters.length));
+}
+
+// Function to shuffle an array
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+    }
+    return array;
+}
+
+// Function to generate the mixed random string
+function generateMixedRandom(numAlphabets, numNumbers) {
+    let chars = [];
+    for (let i = 0; i < numAlphabets; i++) {
+        chars.push(getRandomChar('alphabet'));
+    }
+    for (let i = 0; i < numNumbers; i++) {
+        chars.push(getRandomChar('number'));
+    }
+    return shuffleArray(chars).join('');
+}
+
+
+const now = new Date();
+const day = String(now.getDate()).padStart(2, '0');
+const month = String(now.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
+const year = now.getFullYear();
+const formattedDate = `${day}${month}${year}`;
+
+const weekNumber = getWeekNumber(now);
+const mixedRandomString = generateMixedRandom(3, 3); // Generate 3 alphabets and 3 numbers
+
+// Updated filename construction with the mixed random string
+const filename = `KUW${formattedDate}${weekNumber}${mixedRandomString}.zip`;
+
+saveAs(blob, filename);
      setSelectionMode(false); // Exit selection mode after download
      setSelectedFiles([]);
  // Clear selection after download

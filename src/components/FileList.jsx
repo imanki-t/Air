@@ -765,8 +765,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                 onClick={toggleSelectAll}
                 className={cn(
                   'w-full md:w-auto py-2 px-4 rounded-md text-sm font-medium text-center transition-colors duration-200 border',
-                 // Determine button state based on whether *all relevant* files
-  are selected
+                 // Determine button state based on whether *all relevant* file are selected 
                  (isPaginationEnabled ?
   paginatedFiles.every(file => selectedFiles.includes(file._id)) && paginatedFiles.length > 0 : sortedFiles.every(file => selectedFiles.includes(file._id)) && sortedFiles.length > 0)
                     ?

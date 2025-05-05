@@ -949,8 +949,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
                        onKeyDown={handlePageInputKeyDown}
                        onBlur={handlePageInputBlur}
                        className={cn(
-                           'w-16 text-center p-1 rounded-md text-sm
-  border',
+                           'w-16 text-center p-1 rounded-md text-sm border',
                            darkMode ?
   'bg-gray-700 border-gray-600 text-gray-200' : 'bg-white border-gray-300 text-gray-800'
                        )}

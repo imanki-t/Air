@@ -1106,9 +1106,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
               <button
                 onClick={batchDelete}
                 disabled={batchOperationLoading}
-                className={cn(
-
-  'flex-1 px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm text-white flex items-center justify-center gap-2',
+                className={cn('flex-1 px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm text-white flex items-center justify-center gap-2',
                      batchOperationLoading
                        ?
   'bg-red-500 cursor-wait'

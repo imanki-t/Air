@@ -1075,8 +1075,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 animate-fadeIn backdrop-blur-sm">
           <div
             ref={deleteConfirmModalRef}
-            className={cn(
-              'p-6 rounded-lg shadow-xl max-w-md w-full border
+            className={cn('p-6 rounded-lg shadow-xl max-w-md w-full border
   animate-modalIn',
               darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'
              )}

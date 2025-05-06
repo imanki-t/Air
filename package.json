@@ -16,6 +16,7 @@
     "jszip": "",
     "file-saver": "",
     "uuid": "",
+    "react-custom-scrollbars-2": "",
     "prop-types": ""
   },
   "devDependencies": {

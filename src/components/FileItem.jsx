@@ -1,566 +1,1247 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import FileItem from './FileItem';
 import axios from 'axios';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 import { QRCodeSVG } from 'qrcode.react';
 
 // Utility for conditional class names
 const cn = (...classes) => classes.filter(Boolean).join(' ');
 
-const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, selectionMode, viewType }) => {
+// Skeleton Loading Placeholder
+const FileItemSkeleton = ({ darkMode }) => (
+  <div className={cn(
+    'w-full h-[180px] flex flex-col p-3 rounded-xl shadow-md border animate-pulse',
+    darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+  )}>
+    <div className={cn('h-28 mb-2 rounded-md', darkMode ? 'bg-gray-700' : 'bg-gray-200')}></div>
+    <div className={cn('h-4 w-3/4 rounded-md', darkMode ? 'bg-gray-700' : 'bg-gray-200')}></div>
+    <div className="mt-2 space-y-2">
+      <div className={cn('h-3 w-1/2 rounded-md', darkMode ? 'bg-gray-700' : 'bg-gray-200')}></div>
+    </div>
+  </div>
+);
+
+const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
-  // --- State ---
-  const [showShare, setShowShare] = useState(false);
-  const [shareLink, setShareLink] = useState('');
+  // --- UI State ---
+  const [filter, setFilter] = useState('all');
+  const [view, setView] = useState('grid');
+  const [searchInput, setSearchInput] = useState('');
+  const [showMetadata, setShowMetadata] = useState(false);
+  const [sortOption, setSortOption] = useState('default'); // Default sort
+  const [showSortOptions, setShowSortOptions] = useState(false);
+
+  // --- Pagination State ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20); // Default to 20 for PC
+  const [isPaginationEnabled, setIsPaginationEnabled] = useState(true); // Pagination toggle, default ON
+  const [isEditingPage, setIsEditingPage] = useState(false); // New state for page editing
+  const [editPageValue, setEditPageValue] = useState(''); // New state for edited page value
+
+  // --- Scroll Handle State ---
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
+  const [scrollThumbPosition, setScrollThumbPosition] = useState(0); // 0 to 1, represents percentage
+
+  // --- Batch Operations State ---
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [batchOperationLoading, setBatchOperationLoading] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [showBatchShareModal, setShowBatchShareModal] = useState(false);
+  const [batchShareLink, setBatchShareLink] = useState('');
+  const [showBatchDownloadProgress, setShowBatchDownloadProgress] = useState(false);
+  const [batchDownloadProgress, setBatchDownloadProgress] = useState(0);
   const [copied, setCopied] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isActionLoading, setIsActionLoading] = useState(false); // Loading state for item-specific actions (download, share, delete)
-  const [showMenu, setShowMenu] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
 
   // --- Refs ---
-  const menuRef = useRef(null);
-  const shareModalRef = useRef(null);
-  const deleteModalRef = useRef(null);
+  const sortOptionsRef = useRef(null);
+  const deleteConfirmModalRef = useRef(null);
+  const batchShareModalRef = useRef(null);
+  const sortButtonRef = useRef(null);
+  const batchDownloadModalRef = useRef(null);
+  const pageInputRef = useRef(null); // Ref for the page input field
+  const scrollContainerRef = useRef(null); // Ref for the scrollable container
+  const scrollThumbRef = useRef(null); // Ref for the scroll thumb
 
-  // --- Effects ---
-  // Close menu/modals on outside click
+  // --- Screen Size Detection for Responsive Items Per Page and Mobile View State ---
+  const [isMobileView, setIsMobileView] = useState(false);
   useEffect(() => {
-    const handleOutsideClick = (event) => {
-      // Close menu only if click is outside the menu itself
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        // Check if the click target is the menu button to prevent immediate reopening
-        const menuButton = menuRef.current.previousElementSibling; // Assumes button is sibling before menu div
-        if (!menuButton || !menuButton.contains(event.target)) {
-             setShowMenu(false);
-        }
-      }
-      // Close modals
-      if (shareModalRef.current && !shareModalRef.current.contains(event.target)) {
-         setShowShare(false);
-      }
-      if (deleteModalRef.current && !deleteModalRef.current.contains(event.target)) {
-         setShowDeleteConfirm(false);
+    const handleResize = () => {
+      const mobileBreakpoint = 768; // Adjust breakpoint as needed
+      if (window.innerWidth < mobileBreakpoint) {
+        setItemsPerPage(10);
+        setIsMobileView(true);
+      } else if (window.innerWidth >= mobileBreakpoint && window.innerWidth < 1024) {
+        setItemsPerPage(15);
+        setIsMobileView(false); // Not mobile, but not full PC
+      } else {
+        setItemsPerPage(20);
+        setIsMobileView(false);
       }
     };
 
-    if (showMenu || showShare || showDeleteConfirm) {
-       document.addEventListener('mousedown', handleOutsideClick);
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Set initial value on mount
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Reset selections when files list changes or selection mode exits
+  useEffect(() => {
+    if (!selectionMode) {
+      setSelectedFiles([]);
     }
-
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-    };
-  }, [showMenu, showShare, showDeleteConfirm]);
-
-  // Close modals on Escape key
-  const handleKeyDown = useCallback((e) => {
-      if (e.key === 'Escape') {
-        if (showShare) setShowShare(false);
-        if (showDeleteConfirm) setShowDeleteConfirm(false);
-        if (showMenu) setShowMenu(false);
-      }
-    }, [showShare, showDeleteConfirm, showMenu]);
+  }, [selectionMode]);
 
   useEffect(() => {
-    if (showShare || showDeleteConfirm || showMenu) {
-      window.addEventListener('keydown', handleKeyDown);
+    setSelectedFiles([]); // Clear selection if the file list itself changes
+  }, [files]);
+
+  // Reset to first page when filter or sort changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, sortOption, searchInput, itemsPerPage]); // Added itemsPerPage here
+
+  // Click-outside handler for dropdowns/modals
+  useEffect(() => {
+    const handleClickOutside = e => {
+      if (
+        sortOptionsRef.current &&
+        !sortOptionsRef.current.contains(e.target) &&
+        !sortButtonRef.current?.contains(e.target)
+      ) {
+        setShowSortOptions(false);
+      }
+      if (deleteConfirmModalRef.current && !deleteConfirmModalRef.current.contains(e.target)) {
+        setShowDeleteConfirmModal(false);
+      }
+      if (batchShareModalRef.current && !batchShareModalRef.current.contains(e.target) && !batchOperationLoading) {
+        setShowBatchShareModal(false);
+      }
+      // Close page input if clicking outside
+      if (isEditingPage && pageInputRef.current && !pageInputRef.current.contains(e.target)) {
+        setIsEditingPage(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [batchOperationLoading, isEditingPage]); // Add isEditingPage to dependencies
+
+  // Focus the page input when editing starts
+  useEffect(() => {
+    if (isEditingPage && pageInputRef.current) {
+      pageInputRef.current.focus();
+      pageInputRef.current.select(); // Select the current value
+    }
+  }, [isEditingPage]);
+
+  // --- Scroll Handle Logic ---
+  const handleThumbMouseDown = useCallback((e) => {
+    if (!isPaginationEnabled && scrollThumbRef.current) {
+      setIsDragging(true);
+      setDragStartY(e.clientY);
+      const thumbRect = scrollThumbRef.current.getBoundingClientRect();
+      setScrollThumbPosition(thumbRect.top);
+    }
+  }, [isPaginationEnabled]);
+
+  const handleThumbMouseMove = useCallback((e) => {
+    if (isDragging && scrollContainerRef.current && scrollThumbRef.current) {
+      const deltaY = e.clientY - dragStartY;
+      const scrollTrackHeight = scrollContainerRef.current.clientHeight;
+      const thumbHeight = scrollThumbRef.current.clientHeight;
+      const maxThumbTravel = scrollTrackHeight - thumbHeight;
+
+      // Calculate new thumb position within the track bounds
+      const newThumbTop = Math.max(0, Math.min(maxThumbTravel, scrollThumbPosition + deltaY));
+
+      // Calculate corresponding scroll position
+      const scrollableHeight = scrollContainerRef.current.scrollHeight - scrollContainerRef.current.clientHeight;
+      const newScrollTop = (newThumbTop / maxThumbTravel) * scrollableHeight;
+
+      scrollContainerRef.current.scrollTop = newScrollTop;
+    }
+  }, [isDragging, dragStartY, scrollThumbPosition]);
+
+  const handleThumbMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    if (scrollContainerRef.current && scrollThumbRef.current && !isDragging) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      const scrollTrackHeight = clientHeight;
+      const thumbHeight = scrollThumbRef.current.clientHeight;
+      const maxThumbTravel = scrollTrackHeight - thumbHeight;
+      const scrollableHeight = scrollHeight - clientHeight;
+
+      if (scrollableHeight > 0) {
+        const newThumbTop = (scrollTop / scrollableHeight) * maxThumbTravel;
+        setScrollThumbPosition(newThumbTop);
+      }
+    }
+  }, [isDragging]);
+
+
+  useEffect(() => {
+    // Add global listeners for mouse move and up to ensure dragging works even if mouse leaves the thumb
+    if (isDragging) {
+      document.addEventListener('mousemove', handleThumbMouseMove);
+      document.addEventListener('mouseup', handleThumbMouseUp);
     } else {
-      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousemove', handleThumbMouseMove);
+      document.removeEventListener('mouseup', handleThumbMouseUp);
     }
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showShare, showDeleteConfirm, showMenu, handleKeyDown]);
 
-  // --- Actions ---
-  const download = async () => {
-    setShowMenu(false);
-    setIsActionLoading(true);
-    setDownloadProgress(0);
-    try {
-      const response = await axios({
-        url: `${backendUrl}/api/files/download/${file._id}`,
-        method: 'GET',
-        responseType: 'blob',
-        onDownloadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-             setDownloadProgress(percentCompleted);
-          } else {
-              setDownloadProgress(50); // Indeterminate fallback
-          }
-        },
-      });
+    // Clean up event listeners
+    return () => {
+      document.removeEventListener('mousemove', handleThumbMouseMove);
+      document.removeEventListener('mouseup', handleThumbMouseUp);
+    };
+  }, [isDragging, handleThumbMouseMove, handleThumbMouseUp]);
 
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', file.filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Download failed:', err);
-      alert(`Failed to download ${file.filename}.`);
-    } finally {
-      setIsActionLoading(false);
-      // Reset progress slightly later to show completion
-      setTimeout(() => setDownloadProgress(0), 1200);
+  useEffect(() => {
+    // Add scroll listener to the container
+    const container = scrollContainerRef.current;
+    if (!isPaginationEnabled && container) {
+      container.addEventListener('scroll', handleScroll);
     }
-  };
 
-  const deleteFile = async () => {
-    setIsActionLoading(true);
-    try {
-      // API endpoint: /api/files/:id
-      await axios.delete(`${backendUrl}/api/files/${file._id}`);
-      setShowDeleteConfirm(false); // Close modal first
-      refresh(); // Refresh the list (this item will disappear)
-    } catch (err) {
-      console.error('Delete failed:', err);
-      alert(`Failed to delete ${file.filename}.`);
-      setIsActionLoading(false); // Reset loading state on error only
-      setShowDeleteConfirm(false);
+    // Clean up scroll listener
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [isPaginationEnabled, handleScroll]);
+
+  useEffect(() => {
+    // Reset scroll position and thumb position when pagination is toggled or files change
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
     }
-    // No finally block resetting loading state, as the component might unmount
-  };
+    setScrollThumbPosition(0);
+  }, [isPaginationEnabled, files]);
 
-  const share = async () => {
-    setShowMenu(false);
-    setIsActionLoading(true); // Use isActionLoading for the modal spinner
-    setShareLink('');
-    setCopied(false);
-    setShowShare(true);
-    try {
-      const res = await axios.post(`${backendUrl}/api/files/share/${file._id}`);
-      setShareLink(res.data.url);
-    } catch (err) {
-      console.error('Share failed:', err);
-      alert(`Failed to generate share link for ${file.filename}.`);
-      setShowShare(false);
-    } finally {
-      setIsActionLoading(false); // Stop loading in modal regardless of outcome
+
+  // --- Filtering and Sorting ---
+  const filtered = files.filter(f => filter === 'all' || f.metadata?.type === filter);
+  const visible = filtered.filter(f =>
+    f.filename.toLowerCase().includes(searchInput.toLowerCase())
+  );
+  const sortedFiles = [...visible].sort((a, b) => {
+    switch (sortOption) {
+      case 'name': return a.filename.localeCompare(b.filename);
+      case 'size': return (a.length || 0) - (b.length || 0);
+      case 'date': return new Date(a.uploadDate) - new Date(b.uploadDate);
+      case 'default':
+      default: // Default sort (Latest First)
+        return new Date(b.uploadDate) - new Date(a.uploadDate);
+    }
+  });
+
+  // --- Pagination Logic ---
+  const totalPages = Math.ceil(sortedFiles.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  // Use paginatedFiles only if pagination is enabled, otherwise use sortedFiles for scroll view
+  const filesToDisplay = isPaginationEnabled ? sortedFiles.slice(startIndex, endIndex) : sortedFiles;
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(prev => prev + 1);
     }
   };
 
-  const copyToClipboard = async () => {
-     if (!shareLink) return;
-     try {
-       await navigator.clipboard.writeText(shareLink);
-       setCopied(true);
-       setTimeout(() => setCopied(false), 2000);
-     } catch (err) {
-       console.error('Copy failed:', err);
-       alert('Failed to copy link.');
-     }
-   };
-
-  // --- Helpers ---
-  const formatSize = (bytes) => {
-    if (bytes === null || bytes === undefined || bytes < 0) return 'N/A';
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(i === 0 ? 0 : 1)) + ' ' + sizes[i];
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Unknown date';
-    try {
-       const date = new Date(dateString);
-       return date.toLocaleString(undefined, {
-         year: 'numeric', month: 'short', day: 'numeric',
-         hour: 'numeric', minute: '2-digit', hour12: true
-       });
-     } catch (e) {
-        console.error("Error formatting date:", dateString, e);
-        return 'Invalid date';
-     }
-  };
-
-  // Define Icon component for clarity
-  const FileTypeIcon = ({ type, darkMode }) => {
-      const iconSize = "h-10 w-10";
-      const iconColor = darkMode ? "text-gray-400" : "text-gray-500";
-
-      const icons = {
-          image: <svg xmlns="http://www.w3.org/2000/svg" className={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
-          video: <svg xmlns="http://www.w3.org/2000/svg" className={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>,
-          audio: <svg xmlns="http://www.w3.org/2000/svg" className={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" /></svg>,
-          document: <svg xmlns="http://www.w3.org/2000/svg" className={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
-          other: <svg xmlns="http://www.w3.org/2000/svg" className={iconSize} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>,
-      };
-      return <div className={iconColor}>{icons[type] || icons['other']}</div>;
-  };
-
-
-  // Preview logic based on metadata type
-  const renderPreview = () => {
-    const url = `${backendUrl}/api/files/download/${file._id}`;
-    const type = file.metadata?.type || 'other';
-    const imageVideoPreviewClasses = 'absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300';
-    const containerBaseClasses = `relative h-32 mb-2 rounded-t-lg overflow-hidden group ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`; // Apply bg here
-
-    if (type === 'image') {
-      return (
-        <div className={containerBaseClasses}>
-          <img src={url} alt={`Preview of ${file.filename}`} className={imageVideoPreviewClasses} loading="lazy" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        </div>
-      );
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(prev => prev - 1);
     }
+  };
 
-    if (type === 'video') {
-      return (
-        <div className={containerBaseClasses}>
-          <video src={`${url}#t=0.5`} preload="metadata" className={`${imageVideoPreviewClasses} bg-black`} /> {/* Added bg-black */}
-          <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all duration-300">
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white/70 drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8.118v3.764a1 1 0 001.555.832l3.197-1.882a1 1 0 000-1.664l-3.197-1.882z" clipRule="evenodd" />
-              </svg>
-          </div>
-        </div>
-      );
+  // --- Page Editing Handlers ---
+  const handlePageClick = () => {
+    if (isPaginationEnabled && totalPages > 0) { // Only allow editing if pagination is enabled and there are pages
+      setIsEditingPage(true);
+      setEditPageValue(currentPage.toString()); // Initialize with current page number
     }
+  };
+  const handlePageInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      const page = parseInt(editPageValue, 10);
+      // Check for valid number and range
+      if (!isNaN(page) && page >= 1 && page <= totalPages) {
+        setCurrentPage(page);
+        setIsEditingPage(false); // Exit editing on valid input + Enter
+      } else {
+        // Invalid input - just exit editing, onBlur will handle value reset
+        setIsEditingPage(false);
+      }
+    } else if (e.key === 'Escape') {
+      setIsEditingPage(false); // Cancel editing on Escape
+    }
+  };
+  const handlePageInputBlur = () => {
+    const page = parseInt(editPageValue, 10);
+    // Reset value if invalid when blurring, but only if not empty
+    if (isNaN(page) || page < 1 || page > totalPages || editPageValue === '') {
+      setEditPageValue(currentPage.toString());
+    } else {
+      // If it's a valid number, update the page (redundant if Enter was pressed, but safe)
+      setCurrentPage(page);
+    }
+    setIsEditingPage(false); // Always exit editing on blur
+  };
 
-    // Default: Show file type icon centered
-    const fileExtension = file.filename.split('.').pop().toUpperCase();
-    return (
-      <div className={`${containerBaseClasses} flex flex-col items-center justify-center`}>
-         <FileTypeIcon type={type} darkMode={darkMode} />
-         {type !== 'audio' && ( // Don't show extension for audio as icon is clear
-            <span className={`mt-1 text-xs font-semibold tracking-wide ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                {fileExtension}
-            </span>
-         )}
-      </div>
+  // --- Selection Handlers ---
+  const toggleSelectionMode = () => {
+    setSelectionMode(prev => !prev);
+  };
+  const handleSelectFile = id => {
+    if (!selectionMode) return;
+    setSelectedFiles(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
+  const toggleSelectAll = () => {
+    // Determine the list of files relevant to 'Select All' based on pagination state
+    const filesToConsider = isPaginationEnabled ? paginatedFiles : sortedFiles; // Use paginatedFiles here for 'Select All' on the current page when pagination is ON
 
-  // Handle item click for selection
-  const handleItemClick = (e) => {
-    // Allow clicking menu button even in selection mode
-    const menuButton = e.currentTarget.querySelector('[aria-label="File options"]');
-    if (menuButton && menuButton.contains(e.target)) {
-        return; // Let menu button handle its own click
-     }
-
-    if (selectionMode) {
-      e.preventDefault();
-      onSelect(file._id);
+    // Check if ALL files in the relevant list are currently selected
+    const allRelevantSelected = filesToConsider.every(file => selectedFiles.includes(file._id));
+    if (allRelevantSelected && selectedFiles.length >= filesToConsider.length && filesToConsider.length > 0) {
+      // If all relevant files are selected and there's at least one file, deselect *only* those relevant files
+      setSelectedFiles(prevSelected => prevSelected.filter(id => !filesToConsider.some(file => file._id === id)));
+    } else {
+      // If not all relevant files are selected (or none are), select all relevant files
+      // Merge the new selections with existing global selections
+      setSelectedFiles(prevSelected => {
+        const newSelections = filesToConsider.map(file => file._id);
+        // Create a Set to easily manage unique IDs
+        const combinedSelections = new Set([...prevSelected, ...newSelections]);
+        return Array.from(combinedSelections);
+      });
     }
-    // Potentially add navigation or file preview action here if not in selection mode
+  };
+
+
+  // --- Batch Operations ---
+  const batchDelete = async () => {
+    setBatchOperationLoading(true);
+    try {
+      // API endpoint: /api/files/:id
+      await Promise.allSettled(selectedFiles.map(id =>
+        axios.delete(`${backendUrl}/api/files/${id}`)
+      ));
+      refresh(); // Refresh file list
+      setShowDeleteConfirmModal(false); // Close modal
+      setSelectionMode(false);
+    } catch (err) {
+      console.error('Error deleting files:', err);
+      alert('Error deleting files. Please try again.');
+    } finally {
+      setBatchOperationLoading(false);
+    }
+  };
+  const batchDownload = async () => {
+    if (selectedFiles.length === 0) return;
+    setBatchOperationLoading(true);
+    setShowBatchDownloadProgress(true);
+    setBatchDownloadProgress(0);
+    const zip = new JSZip();
+    let done = 0;
+    // Find the full file objects for the selected IDs
+    const toDownload = selectedFiles
+      .map(id => files.find(f => f._id === id))
+      .filter(Boolean); // Filter out any null/undefined if an ID wasn't found
+    try {
+      for (const file of toDownload) {
+        if (!file) continue;
+        const res = await axios.get(`${backendUrl}/api/files/download/${file._id}`, {
+          responseType: 'blob'
+        });
+        zip.file(file.filename, res.data);
+        done++;
+        setBatchDownloadProgress(Math.round((done / toDownload.length) * 100));
+      }
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+      // Function to get the week number of the year
+      function getWeekNumber(d) {
+        // Copy date so don't modify original
+        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        // Set to nearest Thursday: current date + 4 - day number
+        // Day number 0 is Sunday, 6 is Saturday
+        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+        // Get first day of year
+        var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        // Calculate full weeks to nearest Thursday
+        var weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        return weekNo;
+      }
+
+      // Function to generate a random character (letter or number)
+      function getRandomChar(type) {
+        let characters = '';
+        if (type === 'alphabet') {
+          characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+        } else if (type === 'number') {
+          characters = '0123456789';
+        }
+        return characters.charAt(Math.floor(Math.random() * characters.length));
+      }
+
+      // Function to shuffle an array
+      function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+        }
+        return array;
+      }
+
+      // Function to generate the mixed random string
+      function generateMixedRandom(numAlphabets, numNumbers) {
+        let chars = [];
+        for (let i = 0; i < numAlphabets; i++) {
+          chars.push(getRandomChar('alphabet'));
+        }
+        for (let i = 0; i < numNumbers; i++) {
+          chars.push(getRandomChar('number'));
+        }
+        return shuffleArray(chars).join('');
+      }
+
+
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
+      const year = now.getFullYear();
+      const formattedDate = `${day}${month}${year}`;
+      const weekNumber = getWeekNumber(now);
+      const mixedRandomString = generateMixedRandom(3, 3); // Generate 3 alphabets and 3 numbers
+
+      // Updated filename construction with the mixed random string
+      const filename = `KUW${formattedDate}${weekNumber}${mixedRandomString}.zip`;
+      saveAs(blob, filename);
+      setSelectionMode(false); // Exit selection mode after download
+      setSelectedFiles([]); // Clear selection after download
+    } catch (err) {
+      console.error('Error preparing batch download:', err);
+      alert('Error preparing batch download. Please try again.');
+    } finally {
+      setBatchOperationLoading(false);
+      setTimeout(() => {
+        setShowBatchDownloadProgress(false);
+        setBatchDownloadProgress(0);
+      }, 1500);
+    }
+  };
+
+  const batchShare = async () => {
+    if (selectedFiles.length === 0) return;
+    setBatchOperationLoading(true);
+    setShowBatchShareModal(true); // Show the modal early
+    setBatchShareLink('');
+    setCopied(false);
+    try {
+      const zip = new JSZip();
+      let done = 0;
+      // Find the full file objects for the selected IDs
+      const filesToZip = selectedFiles
+        .map(id => files.find(f => f._id === id))
+        .filter(Boolean); // Filter out any null/undefined if an ID wasn't found
+
+      if (filesToZip.length === 0) {
+        throw new Error("No valid files selected for zipping.");
+      }
+
+      console.log('Starting batch share zip process...');
+      for (const file of filesToZip) {
+        console.log(`Processing file: ${file.filename} (${file._id})`);
+        const res = await axios.get(`${backendUrl}/api/files/download/${file._id}`, {
+          responseType: 'blob'
+        });
+        console.log(`Adding ${file.filename} to zip`);
+        zip.file(file.filename, res.data);
+        done++;
+      }
+
+      console.log('Generating ZIP blob...');
+      const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+      console.log('ZIP blob generated, size:', zipBlob.size);
+
+      const formData = new FormData();
+      const generateRandomString = (length) => {
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+          result += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        return result;
+      };
+
+      const timestamp = Date.now();
+      const randomCombo = generateRandomString(6);
+      const zipFilename = `KUWUTEN${timestamp}${randomCombo}.zip`;
+      formData.append('zipFile', zipBlob, zipFilename);
+      console.log(`Uploading ${zipFilename} to ${backendUrl}/api/files/share-zip`);
+      const uploadResponse = await axios.post(`${backendUrl}/api/files/share-zip`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      console.log('Upload response received:', uploadResponse.data);
+
+      const shareUrl = uploadResponse.data?.url;
+      if (!shareUrl) {
+        console.error("Backend response missing URL:", uploadResponse.data);
+        throw new Error("Failed to generate the link.");
+      }
+
+      setBatchShareLink(shareUrl);
+      console.log('Batch share link set:', shareUrl);
+      // Don't exit selection mode automatically after sharing, user might want to download/delete too
+      // setSelectionMode(false); // Keep selection mode active
+      // setSelectedFiles([]); // Don't clear selection automatically
+
+    } catch (err) {
+      console.error('Error creating or sharing ZIP file:', err.response ? err.response.data : err.message, err.stack);
+      const errorMessage = err.response?.data?.error || err.message ||
+        'Please try again.';
+      alert(`Error sharing files: ${errorMessage}`);
+      setShowBatchShareModal(false); // Close modal on error
+    } finally {
+      setBatchOperationLoading(false);
+      console.log('Batch share operation finished.');
+    }
+  };
+
+
+  const copyToClipboard = async () => {
+    if (!batchShareLink) return;
+    try {
+      await navigator.clipboard.writeText(batchShareLink); // Copy the generated link (or combined links)
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy batch link:', err);
+      alert('Failed to copy link.');
+    }
   };
 
   // --- Render ---
   return (
-    <>
-      {/* Main Item Card */}
-      <div
-        className={cn(
-          `relative flex flex-col justify-between text-sm rounded-xl shadow-md overflow-hidden border transition-all duration-200 ease-in-out`,
-          `h-full min-h-[200px]`, // Ensure a minimum height
-          isSelected
-            ? `ring-2 ring-offset-1 ${darkMode ? 'ring-blue-500 bg-gray-750 border-blue-700' : 'ring-blue-600 bg-blue-50 border-blue-400'}`
-            : `${darkMode ? 'bg-gray-800 border-gray-700 hover:border-gray-600' : 'bg-white border-gray-200 hover:border-gray-300'}`,
-          darkMode ? 'text-white' : 'text-gray-900',
-          selectionMode ? 'cursor-pointer' : '',
-          'transform hover:-translate-y-0.5 hover:shadow-lg'
-        )}
-        onClick={handleItemClick}
-        role="listitem" aria-selected={isSelected}
-      >
-        {/* Content Area */}
-        <div className="flex flex-col h-full">
-            {/* Preview Area */}
-            {renderPreview()}
+    <div className={cn(
+      'transition-colors duration-300 rounded-lg p-4 shadow-lg w-full mx-auto max-w-7xl my-4 border',
+      darkMode ? 'bg-gray-900 text-gray-200 border-gray-700' : 'bg-white text-gray-800 border-gray-200'
+    )}>
+      {/* Header */}
+      <div className="text-center mb-6">
+        <h2 className={cn('text-2xl font-semibold mb-2', darkMode ? 'text-white' : 'text-gray-900')}>
+          Your Files
+        </h2>
+        <span className={cn('text-sm px-3 py-1 rounded-full inline-block transition-all duration-200',
+          darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
+        )}>
+          {visible.length} item{visible.length !== 1 ? 's' : ''}{filter !== 'all' ? ` (${filter})` : ''}
+        </span>
+      </div>
 
-            {/* Info Area */}
-            <div className="p-3 pt-2 flex flex-col flex-grow">
-              {/* Filename */}
-              <h3
-                title={file.filename}
+      {/* Controls Row */}
+      <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-6 items-center justify-between flex-wrap">
+        {/* Search Input */}
+        <div className="relative flex-grow w-full md:w-auto md:flex-grow-[2]">
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+            <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-5 w-5', darkMode ? 'text-gray-400' : 'text-gray-500')} viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            placeholder=""
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            className={cn(
+              'w-full pl-10 pr-4 py-2 rounded-lg transition-colors duration-200 border text-sm',
+              darkMode
+                ? 'bg-gray-800 text-white border-gray-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500'
+                : 'bg-gray-50 text-gray-900 border-gray-300 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 placeholder-gray-400'
+            )}
+            aria-label="Search files"
+          />
+        </div>
+
+        {/* Action Buttons Group */}
+        <div className="flex gap-2 items-center flex-wrap justify-center md:justify-end flex-grow md:flex-grow-0">
+          {/* Pagination Toggle (Also acts as Scroll Handle Toggle) */}
+          <button
+            onClick={() => setIsPaginationEnabled(prev => !prev)}
+            className={cn(
+              'p-2 rounded-md transition-colors duration-200',
+              isPaginationEnabled
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+            )}
+            aria-label={isPaginationEnabled ? "Disable pagination and show scrollbar" : "Enable pagination"}
+            aria-pressed={isPaginationEnabled}
+            title={isPaginationEnabled ? "Disable Pagination (Show Scrollbar)" : "Enable Pagination"}
+          >
+            {isPaginationEnabled ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /> {/* Minus icon for disabling */}
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /> {/* Plus icon for enabling */}
+              </svg>
+            )}
+          </button>
+
+
+          {/* Toggle Selection (Batch Mode) */}
+          <button
+            onClick={toggleSelectionMode}
+            className={cn(
+              'p-2 rounded-md transition-colors duration-200',
+              selectionMode
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+            )}
+            aria-label={selectionMode ? "Exit selection mode" : "Enter selection mode"}
+            aria-pressed={selectionMode}
+            title={selectionMode ? "Exit selection mode" : "Select multiple files"}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-5 w-5', selectionMode ? '' : (darkMode ? 'text-gray-300' : 'text-gray-600'))} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              {selectionMode
+                ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /> // X icon for exit
+                : <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h18v18H3V3z" /> // Square icon for enter selection mode
+              }
+            </svg>
+          </button>
+
+          {/* Toggle Metadata */}
+          <button
+            onClick={() => setShowMetadata(!showMetadata)}
+            className={cn(
+              'p-2 rounded-md transition-colors duration-200',
+              showMetadata
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+            )}
+            aria-label={showMetadata ? "Hide file details" : "Show file details"}
+            aria-pressed={showMetadata}
+            title={showMetadata ? "Hide details" : "Show details"}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+
+          {/* Sort & Filter Dropdown */}
+          <div className="relative">
+            <button
+              ref={sortButtonRef}
+              onClick={() => setShowSortOptions(prev => !prev)}
+              className={cn(
+                'p-2 rounded-md transition-colors duration-200',
+                sortOption !== 'default' || filter !== 'all'
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              )}
+              aria-label="Sort and filter options"
+              aria-haspopup="true"
+              aria-expanded={showSortOptions}
+              title="Sort & Filter"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9M3 12h9m-9 4h9m5-4v.01M12 20h5.5a2.5 2.5 0 002.5-2.5V6.5A2.5 2.5 0 0017.5 4h-11" />
+              </svg>
+            </button>
+            {/* Dropdown Panel */}
+            {showSortOptions && (
+              <div
+                ref={sortOptionsRef}
                 className={cn(
-                  `font-medium text-sm truncate mb-1`,
-                  darkMode ? 'text-gray-100' : 'text-gray-800'
+                  'absolute right-0 mt-2 w-56 rounded-lg shadow-xl z-20 border overflow-hidden',
+                  'max-h-[40vh] sm:max-h-[75vh] overflow-y-auto',
+                  darkMode ? 'bg-gray-800 border-gray-700 divide-gray-700' : 'bg-white border-gray-200 divide-gray-200',
+                  'divide-y'
+                )}
+                role="menu"
+              >
+                {/* Sort Section */}
+                <div>
+                  <div className={cn('px-4 py-2 text-xs font-semibold uppercase tracking-wider', darkMode ? 'text-gray-400' : 'text-gray-500')}>Sort by</div>
+                  {[
+                    { label: 'Default', id: 'default' },
+                    { label: 'Name', id: 'name' },
+                    { label: 'Size', id: 'size' },
+                    { label: 'Date', id: 'date' },
+                  ].map(opt => (
+                    <button
+                      key={opt.id}
+                      onClick={() => { setSortOption(opt.id); setShowSortOptions(false); }}
+                      className={cn(
+                        'flex items-center w-full px-4 py-2 text-sm transition-colors duration-150 text-left',
+                        sortOption === opt.id
+                          ? (darkMode ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-700 font-medium')
+                          : (darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100')
+                      )}
+                      role="menuitemradio" aria-checked={sortOption === opt.id}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Filter Section */}
+                <div>
+                  <div className={cn('px-4 py-2 text-xs font-semibold uppercase tracking-wider', darkMode ? 'text-gray-400' : 'text-gray-500')}>Filter by Type</div>
+                  {['all', 'image', 'video', 'audio', 'document', 'other'].map(type => (
+                    <button
+                      key={type}
+                      onClick={() => { setFilter(type); setShowSortOptions(false); }}
+                      className={cn(
+                        'flex items-center w-full px-4 py-2 text-sm transition-colors duration-150 text-left',
+                        filter === type
+                          ? (darkMode ? 'bg-blue-700 text-white' : 'bg-blue-100 text-blue-700 font-medium')
+                          : (darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100')
+                      )}
+                      role="menuitemradio" aria-checked={filter === type}
+                    >
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* View Toggle */}
+          <div className={cn('flex items-center rounded-md overflow-hidden', darkMode ? 'bg-gray-700' : 'bg-gray-200')}>
+            <button
+              onClick={() => setView('list')}
+              className={cn('p-2 transition-colors duration-200',
+                view === 'list' ? 'bg-blue-600 text-white' : darkMode ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-600 hover:bg-gray-300'
+              )}
+              aria-label="List view" aria-pressed={view === 'list'} title="List View"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setView('grid')}
+              className={cn('p-2 transition-colors duration-200',
+                view === 'grid' ? 'bg-blue-600 text-white' : darkMode ? 'text-gray-300 hover:bg-gray-600' : 'text-gray-600 hover:bg-gray-300'
+              )}
+              aria-label="Grid view" aria-pressed={view === 'grid'} title="Grid View"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Batch Selection Bar */}
+      {selectionMode && (
+        <div className={cn(
+          'mb-6 p-3 rounded-lg border transition-all duration-300 ease-in-out',
+          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-blue-50 border-blue-200'
+        )}>
+          <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4 flex-wrap">
+            {/* Select/Deselect All Button */}
+            <div className="w-full md:w-auto">
+              <button
+                onClick={toggleSelectAll}
+                className={cn(
+                  'w-full md:w-auto py-2 px-4 rounded-md text-sm font-medium text-center transition-colors duration-200 border',
+                  // Determine button state based on whether *all relevant* files are selected
+                  (isPaginationEnabled ? paginatedFiles.every(file => selectedFiles.includes(file._id)) && paginatedFiles.length > 0 : sortedFiles.every(file => selectedFiles.includes(file._id)) && sortedFiles.length > 0)
+                    ? `border-red-400 ${darkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-white hover:bg-red-50'}`
+                    : `border-blue-400 ${darkMode ? 'text-blue-300 bg-gray-700 hover:bg-gray-600' : 'text-blue-600 bg-white hover:bg-blue-50'}`
                 )}
               >
-                {file.filename}
-              </h3>
-
-              {/* Basic Metadata (Size) - always visible */}
-              <div className={cn(`text-xs mt-0.5`, darkMode ? 'text-gray-400' : 'text-gray-500')}>
-                 <p className="truncate">{formatSize(file.length)}</p>
-              </div>
-
-               {/* Spacer to push metadata down if showDetails is true */}
-              {showDetails && <div className="flex-grow min-h-[1rem]"></div>}
-
-              {/* Extended Metadata (conditionally rendered) */}
-              {showDetails && (
-                <div className={cn(
-                  `mt-2 text-xs space-y-1 pt-2 border-t`,
-                  darkMode ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-200'
-                 )}>
-                  {file.metadata?.type && <p><span className="font-semibold">Type:</span> {file.metadata.type}</p>}
-                  <p><span className="font-semibold">Uploaded:</span> {formatDate(file.uploadDate)}</p>
-                  {file.metadata?.dimensions && (
-                    <p><span className="font-semibold">Dimensions:</span> {file.metadata.dimensions}</p>
-                  )}
-                  {/* Add more details if available */}
-                </div>
-              )}
+                {(isPaginationEnabled ? paginatedFiles.every(file => selectedFiles.includes(file._id)) && paginatedFiles.length > 0 : sortedFiles.every(file => selectedFiles.includes(file._id)) && sortedFiles.length > 0) ? 'Deselect All' : 'Select All'}
+              </button>
             </div>
+
+            {/* Selected Count Indicator */}
+            <div className={cn('text-sm flex-grow text-center md:text-left order-last md:order-none w-full md:w-auto pt-2 md:pt-0', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+              {selectedFiles.length} selected
+            </div>
+
+            {/* Batch Action Buttons */}
+            <div className="w-full md:w-auto flex flex-wrap justify-center md:justify-end gap-2">
+              {/* Theme Colors & Themed Disabled State */}
+              <button
+                onClick={batchDownload}
+                disabled={selectedFiles.length === 0 || batchOperationLoading}
+                className={cn(
+                  'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
+                  selectedFiles.length === 0 || batchOperationLoading
+                    ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                    : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
+                )}
+                title={selectedFiles.length > 0 ? `Download ${selectedFiles.length} items` : "Select files to download"}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                <span className="hidden sm:inline">Download</span> ({selectedFiles.length})
+              </button>
+              <button
+                onClick={batchShare}
+                disabled={selectedFiles.length === 0 || batchOperationLoading}
+                className={cn(
+                  'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
+                  selectedFiles.length === 0 || batchOperationLoading
+                    ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                    : (darkMode ? 'bg-green-700 hover:bg-green-600 text-white' : 'bg-green-600 hover:bg-green-700 text-white')
+                )}
+                title={selectedFiles.length > 0 ? `Share ${selectedFiles.length} items` : "Select files to share"}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                <span className="hidden sm:inline">Share</span> ({selectedFiles.length})
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirmModal(true)}
+                disabled={selectedFiles.length === 0 || batchOperationLoading}
+                className={cn(
+                  'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
+                  selectedFiles.length === 0 || batchOperationLoading
+                    ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                    : (darkMode ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-red-600 hover:bg-red-700 text-white')
+                )}
+                title={selectedFiles.length > 0 ? `Delete ${selectedFiles.length} items` : "Select files to delete"}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                <span className="hidden sm:inline">Delete</span> ({selectedFiles.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Files Display Area with min-height and custom scrollbar */}
+      <div className="relative min-h-[250px]">
+        <div
+          ref={scrollContainerRef}
+          className={cn(
+            'w-full pr-3', // Add padding for the custom scrollbar
+            isPaginationEnabled ? '' : 'overflow-y-auto custom-scrollbar-container' // Apply custom scrollbar styles when pagination is OFF
+          )}
+          style={{ maxHeight: isPaginationEnabled ? 'none' : '600px' }} // Example max height for scrollable area
+        >
+          {isLoading ? (
+            <div className={cn(
+              'grid gap-4',
+              view === 'grid' ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1'
+            )}>
+              {/* Render Skeletons */}
+              {Array(view === 'grid' ? 10 : 5).fill().map((_, i) => (
+                <FileItemSkeleton key={`skel-${i}`} darkMode={darkMode} />
+              ))}
+            </div>
+          ) : filesToDisplay.length > 0 ? (
+            <div className={cn(
+              'grid gap-4',
+              view === 'grid' ? 'grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1'
+            )}>
+              {/* Render File Items */}
+              {filesToDisplay.map(file => (
+                <FileItem
+                  key={file._id}
+                  file={file}
+                  darkMode={darkMode}
+                  showDetails={showMetadata}
+                  viewType={view}
+                  onSelect={handleSelectFile}
+                  isSelected={selectedFiles.includes(file._id)}
+                  selectionMode={selectionMode}
+                  refresh={refresh}
+                />
+              ))}
+            </div>
+          ) : (
+            // No Files Found Message
+            <div className={cn(
+              'text-center py-16 rounded-lg border-2 border-dashed min-h-[200px]',
+              darkMode ? 'text-gray-500 border-gray-700 bg-gray-800/30' : 'text-gray-400 border-gray-300 bg-gray-50/50'
+            )}>
+              <svg className="mx-auto h-12 w-12 mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              <h3 className="text-lg font-medium mb-1 text-gray-500">No files found</h3>
+              <p className="text-sm text-gray-400">
+                {searchInput ? 'Try adjusting your search or filter.' : 'Upload some files!'}
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Selection Indicator / Kebab Menu Area */}
-        <div className="absolute top-1.5 right-1.5 z-10">
-            {selectionMode ? (
-               // Selection Checkbox-like Indicator
-               <div className={cn(
-                 "w-5 h-5 rounded-full flex items-center justify-center border transition-all duration-150",
-                 isSelected
-                    ? (darkMode ? 'bg-blue-500 border-blue-400' : 'bg-blue-600 border-blue-500')
-                    : (darkMode ? 'bg-gray-600/80 border-gray-500 hover:bg-gray-500/80' : 'bg-white/80 border-gray-400 hover:bg-gray-50/80')
-               )}>
-                 {isSelected && (
-                   <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                 )}
-               </div>
-           ) : (
-               // Kebab Menu Button
-               <div className="relative">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent card click
-                      setShowMenu(prev => !prev);
-                    }}
-                    className={cn(
-                      `p-1.5 rounded-full transition-colors duration-150`,
-                      showMenu ? (darkMode ? 'bg-gray-600 text-gray-100' : 'bg-gray-200 text-gray-700')
-                             : (darkMode ? 'text-gray-400 hover:bg-gray-700/80 hover:text-gray-100' : 'text-gray-500 hover:bg-gray-100/80 hover:text-gray-700'),
-                      'backdrop-blur-sm bg-opacity-50' // Add subtle background for visibility over preview
-                    )}
-                    aria-label="File options" aria-haspopup="true" aria-expanded={showMenu} title="Options"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" /></svg>
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {showMenu && (
-                    <div
-                      ref={menuRef}
-                      className={cn(
-                        `absolute right-0 mt-1 py-1 sm:w-40 w-36 rounded-md shadow-xl z-50 border`,
-                        `backdrop-blur-md`, // More blur
-                        darkMode ? 'bg-gray-800/90 border-gray-600' : 'bg-white/90 border-gray-200'
-                      )}
-                      role="menu"
-                    >
-                      {/* Download Button (No Hover) */}
-                      <button onClick={download} className={cn(
-  'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
-  darkMode ? 'text-white' : 'text-gray-700'
-)} role="menuitem">
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-current opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-  </svg>
-  Get
-</button>
-
-                      {/* Divider between Download and Share */}
-                       <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`}></div>
-
-                      {/* Share Button (No Hover) */}
-                      <button onClick={share} className={cn(
-                        'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
-                        darkMode ? 'text-white' : 'text-gray-700' // Default text color
-                      )} role="menuitem">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> Share
-                      </button>
-
-                      {/* Divider before Delete */}
-                      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`}></div>
-
-                      {/* Delete Button (No Hover, retains color) */}
-                      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }} className={cn(
-                        'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
-                        darkMode ? 'text-red-400' : 'text-red-600' // Keep delete color indication
-                      )} role="menuitem">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
-                      </button>
-                    </div>
-                  )}
-               </div>
-           )}
-        </div>
-
-        {/* Download Progress Overlay */}
-        {isActionLoading && downloadProgress > 0 && (
-          <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20 rounded-lg backdrop-blur-sm">
-             <div className="w-4/5 max-w-xs text-center">
-               <div className="mb-1.5 text-xs font-medium text-white">Downloading... {downloadProgress}%</div>
-               <div className="w-full bg-gray-600 rounded-full h-1.5 overflow-hidden">
-                 <div className="bg-blue-500 h-full rounded-full transition-all duration-150 ease-out" style={{ width: `${downloadProgress}%` }}></div>
-               </div>
-             </div>
+        {/* Custom Scrollbar Track */}
+        {!isPaginationEnabled && sortedFiles.length > (view === 'grid' ? 10 : 5) && ( // Only show scrollbar if pagination is off and there are enough files to potentially scroll
+          <div className={cn(
+            'absolute top-0 right-0 w-2 h-full rounded-full',
+            darkMode ? 'bg-gray-700' : 'bg-gray-200'
+          )}>
+            {/* Custom Scrollbar Thumb */}
+            <div
+              ref={scrollThumbRef}
+              className={cn(
+                'absolute top-0 left-0 w-full rounded-full cursor-pointer',
+                darkMode ? 'bg-blue-600 hover:bg-blue-500' : 'bg-blue-500 hover:bg-blue-600',
+                 isDragging ? 'opacity-100' : 'opacity-70 hover:opacity-100'
+              )}
+               style={{ height: '10%', transform: `translateY(${scrollThumbPosition}px)` }} // Example fixed thumb height, calculate dynamically for better accuracy
+              onMouseDown={handleThumbMouseDown}
+            ></div>
           </div>
         )}
       </div>
 
-      {/* --- Modals for FileItem --- */}
 
-      {/* Share Modal */}
-      {showShare && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4 backdrop-blur-sm animate-fadeIn">
-          <div
-            ref={shareModalRef}
-            className={cn(
-              `p-6 rounded-xl max-w-sm w-full relative shadow-xl border animate-modalIn`,
-               darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-             )}
-            role="dialog" aria-modal="true" aria-labelledby="share-file-title"
-          >
-            {/* Close Button */}
+      {/* Pagination Controls at the bottom */}
+      {isPaginationEnabled && sortedFiles.length > 0 && (
+        <div className={cn(
+          'flex flex-col items-center gap-2 sm:gap-4 mt-6',
+          isMobileView ? 'sm:flex-col' : 'sm:flex-row justify-center', // Stack vertically on mobile, row on larger screens
+          darkMode ? 'text-gray-300' : 'text-gray-700'
+        )}>
+          {/* Page Indicator/Input (Above buttons on mobile) */}
+          <span className={cn(
+            "text-sm text-center",
+            isMobileView ? 'order-1 mb-2' : 'order-2' // Order 1 and margin-bottom on mobile
+          )}>
+            <span className="hidden md:inline">Page </span>
+            {isEditingPage ? (
+              <input
+                ref={pageInputRef}
+                type="number"
+                min="1"
+                max={totalPages}
+                value={editPageValue}
+                onChange={(e) => setEditPageValue(e.target.value)}
+                onKeyDown={handlePageInputKeyDown}
+                onBlur={handlePageInputBlur}
+                className={cn(
+                  'w-16 text-center p-1 rounded-md text-sm border',
+                  darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-white border-gray-300 text-gray-800'
+                )}
+                aria-label="Current page number input"
+              />
+            ) : (
+              <span
+                className={cn(
+                  "text-sm cursor-pointer hover:underline", // Hover effect
+                  darkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-700 hover:text-gray-900' // Hover colors
+                )}
+                onClick={handlePageClick}
+                onContextMenu={(e) => { // Handle right-click
+                  e.preventDefault();
+                  handlePageClick();
+                }}
+                // Basic long-press detection (can be enhanced)
+                onTouchStart={(e) => {
+                  // Store timer ID directly on the element
+                  e.currentTarget.dataset.pressTimer = setTimeout(() => {
+                    handlePageClick();
+                  }, 3000); // 3 seconds for long press
+                }}
+                onTouchEnd={(e) => {
+                  // Clear the timer using the stored ID
+                  clearTimeout(e.currentTarget.dataset.pressTimer);
+                }}
+                onMouseDown={(e) => {
+                  // Only handle left click for regular click, right click is contextmenu
+                  if (e.button === 0) {
+                    // Store timer ID directly on the element
+                    e.currentTarget.dataset.pressTimer = setTimeout(() => {
+                      handlePageClick();
+                    }, 3000); // 3 seconds for long press
+                  }
+                }}
+                onMouseUp={(e) => {
+                  if (e.button === 0) {
+                    // Clear the timer using the stored ID
+                    clearTimeout(e.currentTarget.dataset.pressTimer);
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (e.button === 0) { // Clear timer if mouse leaves while holding
+                    // Clear the timer using the stored ID
+                    clearTimeout(e.currentTarget.dataset.pressTimer);
+                  }
+                }}
+
+              >
+                {currentPage}
+              </span>
+            )}
+            &nbsp;of {totalPages}
+          </span>
+
+          {/* Previous Button */}
+          {currentPage > 1 && (
             <button
-              onClick={() => setShowShare(false)}
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1}
               className={cn(
-                  `absolute top-3 right-3 p-1.5 rounded-full transition-colors disabled:opacity-50`,
-                   isActionLoading ? "cursor-not-allowed" : (darkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100')
-               )}
-              disabled={isActionLoading} title="Close" aria-label="Close share dialog"
+                'px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200',
+                isMobileView ? 'flex-1 w-full order-2' : 'sm:flex-initial w-auto order-1', // Order 2 on mobile, Order 1 on larger screens
+                currentPage === 1
+                  ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                  : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
+              )}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              {isMobileView ? 'Prev' : 'Previous Page'}
             </button>
-            {/* Title */}
-            <h2 id="share-file-title" className={cn(`font-semibold mb-5 text-lg text-center truncate px-8`, darkMode ? 'text-white' : 'text-gray-800')}>
-                Share
+          )}
+
+          {/* Next Button */}
+          {currentPage < totalPages && (
+            <button
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+              className={cn(
+                'px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200',
+                isMobileView ? 'flex-1 w-full order-3' : 'sm:flex-initial w-auto order-3', // Order 3 on mobile and larger screens
+                currentPage === totalPages
+                  ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                  : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
+              )}
+            >
+              {isMobileView ? 'Next' : 'Next Page'}
+            </button>
+          )}
+        </div>
+      )}
+      {/* Message when pagination is enabled but no files */}
+      {isPaginationEnabled && sortedFiles.length === 0 &&
+        <div className={cn("text-center mt-4 text-sm", darkMode ? "text-gray-500" : "text-gray-400")}>
+          No files match your criteria for pagination.
+        </div>
+      }
+
+
+      {/* --- Modals --- */}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 animate-fadeIn backdrop-blur-sm">
+          <div
+            ref={deleteConfirmModalRef}
+            className={cn(
+              'p-6 rounded-lg shadow-xl max-w-md w-full border animate-modalIn',
+              darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'
+            )}
+            role="alertdialog" aria-modal="true" aria-labelledby="delete-modal-title" aria-describedby="delete-modal-description"
+          >
+            <h2 id="delete-modal-title" className="font-semibold text-lg mb-4">
+              Confirm Deletion
             </h2>
+            <p id="delete-modal-description" className="text-sm mb-6">
+              Are you sure you want to permanently delete {selectedFiles.length} selected {selectedFiles.length === 1 ? 'item' : 'items'}? This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirmModal(false)}
+                disabled={batchOperationLoading}
+                className={cn(
+                  'flex-1 px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm',
+                  darkMode
+                    ? 'bg-gray-600 text-gray-200 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300 border border-gray-300 disabled:bg-gray-100 disabled:text-gray-400'
+                )}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={batchDelete}
+                disabled={batchOperationLoading}
+                className={cn(
+                  'flex-1 px-4 py-2 rounded-md font-medium transition-colors duration-150 text-sm text-white flex items-center justify-center gap-2',
+                  batchOperationLoading
+                    ? 'bg-red-500 cursor-wait'
+                    : 'bg-red-600 hover:bg-red-700'
+                )}
+              >
+                {batchOperationLoading && (
+                  <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+                )}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-            {/* QR Code */}
-            <div className="flex justify-center mb-5">
-                <div className={cn("p-2 border rounded-lg", darkMode ? 'border-gray-600 bg-gray-900' : 'border-gray-300 bg-gray-50')}>
-                   {isActionLoading && !shareLink ? ( // Show spinner while loading link
-                      <div className="w-40 h-40 flex items-center justify-center">
-                         <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
-                      </div>
-                   ) : shareLink ? (
-                     <QRCodeSVG
-                       value={shareLink} size={160} bgColor="transparent"
-                       fgColor={darkMode ? "#FFFFFF" : "#000000"} level="M" includeMargin={false} className="block"
-                     />
-                   ) : ( // Show error if loading finished but no link
-                      <div className="w-40 h-40 flex items-center justify-center text-center text-xs text-red-500 p-2">Failed to load QR Code.</div>
-                   )}
-                </div>
-             </div>
-
-            {/* Link Input and Copy Button */}
-             <div className="flex flex-col gap-2.5 mb-4">
-                <input
-                   value={isActionLoading ? 'Generating...' : shareLink || 'Error generating link'}
-                   readOnly
-                   className={cn(
-                       `w-full px-3 py-2 rounded font-mono text-xs border`, // Smaller text
-                       `overflow-x-auto whitespace-nowrap`, // Allow scroll
-                       darkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-800',
-                       'disabled:opacity-70'
-                   )}
-                   disabled={isActionLoading} aria-label="Shareable link" onClick={(e) => e.target.select()}
-                 />
-                 <button
-                   onClick={copyToClipboard}
-                   disabled={!shareLink || copied || isActionLoading}
-                   className={cn(
-                       `w-full px-3 py-2 rounded-md font-medium text-sm transition-colors flex items-center justify-center gap-2`,
-                        copied ? 'bg-green-600 text-white cursor-default'
-                             : !shareLink || isActionLoading
-                                 ? (darkMode ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
-                                 : (darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
-                   )}
-                 >
-                   {copied ? (
-                      <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</>
-                   ) : (
-                       'Copy Link'
-                   )}
-                 </button>
-             </div>
-
-            {/* Footer Text */}
-            <p className={cn(`text-xs text-center`, darkMode ? 'text-gray-400' : 'text-gray-500')}>
-              Anyone with this link can view or download this file.
+      {/* Download Progress Modal */}
+      {showBatchDownloadProgress && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 animate-fadeIn backdrop-blur-sm">
+          <div
+            ref={batchDownloadModalRef}
+            className={cn(
+              'p-6 rounded-lg shadow-xl max-w-sm w-full border animate-modalIn',
+              darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'
+            )}
+            role="alertdialog" aria-modal="true" aria-labelledby="download-progress-title"
+          >
+            <h2 id="download-progress-title" className="text-center font-semibold text-lg mb-5">Preparing Download</h2>
+            <div className="my-6 px-2">
+              <div className="flex justify-between mb-1 text-sm font-medium">
+                <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Compressing files...</span>
+                <span className={darkMode ? 'text-gray-100' : 'text-gray-800'}>{batchDownloadProgress}%</span>
+              </div>
+              <div className={cn('h-2.5 rounded-full overflow-hidden w-full', darkMode ? 'bg-gray-700' : 'bg-gray-200')}>
+                <div className="h-full bg-blue-600 transition-all duration-300 ease-out rounded-full" style={{ width: `${batchDownloadProgress}%` }} />
+              </div>
+            </div>
+            <p className={cn("text-sm text-center mt-5", darkMode ? "text-gray-400" : "text-gray-500")}>
+              Creating ZIP archive ({selectedFiles.length} {selectedFiles.length !== 1 ? 'items' : 'item'}).
             </p>
           </div>
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4 backdrop-blur-sm animate-fadeIn">
+      {/* Share Modal */}
+      {showBatchShareModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 animate-fadeIn backdrop-blur-sm">
           <div
-            ref={deleteModalRef}
+            ref={batchShareModalRef}
             className={cn(
-              `p-6 rounded-xl max-w-sm w-full relative shadow-xl border animate-modalIn`,
-                 darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'
+              'p-6 rounded-lg shadow-xl max-w-md w-full relative border animate-modalIn',
+              darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'
             )}
-            role="alertdialog" aria-modal="true" aria-labelledby="delete-file-title" aria-describedby="delete-file-desc"
+            role="dialog" aria-modal="true" aria-labelledby="share-modal-title"
           >
-             <h2 id="delete-file-title" className={cn(`font-semibold mb-2 text-lg`, darkMode ? 'text-white' : 'text-gray-800')}>Confirm Delete</h2>
-             <p id="delete-file-desc" className={cn(`text-sm mb-3`, darkMode ? 'text-gray-300' : 'text-gray-600')}>
-               Are you sure you want to permanently delete this file?
-             </p>
-             {/* Display filename */}
-             <div className={cn(
-                 `font-medium max-w-full truncate overflow-hidden whitespace-nowrap my-3 p-2 rounded text-sm`,
-                  darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700 border border-gray-200'
-             )}>
-               {file.filename}
-             </div>
-             <p className={cn(`text-sm mb-5`, darkMode ? 'text-gray-400' : 'text-gray-600')}>
-               This action cannot be undone.
-             </p>
-             {/* Buttons */}
-             <div className="flex w-full justify-between gap-3 mt-4">
-               <button
-                 onClick={() => setShowDeleteConfirm(false)}
-                 disabled={isActionLoading}
-                 className={cn(
-                     `flex-1 px-4 py-2 rounded-md font-medium transition-colors text-sm`,
-                      isActionLoading
-                         ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed')
-                         : (darkMode ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-300')
-                 )}
-               >
-                 Cancel
-               </button>
-               <button
-                 onClick={deleteFile}
-                 disabled={isActionLoading}
-                 className={cn(
-                     `flex-1 px-4 py-2 rounded-md font-medium transition-colors text-sm text-white flex items-center justify-center gap-2`,
-                     isActionLoading ? 'bg-red-500 cursor-wait' : 'bg-red-600 hover:bg-red-700'
-                 )}
-               >
-                  {isActionLoading && (
-                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
-                  )}
-                 Delete
-               </button>
-             </div>
+            {/* Close Button */}
+            <button
+              onClick={() => {
+                if (!batchOperationLoading) {
+                  setShowBatchShareModal(false);
+                  refresh(); // Refresh list in case shared files were deleted (less likely but safe)
+                  setSelectedFiles([]); // Clear selection after closing share modal
+                }
+              }}
+              className={cn(
+                "absolute top-3 right-3 p-1.5 rounded-full transition-colors disabled:opacity-50",
+                batchOperationLoading ? "cursor-not-allowed" : (darkMode ? "hover:bg-gray-700 text-gray-400" : "hover:bg-gray-100 text-gray-500")
+              )}
+              disabled={batchOperationLoading} aria-label="Close share dialog"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"> <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /> </svg>
+            </button>
+
+            <h2 id="share-modal-title" className="text-center font-semibold text-lg mb-5">Share</h2>
+
+            {/* QR Code Section */}
+            <div className="flex justify-center mb-5">
+              <div className={cn("p-2 rounded-lg border", darkMode ? "border-gray-600 bg-gray-900" : "border-gray-300 bg-gray-50")}>
+                {batchOperationLoading && !batchShareLink ? (
+                  <div className="w-[150px] h-[150px] flex items-center justify-center">
+                    <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"> <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle> <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path> </svg>
+                  </div>
+                ) : batchShareLink ? (
+                  <QRCodeSVG
+                    value={batchShareLink}
+                    size={150}
+                    bgColor="transparent"
+                    fgColor={darkMode ? '#FFFFFF' : '#000000'}
+                    level="M"
+                    includeMargin={false}
+                  />
+                ) : (
+                  <div className="w-[150px] h-[150px] flex items-center justify-center text-center text-xs text-red-500 p-2">Error generating QR code. Link might be invalid or too long.</div>
+                )}
+              </div>
+            </div>
+
+            {/* Link and Copy Button - Vertical Layout */}
+            <div className="flex flex-col gap-2.5">
+              <input
+                type="text"
+                value={batchOperationLoading ? 'Generating link...' : batchShareLink || 'Error - No link generated'}
+                readOnly
+                className={cn(
+                  'w-full p-2 rounded-md border text-xs font-mono',
+                  'overflow-x-auto',
+                  darkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-300 text-gray-700'
+                )}
+                aria-label="Shareable link"
+                onClick={(e) => e.target.select()}
+              />
+              <button
+                onClick={copyToClipboard}
+                disabled={!batchShareLink || copied || batchOperationLoading}
+                className={cn(
+                  'w-full px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-2',
+                  copied
+                    ? 'bg-green-600 text-white cursor-default'
+                    : !batchShareLink || batchOperationLoading
+                      ? (darkMode ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                      : (darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
+                )}
+              >
+                {copied ? (
+                  <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</>
+                ) : (
+                  'Copy Link'
+                )}
+              </button>
+            </div>
+
+            {batchShareLink && (
+              <div className="mt-4 text-center">
+                <p className={cn("text-xs", darkMode ? "text-gray-400" : "text-gray-600")}>
+                  Anyone with the link can access the selected file{selectedFiles.length > 1 ? 's' : ''}.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-       {/* CSS Animations (shared with FileList, could be moved to a global CSS file) */}
-        <style jsx>{`
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            .animate-fadeIn { animation: fadeIn 0.2s ease-in-out; }
-            @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-            .animate-modalIn { animation: modalIn 0.25s ease-out; }
-        `}</style>
-    </>
+      {/* CSS Animations and Custom Scrollbar Styles */}
+      <style jsx>{`
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fadeIn { animation: fadeIn 0.2s ease-in-out; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .animate-modalIn { animation: modalIn 0.25s ease-out; }
+
+        /* Custom Scrollbar Styles */
+        .custom-scrollbar-container::-webkit-scrollbar {
+          width: 8px; /* Track width */
+        }
+
+        .custom-scrollbar-container::-webkit-scrollbar-track {
+          background: ${darkMode ? '#4A5568' : '#E2E8F0'}; /* Track background */
+          border-radius: 4px;
+        }
+
+        .custom-scrollbar-container::-webkit-scrollbar-thumb {
+          background: ${darkMode ? '#2563EB' : '#3B82F6'}; /* Thumb color */
+          border-radius: 4px;
+          cursor: pointer;
+        }
+
+        .custom-scrollbar-container::-webkit-scrollbar-thumb:hover {
+          background: ${darkMode ? '#3B82F6' : '#2563EB'}; /* Thumb hover color */
+        }
+
+        /* Hide default scrollbar in Firefox */
+         .custom-scrollbar-container {
+            scrollbar-width: thin;
+            scrollbar-color: ${darkMode ? '#2563EB #4A5568' : '#3B82F6 #E2E8F0'};
+         }
+
+      `}</style>
+    </div>
   );
 };
 
-export default FileItem;
+export default FileList;

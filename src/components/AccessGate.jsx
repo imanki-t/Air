@@ -9,7 +9,7 @@ const AccessGate = ({ onAccessGranted }) => {
   const [fadeOut, setFadeOut] = useState(false);
   const [loading, setLoading] = useState(true);
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const [darkMode, setDarkMode] = useState(false); // State to track dark mode
+  const [darkMode, setDarkMode] = useState(false);
   const [currentPhase, setCurrentPhase] = useState(0);
   const [phaseVisible, setPhaseVisible] = useState(false);
   const [phaseOpacity, setPhaseOpacity] = useState(0);
@@ -130,21 +130,7 @@ const AccessGate = ({ onAccessGranted }) => {
   const [typedQuote, setTypedQuote] = useState('');
   const [showPhases, setShowPhases] = useState(false);
 
-  // Abstract doodle shapes (using SVG paths)
-  const doodleShapes = [
-    "M10,10 Q30,5 50,30 T90,40",
-    "M5,20 C20,5 40,60 60,10 S80,50 95,20",
-    "M10,30 Q40,5 70,30 T90,25",
-    "M5,40 C40,10 60,60 95,30",
-    "M10,50 Q25,25 40,50 T70,30",
-    "M20 40 Q50 10 80 40 T20 40", // Curve
-    "M10 10 L90 90 M90 10 L10 90", // X shape
-    "M50 10 C70 30 70 70 50 90 C30 70 30 30 50 10 Z", // Organic blob
-    "M10 50 Q50 10 90 50 Q50 90 10 50 Z", // Diamond shape
-    "M20 80 L50 20 L80 80 Z", // Triangle
-  ];
 
-  // Effect to handle initial setup and theme detection
   useEffect(() => {
     // Detect system theme preference
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -158,6 +144,7 @@ const AccessGate = ({ onAccessGranted }) => {
     // Typing effect for quote
     const quote = quotes[Math.floor(Math.random() * quotes.length)];
     setCurrentQuote(quote);
+
     let index = 0;
     const typeInterval = setInterval(() => {
       setTypedQuote((prev) => prev + quote.charAt(index));
@@ -166,193 +153,239 @@ const AccessGate = ({ onAccessGranted }) => {
     }, 50);
 
     // Start loading phases and set total loading time
-    const initialDelay = 3000; // Initial delay before phases start
-    const phaseDuration = 1000; // Duration for each phase animation cycle
+    const initialDelay = 3000;
+    const phaseDuration = 1000;
     setTimeout(() => {
-      setShowPhases(true); // Start showing phases after initial delay
+      setShowPhases(true);
     }, initialDelay);
     setTimeout(() => {
-      setLoading(false); // Finish loading after all phases complete
+      setLoading(false);
     }, initialDelay + (phases.length * phaseDuration));
-
-    // Cleanup function
+    // Cleanup
     return () => {
-      clearInterval(typeInterval); // Clear quote typing interval
-      mediaQuery.removeEventListener('change', handleChange); // Remove theme change listener
+      clearInterval(typeInterval);
+      mediaQuery.removeEventListener('change', handleChange);
     };
-  }, []); // Empty dependency array ensures this runs only once on mount
-
-  // Effect to handle phase transitions during loading
+  }, []);
   useEffect(() => {
+    // Phase transition effects
     if (loading && showPhases) {
-      setPhaseVisible(true); // Make phase text visible
-      setPhaseOpacity(0); // Start with opacity 0 for fade-in
-
-      const fadeInSteps = 10; // Number of steps for fade-in animation
-      const fadeInInterval = 300 / fadeInSteps; // Time between each fade-in step
+      setPhaseVisible(true);
+      setPhaseOpacity(0);
+      const fadeInSteps = 10;
+      const fadeInInterval = 300 / fadeInSteps;
 
       let step = 0;
       const fadeInTimer = setInterval(() => {
         step++;
-        setPhaseOpacity(step / fadeInSteps); // Increase opacity
-        if (step >= fadeInSteps) clearInterval(fadeInTimer); // Stop fade-in when complete
+        setPhaseOpacity(step / fadeInSteps);
+        if (step >= fadeInSteps) clearInterval(fadeInTimer);
+
       }, fadeInInterval);
 
       const fadeOutTimer = setTimeout(() => {
-        const fadeOutSteps = 8; // Number of steps for fade-out animation
-        const fadeOutInterval = 300 / fadeOutSteps; // Time between each fade-out step
+        const fadeOutSteps = 8;
+        const fadeOutInterval = 300 / fadeOutSteps;
 
         let outStep = 0;
         const intervalId = setInterval(() => {
           outStep++;
-          setPhaseOpacity(1 - (outStep / fadeOutSteps)); // Decrease opacity
+          setPhaseOpacity(1 - (outStep / fadeOutSteps));
 
           if (outStep >= fadeOutSteps) {
-            clearInterval(intervalId); // Stop fade-out when complete
-            setPhaseVisible(false); // Hide phase text after fade-out
+            clearInterval(intervalId);
+            setPhaseVisible(false);
           }
         }, fadeOutInterval);
-      }, 600); // Delay before fade-out starts
+      }, 600);
 
       const nextTimer = setTimeout(() => {
         if (currentPhase < phases.length - 1) {
-          setCurrentPhase(prev => prev + 1); // Move to the next phase
+          setCurrentPhase(prev => prev + 1);
         }
-      }, 1000); // Time to display each phase
+      }, 1000);
 
-      // Cleanup function for phase timers
       return () => {
         clearInterval(fadeInTimer);
         clearTimeout(fadeOutTimer);
         clearTimeout(nextTimer);
       };
     }
-  }, [currentPhase, loading, showPhases, phases.length]); // Dependencies for this effect
-
-  // Effect to handle error message timeout
+  }, [currentPhase, loading, showPhases, phases.length]);
   useEffect(() => {
+    // Error message timeout
     if (error) {
-      const timer = setTimeout(() => setError(''), 5000); // Clear error after 5 seconds
-      return () => clearTimeout(timer); // Cleanup function to clear timeout
+      const timer = setTimeout(() => setError(''), 5000);
+      return () => clearTimeout(timer);
     }
-  }, [error]); // Dependency on error state
-
-  // Function to handle form submission
+  }, [error]);
   const handleSubmit = (e) => {
-    e.preventDefault(); // Prevent default form submission
-    // Get correct passkey and username from environment variables or use defaults
+    e.preventDefault();
     const correctPasskey = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone';
-    const correctUsername = import.meta.env.VITE_SITE_USERNAME || 'admin';
+    const correctUsername = import.meta.env.VITE_SITE_USERNAME || 'admin'; // Added username environment variable
 
-    // Check if entered credentials match
     if (username === correctUsername && passkey === correctPasskey) {
-      const audio = new Audio('/access-granted.mp3'); // Play success sound
-      audio.play().catch(() => {}); // Catch potential errors playing audio
-      setFadeOut(true); // Start fade-out animation
+      const audio = new Audio('/access-granted.mp3');
+      audio.play().catch(() => {});
+      setFadeOut(true);
       if (onAccessGranted) {
-           setTimeout(() => onAccessGranted(), 800); // Call onAccessGranted after fade-out
+           setTimeout(() => onAccessGranted(), 800);
       }
     } else {
-      setError('Access Denied: Invalid Passkey or Username'); // Set error message
-      setPasskey(''); // Clear passkey input
-      setUsername(''); // Clear username input
+      setError('Access Denied: Invalid Passkey or Username'); // Modified error message
+      setPasskey('');
+      setUsername(''); // Clear username on error
       const form = document.getElementById('access-form');
       if (form) {
-        form.classList.add('animate-shake'); // Add shake animation class
-        setTimeout(() => form.classList.remove('animate-shake'), 500); // Remove shake class after animation
+        form.classList.add('animate-shake');
+        setTimeout(() => form.classList.remove('animate-shake'), 500);
       }
     }
   };
 
-  // Function to toggle password visibility
   const togglePasswordVisibility = () => {
     setPasswordVisible(!passwordVisible);
   };
-
   // Calculate margin-bottom for mobile to prevent footer overlap
   const mobileMarginBottom = loading ? 'mb-0' : 'mb-20';
   // Adjust 20 as needed based on footer height
 
-  // Render the Access Gate UI
+
+  const renderDecorations = () => {
+    const decorations = [];
+
+    // Generate floating dots
+    for (let i = 0; i < 15; i++) {
+      const size = Math.floor(Math.random() * 6) + 2;
+      const top = Math.floor(Math.random() * 100);
+      const left = Math.floor(Math.random() * 100);
+      const delay = Math.random() * 5;
+
+      decorations.push(
+        <div
+          key={`dot-${i}`}
+          className={`absolute rounded-full ${darkMode ? 'bg-blue-400/20' : 'bg-red-400/20'}
+                      animate-float`}
+          style={{
+            width: `${size}px`,
+            height: `${size}px`,
+            top: `${top}%`,
+            left: `${left}%`,
+            animationDelay: `${delay}s`,
+          }}
+        />
+      );
+    }
+
+    // Generate blob shapes
+    for (let i = 0; i < 5; i++) {
+      const top = Math.floor(Math.random() * 100);
+      const left = Math.floor(Math.random() * 100);
+      const size = Math.floor(Math.random() * 150) + 50;
+      const delay = Math.random() * 10;
+
+      decorations.push(
+        <div
+          key={`blob-${i}`}
+          className={`absolute rounded-full filter blur-xl opacity-20 animate-blob
+                     ${darkMode ? 'bg-primaryBlue/30' : 'bg-primaryRed/30'}`}
+          style={{
+            width: `${size}px`,
+            height: `${size}px`,
+            top: `${top}%`,
+            left: `${left}%`,
+            animationDelay: `${delay}s`,
+          }}
+        />
+      );
+    }
+
+    // Abstract doodles
+    const doodleShapes = [
+      "M10,10 Q30,5 50,30 T90,40",
+      "M5,20 C20,5 40,60 60,10 S80,50 95,20",
+      "M10,30 Q40,5 70,30 T90,25",
+      "M5,40 C40,10 60,60 95,30",
+      "M10,50 Q25,25 40,50 T70,30",
+    ];
+    for (let i = 0; i < 10; i++) {
+      const top = Math.floor(Math.random() * 90) + 5;
+      const left = Math.floor(Math.random() * 90) + 5;
+      const scale = (Math.random() * 0.5) + 0.5;
+      const rotate = Math.floor(Math.random() * 360);
+      const shape = doodleShapes[Math.floor(Math.random() * doodleShapes.length)];
+      decorations.push(
+        <svg
+          key={`doodle-${i}`}
+          className="absolute opacity-10 pointer-events-none"
+          width="40"
+          height="20"
+          style={{
+            top: `${top}%`,
+            left: `${left}%`,
+            transform: `scale(${scale}) rotate(${rotate}deg)`,
+          }}
+        >
+          <path
+            d={shape}
+            fill="none"
+            stroke={darkMode ? "#3b82f6" : "#ef4444"}
+            strokeWidth="2"
+          />
+        </svg>
+      );
+    }
+
+    // Add particle effects
+    for (let i = 0; i < 15; i++) {
+      const size = Math.floor(Math.random() * 3) + 1;
+      const top = Math.floor(Math.random() * 100);
+      const left = Math.floor(Math.random() * 100);
+      const delay = Math.random() * 5;
+      const duration = (Math.random() * 10) + 10;
+
+      decorations.push(
+        <div
+          key={`particle-${i}`}
+          className={`absolute ${darkMode ? 'bg-blue-300' : 'bg-red-300'} rounded-full`}
+          style={{
+            width: `${size}px`,
+            height: `${size}px`,
+            top: `${top}%`,
+            left: `${left}%`,
+            opacity: 0.3,
+            animation: `float ${duration}s ease-in-out infinite`,
+            animationDelay: `${delay}s`,
+          }}
+        />
+      );
+    }
+    return decorations;
+  };
+
+
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ease-in-out overflow-hidden ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
-      // Background color based on dark mode
       style={{ background: darkMode ? '#0f172a' : '#ffffff' }}
     >
-      {/* Background Grid and Abstract Decorations */}
-      <div className="absolute inset-0 overflow-hidden">
-         {/* Grid background - Matching Homepage style */}
+      {/* Background Grid and Animations */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+         {/* Grid background */}
         <div
-          className={`absolute inset-0 opacity-20`} // Increased opacity slightly
+          className={`absolute inset-0 opacity-10`}
           style={{
             backgroundImage: darkMode
               ? `linear-gradient(to right, rgba(66, 135, 245, 0.2) 1px, transparent 1px),
-                 linear-gradient(to bottom, rgba(66, 135, 245, 0.2) 1px, transparent 1px)` // Blue grid for dark mode
+                 linear-gradient(to bottom, rgba(66, 135, 245, 0.2) 1px, transparent 1px)`
               : `linear-gradient(to right, rgba(139, 0, 0, 0.3) 1px, transparent 1px),
-                 linear-gradient(to bottom, rgba(139, 0, 0, 0.3) 1px, transparent 1px)`, // Red grid for light mode
-            backgroundSize: '30px 30px', // Adjust grid spacing here (same for both modes)
+                 linear-gradient(to bottom, rgba(139, 0, 0, 0.3) 1px, transparent 1px)`,
+            backgroundSize: '30px 30px',
+            backgroundColor: darkMode ? '#0f172a' : '#ffffff',
           }}
         />
-
-        {/* Abstract corner shapes (Doodles for Desktop - visible only on lg screens and above) */}
-        {doodleShapes.map((shape, index) => {
-          const top = Math.floor(Math.random() * 90) + 5;
-          const left = Math.floor(Math.random() * 90) + 5;
-          const scale = (Math.random() * 0.5) + 0.5;
-          const rotate = Math.floor(Math.random() * 360);
-          const width = Math.floor(Math.random() * 30) + 20; // Random width between 20 and 50
-          const height = Math.floor(Math.random() * 30) + 20; // Random height between 20 and 50
-
-          return (
-            <svg
-              key={`doodle-${index}`}
-              className="absolute opacity-10 pointer-events-none hidden lg:block" // Hidden on small screens
-              width={`${width}`}
-              height={`${height}`}
-              style={{
-                top: `${top}%`,
-                left: `${left}%`,
-                transform: `scale(${scale}) rotate(${rotate}deg)`,
-                animation: `float ${Math.random() * 10 + 10}s ease-in-out infinite`, // Add float animation
-                animationDelay: `${Math.random() * 5}s`, // Random animation delay
-              }}
-              viewBox="0 0 100 100" // Set viewBox for consistent scaling
-            >
-              <path
-                d={shape}
-                fill="none"
-                stroke={darkMode ? "#3b82f6" : "#ef4444"} // Stroke color based on dark mode
-                strokeWidth="2"
-              />
-            </svg>
-          );
-        })}
-
-        {/* Floating Particles (Dots) - Added back for more abstractness */}
-        {Array.from({ length: 30 }).map((_, i) => {
-          const size = Math.floor(Math.random() * 6) + 2;
-          const top = Math.floor(Math.random() * 100);
-          const left = Math.floor(Math.random() * 100);
-          const delay = Math.random() * 5;
-          const duration = (Math.random() * 10) + 10;
-
-          return (
-            <div
-              key={`particle-${i}`}
-              className={`absolute ${darkMode ? 'bg-blue-300/30' : 'bg-red-300/30'} rounded-full pointer-events-none`} // Added opacity and pointer-events-none
-              style={{
-                width: `${size}px`,
-                height: `${size}px`,
-                top: `${top}%`,
-                left: `${left}%`,
-                animation: `float ${duration}s ease-in-out infinite`,
-                animationDelay: `${delay}s`,
-              }}
-            />
-          );
-        })}
-
+        {/* Abstract decorative elements from Homepage */}
+        {renderDecorations()}
       </div>
 
       {/* App Header */}
@@ -407,20 +440,20 @@ const AccessGate = ({ onAccessGranted }) => {
           <div className="flex flex-col items-center">
             <div className="w-full relative max-w-xs sm:max-w-sm">
               {/* Background gradient behind form */}
-              {/* Removed pulsing gradient behind form for cleaner white look */}
-              {/* Form container - White themed */}
-              <div className={`relative rounded-xl overflow-hidden border ${darkMode ? 'bg-gray-900/90 backdrop-blur-md border-gray-800' : 'bg-white/90 backdrop-blur-md border-gray-200'}`}> {/* Background based on dark mode, but leaning white in light mode */}
+              <div className={`absolute -inset-1 ${darkMode ? 'bg-gradient-to-r from-blue-600 via-blue-600 to-blue-600' : 'bg-gradient-to-r from-red-600 via-red-600 to-red-600'} rounded-2xl opacity-70 blur-sm animate-pulse`}></div>
+              {/* Form container - Changed to white theme */}
+              <div className={`relative rounded-xl overflow-hidden border ${darkMode ? 'bg-gray-900/90 backdrop-blur-md border-gray-800' : 'bg-white/90 backdrop-blur-md border-gray-200'}`}> {/* Background based on dark mode */}
                  {/* Top border gradient */}
                 <div className={`absolute top-0 left-0 right-0 h-1 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'}`}></div>
-                 {/* Inner grid pattern - subtle */}
+                 {/* Inner grid pattern - Adjusted opacity for white theme */}
                 <div className={`absolute inset-0 opacity-5`} style={{
                    backgroundImage: darkMode
                      ? `radial-gradient(circle, #3b82f6 1px, transparent 1px)`
-                     : `radial-gradient(circle, #000000 0.5px, transparent 0.5px)`, // Adjusted for even lighter grid in light mode
-                   backgroundSize: '15px 15px', // Smaller grid size
+                     : `radial-gradient(circle, #000000 1px, transparent 1px)`, // Adjusted for darker grid in light mode
+                   backgroundSize: '20px 20px',
                 }}></div>
                 <div className="p-6 pt-10">
-                  <div className="text-center mb-6">
+                   <div className="text-center mb-6">
                      {/* SECURE ACCESS text gradient */}
                     <h2 className={`text-xl font-bold text-transparent bg-clip-text ${darkMode ? 'bg-gradient-to-r from-blue-400 to-blue-400' : 'bg-gradient-to-r from-red-400 to-red-400'} mb-1`}>
                       SECURE ACCESS
@@ -430,10 +463,10 @@ const AccessGate = ({ onAccessGranted }) => {
                     </p>
                   </div>
                   <form id="access-form" onSubmit={handleSubmit} className="space-y-4">
-                     {/* Username Input Box */}
+                     {/* Username Input Box - Changed background for white theme */}
                     <div className="relative">
-                      {/* Background gradient behind input - subtle */}
-                      <div className={`absolute -inset-0.5 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'} rounded-lg blur opacity-10`}></div> {/* Reduced opacity */}
+                      {/* Background gradient behind input */}
+                      <div className={`absolute -inset-0.5 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'} rounded-lg blur opacity-30`}></div>
                       <div className="relative">
                          {/* Username Input */}
                         <input
@@ -441,22 +474,22 @@ const AccessGate = ({ onAccessGranted }) => {
                           value={username}
                           onChange={(e) => setUsername(e.target.value)}
                           placeholder="Username"
-                          className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 ${darkMode ? 'bg-gray-800 text-white border border-gray-700 focus:ring-blue-500 focus:border-transparent' : 'bg-white text-gray-800 border border-gray-300 focus:ring-red-500 focus:border-transparent'}`} // Styles based on dark mode, white background in light mode
+                          className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 ${darkMode ? 'bg-gray-800 text-white border border-gray-700 focus:ring-blue-500 focus:border-transparent' : 'bg-white text-gray-800 border border-gray-300 focus:ring-red-500 focus:border-transparent'}`} // Styles based on dark mode
                           autoComplete="off"
                         />
                       </div>
                     </div>
                     <div className="relative">
-                      {/* Background gradient behind input - subtle */}
-                      <div className={`absolute -inset-0.5 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'} rounded-lg blur opacity-10`}></div> {/* Reduced opacity */}
+                      {/* Background gradient behind input */}
+                      <div className={`absolute -inset-0.5 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'} rounded-lg blur opacity-30`}></div>
                       <div className="relative">
-                           {/* Passkey Input */}
+                           {/* Passkey Input - Changed background for white theme */}
                         <input
                           type={passwordVisible ? "text" : "password"}
                           value={passkey}
                           onChange={(e) => setPasskey(e.target.value)}
                           placeholder="Passkey"
-                          className={`w-full px-4 py-3 pr-10 rounded-lg focus:outline-none focus:ring-2 ${darkMode ? 'bg-gray-800 text-white border border-gray-700 focus:ring-blue-500 focus:border-transparent' : 'bg-white text-gray-800 border border-gray-300 focus:ring-red-500 focus:border-transparent'}`} // Styles based on dark mode, white background in light mode
+                          className={`w-full px-4 py-3 pr-10 rounded-lg focus:outline-none focus:ring-2 ${darkMode ? 'bg-gray-800 text-white border border-gray-700 focus:ring-blue-500 focus:border-transparent' : 'bg-white text-gray-800 border border-gray-300 focus:ring-red-500 focus:border-transparent'}`} // Styles based on dark mode
                           autoComplete="off"
                         />
                          {/* Password Visibility Toggle Button */}
@@ -471,7 +504,7 @@ const AccessGate = ({ onAccessGranted }) => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59" />
                             </svg>
                           ) : (
-                            // Eye icon
+                     // Eye icon
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -498,7 +531,7 @@ const AccessGate = ({ onAccessGranted }) => {
                       <span className="flex items-center justify-center">
                          {/* Lock icon */}
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
                         </svg>
                         Unlock Access
                       </span>
@@ -506,7 +539,7 @@ const AccessGate = ({ onAccessGranted }) => {
                   </form>
                 </div>
                 {/* Quote section */}
-                <div className={`p-4 border-t ${darkMode ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-600'} text-center text-sm italic`}> {/* Styles based on dark mode */}
+                 <div className={`p-4 border-t ${darkMode ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-600'} text-center text-sm italic`}> {/* Styles based on dark mode */}
                   {currentQuote}
                 </div>
               </div>
@@ -526,7 +559,7 @@ const AccessGate = ({ onAccessGranted }) => {
         </div>
         <div className="flex items-center space-x-1">
           <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-blue-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 0 002-2v-6a2 2 0 00-2-2H6a2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 0 002-2v-6a2 0 00-2-2H6a2 0 00-2 2v6a2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
           <span className={darkMode ? 'text-gray-500' : 'text-gray-600'}>Secure Authentication</span> {/* Text color based on dark mode */}
         </div>
@@ -545,7 +578,6 @@ const AccessGate = ({ onAccessGranted }) => {
         </p>
       </div>
 
-      {/* Keyframes for animations */}
       <style jsx>{`
         @keyframes orbital-rotation {
           from { transform: translate(-50%, -50%) rotate(0deg); }
@@ -557,6 +589,13 @@ const AccessGate = ({ onAccessGranted }) => {
           50% { transform: translateY(-10px); }
         }
 
+         @keyframes blob {
+            0% { transform: scale(1) translate(0, 0); }
+            33% { transform: scale(1.1) translate(30px, -20px); }
+            66% { transform: scale(0.9) translate(-20px, 30px); }
+            100% { transform: scale(1) translate(0, 0); }
+          }
+
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
           10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
@@ -566,6 +605,10 @@ const AccessGate = ({ onAccessGranted }) => {
         .animate-shake {
           animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
         }
+
+         .animate-blob {
+            animation: blob 7s infinite ease-in-out;
+          }
       `}</style>
     </div>
   );

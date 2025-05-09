@@ -144,7 +144,6 @@ const AccessGate = ({ onAccessGranted }) => {
     // Typing effect for quote
     const quote = quotes[Math.floor(Math.random() * quotes.length)];
     setCurrentQuote(quote);
-
     let index = 0;
     const typeInterval = setInterval(() => {
       setTypedQuote((prev) => prev + quote.charAt(index));
@@ -180,7 +179,6 @@ const AccessGate = ({ onAccessGranted }) => {
         step++;
         setPhaseOpacity(step / fadeInSteps);
         if (step >= fadeInSteps) clearInterval(fadeInTimer);
-
       }, fadeInInterval);
 
       const fadeOutTimer = setTimeout(() => {
@@ -232,9 +230,11 @@ const AccessGate = ({ onAccessGranted }) => {
            setTimeout(() => onAccessGranted(), 800);
       }
     } else {
-      setError('Access Denied: Invalid Passkey or Username'); // Modified error message
+      setError('Access Denied: Invalid Passkey or Username');
+      // Modified error message
       setPasskey('');
-      setUsername(''); // Clear username on error
+      setUsername('');
+      // Clear username on error
       const form = document.getElementById('access-form');
       if (form) {
         form.classList.add('animate-shake');
@@ -251,141 +251,49 @@ const AccessGate = ({ onAccessGranted }) => {
   // Adjust 20 as needed based on footer height
 
 
-  const renderDecorations = () => {
-    const decorations = [];
-
-    // Generate floating dots
-    for (let i = 0; i < 15; i++) {
-      const size = Math.floor(Math.random() * 6) + 2;
-      const top = Math.floor(Math.random() * 100);
-      const left = Math.floor(Math.random() * 100);
-      const delay = Math.random() * 5;
-
-      decorations.push(
-        <div
-          key={`dot-${i}`}
-          className={`absolute rounded-full ${darkMode ? 'bg-blue-400/20' : 'bg-red-400/20'}
-                      animate-float`}
-          style={{
-            width: `${size}px`,
-            height: `${size}px`,
-            top: `${top}%`,
-            left: `${left}%`,
-            animationDelay: `${delay}s`,
-          }}
-        />
-      );
-    }
-
-    // Generate blob shapes
-    for (let i = 0; i < 5; i++) {
-      const top = Math.floor(Math.random() * 100);
-      const left = Math.floor(Math.random() * 100);
-      const size = Math.floor(Math.random() * 150) + 50;
-      const delay = Math.random() * 10;
-
-      decorations.push(
-        <div
-          key={`blob-${i}`}
-          className={`absolute rounded-full filter blur-xl opacity-20 animate-blob
-                     ${darkMode ? 'bg-primaryBlue/30' : 'bg-primaryRed/30'}`}
-          style={{
-            width: `${size}px`,
-            height: `${size}px`,
-            top: `${top}%`,
-            left: `${left}%`,
-            animationDelay: `${delay}s`,
-          }}
-        />
-      );
-    }
-
-    // Abstract doodles
-    const doodleShapes = [
-      "M10,10 Q30,5 50,30 T90,40",
-      "M5,20 C20,5 40,60 60,10 S80,50 95,20",
-      "M10,30 Q40,5 70,30 T90,25",
-      "M5,40 C40,10 60,60 95,30",
-      "M10,50 Q25,25 40,50 T70,30",
-    ];
-    for (let i = 0; i < 10; i++) {
-      const top = Math.floor(Math.random() * 90) + 5;
-      const left = Math.floor(Math.random() * 90) + 5;
-      const scale = (Math.random() * 0.5) + 0.5;
-      const rotate = Math.floor(Math.random() * 360);
-      const shape = doodleShapes[Math.floor(Math.random() * doodleShapes.length)];
-      decorations.push(
-        <svg
-          key={`doodle-${i}`}
-          className="absolute opacity-10 pointer-events-none"
-          width="40"
-          height="20"
-          style={{
-            top: `${top}%`,
-            left: `${left}%`,
-            transform: `scale(${scale}) rotate(${rotate}deg)`,
-          }}
-        >
-          <path
-            d={shape}
-            fill="none"
-            stroke={darkMode ? "#3b82f6" : "#ef4444"}
-            strokeWidth="2"
-          />
-        </svg>
-      );
-    }
-
-    // Add particle effects
-    for (let i = 0; i < 15; i++) {
-      const size = Math.floor(Math.random() * 3) + 1;
-      const top = Math.floor(Math.random() * 100);
-      const left = Math.floor(Math.random() * 100);
-      const delay = Math.random() * 5;
-      const duration = (Math.random() * 10) + 10;
-
-      decorations.push(
-        <div
-          key={`particle-${i}`}
-          className={`absolute ${darkMode ? 'bg-blue-300' : 'bg-red-300'} rounded-full`}
-          style={{
-            width: `${size}px`,
-            height: `${size}px`,
-            top: `${top}%`,
-            left: `${left}%`,
-            opacity: 0.3,
-            animation: `float ${duration}s ease-in-out infinite`,
-            animationDelay: `${delay}s`,
-          }}
-        />
-      );
-    }
-    return decorations;
-  };
-
-
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ease-in-out overflow-hidden ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
       style={{ background: darkMode ? '#0f172a' : '#ffffff' }}
     >
       {/* Background Grid and Animations */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 overflow-hidden">
          {/* Grid background */}
         <div
-          className={`absolute inset-0 opacity-10`}
+          className={`absolute inset-0`} // Removed opacity-10 class
           style={{
             backgroundImage: darkMode
               ? `linear-gradient(to right, rgba(66, 135, 245, 0.2) 1px, transparent 1px),
                  linear-gradient(to bottom, rgba(66, 135, 245, 0.2) 1px, transparent 1px)`
-              : `linear-gradient(to right, rgba(139, 0, 0, 0.3) 1px, transparent 1px),
-                 linear-gradient(to bottom, rgba(139, 0, 0, 0.3) 1px, transparent 1px)`,
+              : `linear-gradient(to right, rgba(139, 0, 0, 0.3) 1px, transparent 1px), // Changed color for light mode
+                 linear-gradient(to bottom, rgba(139, 0, 0, 0.3) 1px, transparent 1px)`, // Changed color for light mode
             backgroundSize: '30px 30px',
-            backgroundColor: darkMode ? '#0f172a' : '#ffffff',
+            backgroundColor: darkMode ? '#0f172a' : '#ffffff', // Added background color
           }}
         />
-        {/* Abstract decorative elements from Homepage */}
-        {renderDecorations()}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none">
+           {/* Rotating Rings */}
+          {[1, 2, 3, 4].map(ring => (
+            <div key={ring}
+              className={`absolute rounded-full border ${darkMode ? 'border-blue-500/20' : 'border-red-500/20'}`}
+              style={{
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: `${ring * 60}%`,
+                height: `${ring * 60}%`,
+                animation: `orbital-rotation ${ring * 20 + 40}s linear infinite`
+              }}
+            />
+          ))}
+        </div>
+        {/* Removed Floating Particles (Dots) */}
+         {/* Abstract corner shapes (Doodles for Desktop) */}
+        <div className={`absolute top-1/4 left-1/4 w-64 h-64 rounded-full ${darkMode ? 'bg-blue-500/10' : 'bg-red-500/10'} blur-3xl hidden lg:block`}></div>
+        <div className={`absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full ${darkMode ? 'bg-blue-500/10' : 'bg-red-500/10'} blur-3xl hidden lg:block`}></div>
+         {/* More Doodles for Desktop */}
+         <div className={`absolute top-1/2 left-10 w-48 h-48 rounded-full ${darkMode ? 'bg-teal-500/10' : 'bg-green-500/10'} blur-3xl hidden lg:block`}></div>
+         <div className={`absolute bottom-1/2 right-10 w-48 h-48 rounded-full ${darkMode ? 'bg-purple-500/10' : 'bg-yellow-500/10'} blur-3xl hidden lg:block`}></div>
       </div>
 
       {/* App Header */}
@@ -441,11 +349,11 @@ const AccessGate = ({ onAccessGranted }) => {
             <div className="w-full relative max-w-xs sm:max-w-sm">
               {/* Background gradient behind form */}
               <div className={`absolute -inset-1 ${darkMode ? 'bg-gradient-to-r from-blue-600 via-blue-600 to-blue-600' : 'bg-gradient-to-r from-red-600 via-red-600 to-red-600'} rounded-2xl opacity-70 blur-sm animate-pulse`}></div>
-              {/* Form container - Changed to white theme */}
+              {/* Form container */}
               <div className={`relative rounded-xl overflow-hidden border ${darkMode ? 'bg-gray-900/90 backdrop-blur-md border-gray-800' : 'bg-white/90 backdrop-blur-md border-gray-200'}`}> {/* Background based on dark mode */}
                  {/* Top border gradient */}
                 <div className={`absolute top-0 left-0 right-0 h-1 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'}`}></div>
-                 {/* Inner grid pattern - Adjusted opacity for white theme */}
+                 {/* Inner grid pattern */}
                 <div className={`absolute inset-0 opacity-5`} style={{
                    backgroundImage: darkMode
                      ? `radial-gradient(circle, #3b82f6 1px, transparent 1px)`
@@ -463,9 +371,9 @@ const AccessGate = ({ onAccessGranted }) => {
                     </p>
                   </div>
                   <form id="access-form" onSubmit={handleSubmit} className="space-y-4">
-                     {/* Username Input Box - Changed background for white theme */}
+                     {/* Username Input Box */}
                     <div className="relative">
-                      {/* Background gradient behind input */}
+                       {/* Background gradient behind input */}
                       <div className={`absolute -inset-0.5 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'} rounded-lg blur opacity-30`}></div>
                       <div className="relative">
                          {/* Username Input */}
@@ -474,7 +382,7 @@ const AccessGate = ({ onAccessGranted }) => {
                           value={username}
                           onChange={(e) => setUsername(e.target.value)}
                           placeholder="Username"
-                          className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 ${darkMode ? 'bg-gray-800 text-white border border-gray-700 focus:ring-blue-500 focus:border-transparent' : 'bg-white text-gray-800 border border-gray-300 focus:ring-red-500 focus:border-transparent'}`} // Styles based on dark mode
+                          className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 ${darkMode ? 'bg-gray-800 text-white border border-gray-700 focus:ring-blue-500 focus:border-transparent' : 'bg-gray-100 text-gray-800 border border-gray-300 focus:ring-red-500 focus:border-transparent'}`} // Styles based on dark mode
                           autoComplete="off"
                         />
                       </div>
@@ -483,13 +391,13 @@ const AccessGate = ({ onAccessGranted }) => {
                       {/* Background gradient behind input */}
                       <div className={`absolute -inset-0.5 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'} rounded-lg blur opacity-30`}></div>
                       <div className="relative">
-                           {/* Passkey Input - Changed background for white theme */}
+                           {/* Passkey Input */}
                         <input
                           type={passwordVisible ? "text" : "password"}
                           value={passkey}
                           onChange={(e) => setPasskey(e.target.value)}
                           placeholder="Passkey"
-                          className={`w-full px-4 py-3 pr-10 rounded-lg focus:outline-none focus:ring-2 ${darkMode ? 'bg-gray-800 text-white border border-gray-700 focus:ring-blue-500 focus:border-transparent' : 'bg-white text-gray-800 border border-gray-300 focus:ring-red-500 focus:border-transparent'}`} // Styles based on dark mode
+                          className={`w-full px-4 py-3 pr-10 rounded-lg focus:outline-none focus:ring-2 ${darkMode ? 'bg-gray-800 text-white border border-gray-700 focus:ring-blue-500 focus:border-transparent' : 'bg-gray-100 text-gray-800 border border-gray-300 focus:ring-red-500 focus:border-transparent'}`} // Styles based on dark mode
                           autoComplete="off"
                         />
                          {/* Password Visibility Toggle Button */}
@@ -504,7 +412,7 @@ const AccessGate = ({ onAccessGranted }) => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59" />
                             </svg>
                           ) : (
-                     // Eye icon
+                             // Eye icon
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -539,7 +447,7 @@ const AccessGate = ({ onAccessGranted }) => {
                   </form>
                 </div>
                 {/* Quote section */}
-                 <div className={`p-4 border-t ${darkMode ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-600'} text-center text-sm italic`}> {/* Styles based on dark mode */}
+                <div className={`p-4 border-t ${darkMode ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-600'} text-center text-sm italic`}> {/* Styles based on dark mode */}
                   {currentQuote}
                 </div>
               </div>
@@ -559,7 +467,7 @@ const AccessGate = ({ onAccessGranted }) => {
         </div>
         <div className="flex items-center space-x-1">
           <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-blue-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 0 002-2v-6a2 0 00-2-2H6a2 0 00-2 2v6a2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 0 002-2v-6a2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
           <span className={darkMode ? 'text-gray-500' : 'text-gray-600'}>Secure Authentication</span> {/* Text color based on dark mode */}
         </div>
@@ -578,6 +486,34 @@ const AccessGate = ({ onAccessGranted }) => {
         </p>
       </div>
 
+      {/* Additional Decorative Elements (Doodles) - Hidden on small screens */}
+      <div className="fixed top-10 left-10 w-16 h-16 opacity-10 hidden lg:block">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="40" fill="none" stroke={darkMode ? "#3b82f6" : "#ef4444"} strokeWidth="2" />
+          <path d="M50,10 L50,90 M10,50 L90,50" stroke={darkMode ? "#3b82f6" : "#ef4444"} strokeWidth="1" />
+        </svg>
+      </div>
+      <div className="fixed bottom-10 left-10 w-16 h-16 opacity-10 hidden lg:block">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="40" fill="none" stroke={darkMode ? "#8b5cf6" : "#f87171"} strokeWidth="2" />
+          <path d="M50,10 L50,90 M10,50 L90,50" stroke={darkMode ? "#8b5cf6" : "#f87171"} strokeWidth="1" />
+        </svg>
+      </div>
+       <div className="fixed top-20 right-20 w-20 h-20 opacity-10 hidden lg:block">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+           <path d="M20 40 Q50 10 80 40 T20 40" fill="none" stroke={darkMode ? "#06b6d4" : "#facc15"} strokeWidth="2"/>
+           <circle cx="50" cy="50" r="10" fill={darkMode ? "#06b6d4" : "#facc15"}/>
+        </svg>
+      </div>
+       <div className="fixed bottom-20 left-20 w-24 h-24 opacity-10 hidden lg:block">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="10" width="80" height="80" rx="15" ry="15" fill="none" stroke={darkMode ? "#a78bfa" : "#f472b6"} strokeWidth="3"/>
+           <line x1="20" y1="80" x2="80" y2="20" stroke={darkMode ? "#a78bfa" : "#f472b6"} strokeWidth="2"/>
+           <line x1="20" y1="20" x2="80" y2="80" stroke={darkMode ? "#a78bfa" : "#f472b6"} strokeWidth="2"/>
+        </svg>
+      </div>
+
+
       <style jsx>{`
         @keyframes orbital-rotation {
           from { transform: translate(-50%, -50%) rotate(0deg); }
@@ -589,13 +525,6 @@ const AccessGate = ({ onAccessGranted }) => {
           50% { transform: translateY(-10px); }
         }
 
-         @keyframes blob {
-            0% { transform: scale(1) translate(0, 0); }
-            33% { transform: scale(1.1) translate(30px, -20px); }
-            66% { transform: scale(0.9) translate(-20px, 30px); }
-            100% { transform: scale(1) translate(0, 0); }
-          }
-
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
           10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
@@ -605,10 +534,6 @@ const AccessGate = ({ onAccessGranted }) => {
         .animate-shake {
           animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
         }
-
-         .animate-blob {
-            animation: blob 7s infinite ease-in-out;
-          }
       `}</style>
     </div>
   );

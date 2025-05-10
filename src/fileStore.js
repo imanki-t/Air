@@ -18,7 +18,6 @@ function getDB() {
   });
 }
 
-// Save a file with a unique ID
 export async function saveFile(id, file) {
   const db = await getDB();
   return new Promise((resolve, reject) => {
@@ -30,7 +29,6 @@ export async function saveFile(id, file) {
   });
 }
 
-// Retrieve a file by ID
 export async function getFile(id) {
   const db = await getDB();
   return new Promise((resolve, reject) => {
@@ -42,7 +40,6 @@ export async function getFile(id) {
   });
 }
 
-// Delete a file by ID
 export async function deleteFile(id) {
   const db = await getDB();
   return new Promise((resolve, reject) => {
@@ -54,7 +51,6 @@ export async function deleteFile(id) {
   });
 }
 
-// Optional: List all files in the store
 export async function listFiles() {
   const db = await getDB();
   return new Promise((resolve, reject) => {

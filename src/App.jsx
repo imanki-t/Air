@@ -116,7 +116,7 @@ function App() {
         >
           <div className="max-w-6xl mx-auto flex items-center justify-center">
             <div className="text-center">
-              <h1 className={`text-4xl font-vintage tracking-wide ${darkMode ? 'text-white' : 'text-gray-900'}`}>AIRSTREAM</h1>
+              <h1 className={`text-4xl font-bold tracking-wide ${darkMode ? 'text-white' : 'text-gray-900'}`}>AIRSTREAM</h1>
             </div>
           </div>
         </header>

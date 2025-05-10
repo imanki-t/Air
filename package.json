@@ -23,6 +23,7 @@
     "vite": "",
     "@vitejs/plugin-react": "",
     "tailwindcss": "",
+    "@tailwindcss/postcss": "",
     "autoprefixer": "",
     "postcss": ""
   }

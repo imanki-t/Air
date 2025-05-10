@@ -1,10 +1,13 @@
+/* Google Fonts Import */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
+/* Tailwind Imports */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Custom Variables */
 :root {
   --vintage-border-color: white;
 }
@@ -13,6 +16,7 @@
   --vintage-border-color: #1f2937;
 }
 
+/* Custom Components */
 @layer components {
   .vintage-btn {
     @apply px-3 py-1 rounded-md text-white font-bold shadow-md;
@@ -38,6 +42,7 @@
   }
 }
 
+/* Custom Utilities */
 @layer utilities {
   .search-placeholder::placeholder {
     font-size: 1.5rem;

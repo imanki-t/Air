@@ -331,7 +331,7 @@ const AccessGate = ({ onAccessGranted }) => {
               {showPhases && phaseVisible && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span
-                    className={`text-xl md:text-2xl ${darkMode ? 'text-gray-300' : 'text-black'}`} // Text color based on dark mode
+                    className={`text-xl md:text-2xl font-bold uppercase ${darkMode ? 'text-gray-300' : 'text-black'}`} // Text color based on dark mode
                     style={{
                       opacity: phaseOpacity,
                       transition: 'opacity 100ms ease-in-out',

@@ -9,7 +9,6 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        vintage: ['"Press Start 2P"', 'cursive'],
         inter: ['Inter', 'sans-serif'], // in case you want to refer to it as 'inter'
       },
       colors: {

@@ -184,7 +184,7 @@ backgroundSize: '30px 30px', // Adjust grid spacing here (same for both modes)
       <section className="relative z-10 px-6 pt-16 mx-auto max-w-7xl md:pt-24">
         <div className="text-center">
 <h1 className="text-4xl font-extrabold tracking-tight md:text-6xl">
-            Your Personal <span className={darkMode ? 'text-primaryBlue' : 'text-primaryRed'}>File Management</span> System
+            YOUR PERSONAL <span className={darkMode ? 'text-primaryBlue' : 'text-primaryRed'}>CLOUD FILE</span> SERVICE
 </h1>
           <p className="max-w-2xl mx-auto mt-6 text-xl">
             Organize, access, and secure your files with an elegant, efficient, and personalized experience.

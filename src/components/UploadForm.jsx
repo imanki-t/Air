@@ -609,7 +609,7 @@ const UploadForm = ({ refresh, darkMode }) => {
       }`}
     >
       <h3 className={`text-2xl font-semibold mb-2 text-center ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-        Upload File
+        ‎ 
       </h3>
 
       {/* Resume Notice */}

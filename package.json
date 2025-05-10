@@ -8,22 +8,23 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "react-router-dom": "^6.23.0",
-    "axios": "^1.7.2",
-    "qrcode.react": "^3.1.0",
-    "jszip": "^3.10.1",
-    "file-saver": "^2.0.5",
-    "uuid": "^9.0.1",
-    "react-custom-scrollbars-2": "^4.0.0",
-    "prop-types": "^15.8.1"
+    "react": "",
+    "react-dom": "",
+    "react-router-dom": "",
+    "axios": "",
+    "qrcode.react": "",
+    "jszip": "",
+    "file-saver": "",
+    "uuid": "",
+    "react-custom-scrollbars-2": "",
+    "prop-types": ""
   },
   "devDependencies": {
-    "vite": "^5.2.8",
-    "@vitejs/plugin-react": "^4.3.1",
-    "tailwindcss": "^3.4.3",
-    "autoprefixer": "^10.4.17",
-    "postcss": "^8.4.35"
+    "vite": "",
+    "@vitejs/plugin-react": "",
+    "tailwindcss": "",
+    "@tailwindcss/postcss": "",
+    "autoprefixer": "",
+    "postcss": ""
   }
 }

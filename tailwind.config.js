@@ -3,14 +3,13 @@ export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
-    "./src/**/*.{html,css}",
   ],
-  darkMode: 'class', // Enables dark mode based on a class
+  darkMode: 'class', // Use 'class' to control dark mode manually
   theme: {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        pressStart: ['Press Start 2P', 'cursive'],
+        inter: ['Inter', 'sans-serif'], // in case you want to refer to it as 'inter'
       },
       colors: {
         'timeless-dark': '#0f172a',
@@ -68,9 +67,5 @@ export default {
       },
     },
   },
-  safelist: [
-    'px-3', 'py-1', 'rounded-md', 'text-white', 'font-bold', 'shadow-md',
-    'bg-purple-600', 'hover:bg-purple-700', 'focus:ring-purple-500', 'text-white'
-  ],
   plugins: [],
 }

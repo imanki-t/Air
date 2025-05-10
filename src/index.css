@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -8,35 +9,39 @@
   --vintage-border-color: white;
 }
 
-.dark-mode {
+.dark {
   --vintage-border-color: #1f2937;
 }
 
-.vintage-btn {
-  @apply px-3 py-1 rounded-md text-white font-bold shadow-md;
-  font-family: 'Press Start 2P', cursive;
-  border: 2px dashed var(--vintage-border-color);
-  text-shadow: 1px 1px black;
+@layer components {
+  .vintage-btn {
+    @apply px-3 py-1 rounded-md text-white font-bold shadow-md;
+    font-family: 'Press Start 2P', cursive;
+    border: 2px dashed var(--vintage-border-color);
+    text-shadow: 1px 1px black;
+  }
+
+  .shadow-vintage {
+    box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.8);
+  }
+
+  .modern-btn {
+    @apply px-4 py-2 rounded-md font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+
+  .dark .modern-btn {
+    @apply bg-purple-600 hover:bg-purple-700 focus:ring-purple-500 text-white;
+  }
+
+  .light .modern-btn {
+    @apply bg-purple-600 hover:bg-purple-700 focus:ring-purple-500 text-white;
+  }
 }
 
-.shadow-vintage {
-  box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.8);
-}
-
-.modern-btn {
-  @apply px-4 py-2 rounded-md font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2;
-}
-
-.dark .modern-btn {
-  @apply bg-purple-600 hover:bg-purple-700 focus:ring-purple-500 text-white;
-}
-
-.light .modern-btn {
-  @apply bg-purple-600 hover:bg-purple-700 focus:ring-purple-500 text-white;
-}
-
-.search-placeholder::placeholder {
-  font-size: 1.5rem;
-  position: relative;
-  top: -1px;
+@layer utilities {
+  .search-placeholder::placeholder {
+    font-size: 1.5rem;
+    position: relative;
+    top: -1px;
+  }
 }

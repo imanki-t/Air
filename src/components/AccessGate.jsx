@@ -293,7 +293,7 @@ const AccessGate = ({ onAccessGranted }) => {
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
             <span className={`text-transparent bg-clip-text ${darkMode ? 'bg-gradient-to-r from-blue-400 to-blue-500' : 'bg-gradient-to-r from-red-400 to-red-500'}`}>
-              Airstream
+              AIRSTREAM
             </span>
           </h1>
         </div>
@@ -439,8 +439,8 @@ const AccessGate = ({ onAccessGranted }) => {
       </div>
 
       <div className="block md:hidden fixed bottom-4 right-4 max-w-[180px] text-right">
-        <p className={`text-[10px] leading-tight ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>
-          © {new Date().getFullYear()} Airstream
+        <p className={`text-[20px] leading-tight ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+          © {new Date().getFullYear()} AIRSTREAM
         </p>
       </div>
 

@@ -83,7 +83,7 @@ const UploadForm = ({ refresh, darkMode }) => {
   // Handle window resize for responsive filename truncation
   useEffect(() => {
     const updateTruncateLength = () => {
-      setTruncateLength(window.innerWidth >= 768 ? 40 : 15);
+      setTruncateLength(window.innerWidth >= 768 ? 50 : 25);
     };
 
     updateTruncateLength();

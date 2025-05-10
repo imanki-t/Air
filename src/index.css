@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -23,7 +23,6 @@
   box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.8);
 }
 
-/* Modern button used in the updated UI */
 .modern-btn {
   @apply px-4 py-2 rounded-md font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2;
 }
@@ -36,7 +35,6 @@
   @apply bg-purple-600 hover:bg-purple-700 focus:ring-purple-500 text-white;
 }
 
-/* Custom placeholder style for search icon */
 .search-placeholder::placeholder {
   font-size: 1.5rem;
   position: relative;

@@ -1,5 +1,5 @@
 {
-  "name": "Airstream",
+  "name": "Kuwuten",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -8,22 +8,22 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "react-router-dom": "^6.3.0",
-    "axios": "^1.4.0",
-    "qrcode.react": "^4.2.0",
-    "jszip": "^3.7.1",
-    "file-saver": "^2.0.5",
-    "uuid": "^8.3.2",
-    "react-custom-scrollbars-2": "^4.2.1",
-    "prop-types": "^15.8.1"
+    "react": "",
+    "react-dom": "",
+    "react-router-dom": "",
+    "axios": "",
+    "qrcode.react": "",
+    "jszip": "",
+    "file-saver": "",
+    "uuid": "",
+    "react-custom-scrollbars-2": "",
+    "prop-types": ""
   },
   "devDependencies": {
-    "vite": "^4.4.9",
-    "@vitejs/plugin-react": "^3.1.0",
-    "tailwindcss": "^3.3.2",
-    "autoprefixer": "^10.4.13",
-    "postcss": "^8.4.20"
+    "vite": "",
+    "@vitejs/plugin-react": "",
+    "tailwindcss": "",
+    "autoprefixer": "",
+    "postcss": ""
   }
 }

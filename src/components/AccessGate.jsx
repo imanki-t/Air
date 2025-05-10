@@ -439,7 +439,7 @@ const AccessGate = ({ onAccessGranted }) => {
       </div>
 
       <div className="block md:hidden fixed bottom-4 right-4 max-w-[180px] text-right">
-        <p className={`text-[20px] leading-tight ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+        <p className={`text-[15px] leading-tight ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>
           © {new Date().getFullYear()} AIRSTREAM
         </p>
       </div>

@@ -147,7 +147,7 @@ const uploadAndShareZip = (req, res) => {
         const shareURL = `${process.env.BACKEND_URL}/api/files/share/${shareId}`; // 
 
         // Send the URL back to the frontend
-        res.status(201).json({ url: shareURL, _id: file._id });
+        res.status(201).json({ url: shareURL, _id: file._id.toString() });
 
       } catch (updateError) {
         console.error("Error generating share link for zip:", updateError);

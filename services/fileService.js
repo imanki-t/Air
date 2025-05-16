@@ -110,7 +110,9 @@ const uploadAndShareZip = (req, res) => {
     return res.status(400).json({ error: 'No zip file uploaded.' });
   }
 
-  const { originalname, stream } = req.file;
+  const originalname = req.file.originalname;
+const buffer = req.file.buffer;
+const stream = Readable.from(buffer);
   // Assuming the frontend sends a zip file
   const mimetype = 'application/zip';
   const type = 'document'; // Or 'other', depending on how you want to categorize ZIPs 

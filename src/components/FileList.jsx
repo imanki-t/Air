@@ -356,91 +356,77 @@ saveAs(blob, filename);
  };
 
  const batchShare = async () => {
-    if (selectedFiles.length === 0) return;
-   setBatchOperationLoading(true);
-   setShowBatchShareModal(true);
- // Show the modal early
-   setBatchShareLink('');
-   setCopied(false);
-   try {
-     const zip = new JSZip();
- let done = 0;
-     // Find the full file objects for the selected IDs
-     const filesToZip = selectedFiles
-       .map(id => files.find(f => f._id === id))
-       .filter(Boolean);
- // Filter out any null/undefined if an ID wasn't found
+  if (selectedFiles.length === 0) return;
 
-     if (filesToZip.length === 0) {
-         throw new Error("No valid files selected for zipping.");
- }
+  setBatchOperationLoading(true);
+  setShowBatchShareModal(true);
+  setBatchShareLink('');
+  setCopied(false);
 
-     console.log('Starting batch share zip process...');
- for (const file of filesToZip) {
-       console.log(`Processing file: ${file.filename} (${file._id})`);
- const res = await axios.get(`${backendUrl}/api/files/download/${file._id}`, {
-         responseType: 'blob'
-       });
- console.log(`Adding ${file.filename} to zip`);
-       zip.file(file.filename, res.data);
-       done++;
-     }
+  try {
+    console.log('Starting batch share zip process...');
+    const zip = new JSZip();
+    let completed = 0;
 
-     console.log('Generating ZIP blob...');
- const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
-     console.log('ZIP blob generated, size:', zipBlob.size);
+    // Find matching file objects from selected IDs
+    const filesToZip = selectedFiles
+      .map(id => files.find(f => f && f._id === id))
+      .filter(f => f && f._id && f.filename);
 
-     const formData = new FormData();
- const generateRandomString = (length) => {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * characters.length));
+    if (filesToZip.length === 0) {
+      throw new Error("No valid files found for zipping.");
+    }
+
+    for (const file of filesToZip) {
+      console.log(`Fetching: ${file.filename} (${file._id})`);
+      const res = await axios.get(`${backendUrl}/api/files/download/${file._id}`, {
+        responseType: 'blob'
+      });
+      zip.file(file.filename, res.data);
+      completed++;
+    }
+
+    console.log(`Generating ZIP from ${completed} file(s)...`);
+    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    console.log('ZIP blob ready:', zipBlob.size, 'bytes');
+
+    const formData = new FormData();
+    const generateRandomString = (len) => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    };
+
+    const timestamp = Date.now();
+    const zipFilename = `AIRSTREAM${timestamp}_${generateRandomString(6)}.zip`;
+    formData.append('zipFile', zipBlob, zipFilename);
+
+    console.log(`Uploading ZIP as "${zipFilename}"...`);
+    const uploadRes = await axios.post(`${backendUrl}/api/files/share-zip`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    console.log('Upload complete. Server response:', uploadRes.data);
+
+    const { url: shareUrl, _id } = uploadRes.data || {};
+    if (!shareUrl || !_id) {
+      throw new Error("Server response missing share URL or file ID.");
+    }
+
+    await refresh(); // Refresh file list after upload (optional for UI sync)
+
+    setBatchShareLink(shareUrl);
+    console.log('Share link ready:', shareUrl);
+
+  } catch (err) {
+    const message = err.response?.data?.error || err.message || 'Unknown error.';
+    console.error('Error during batch share:', message);
+    alert(`Error sharing files: ${message}`);
+    setShowBatchShareModal(false);
+  } finally {
+    setBatchOperationLoading(false);
+    console.log('Batch share operation finished.');
   }
-  return result;
 };
-
-const timestamp = Date.now();
-const randomCombo = generateRandomString(6);
-const zipFilename = `AIRSTREAM${timestamp}${randomCombo}.zip`;
-     formData.append('zipFile', zipBlob, zipFilename);
-     console.log(`Uploading ${zipFilename} to ${backendUrl}/api/files/share-zip`);
- const uploadResponse = await axios.post(`${backendUrl}/api/files/share-zip`, formData, {
-       headers: {
-         'Content-Type': 'multipart/form-data',
-       },
-     });
- console.log('Upload response received:', uploadResponse.data);
-    
-     await refresh(); // Refresh file list after uploading the ZIP
-
-     const shareUrl = uploadResponse.data?.url;
-     if (!shareUrl) {
-       console.error("Backend response missing URL:", uploadResponse.data);
- throw new Error("Failed to generate the link.");
-     }
-
-     setBatchShareLink(shareUrl);
-     console.log('Batch share link set:', shareUrl);
- // Don't exit selection mode automatically after sharing, user might want to download/delete too
-      // setSelectionMode(false);
- // Keep selection mode active
-      // setSelectedFiles([]);
- // Don't clear selection automatically
-
-   } catch (err) {
-      console.error('Error creating or sharing ZIP file:', err.response ? err.response.data : err.message, err.stack);
- const errorMessage = err.response?.data?.error || err.message ||
-      'Please try again.';
-      alert(`Error sharing files: ${errorMessage}`);
-      setShowBatchShareModal(false);
- // Close modal on error
-   } finally {
-     setBatchOperationLoading(false);
-     console.log('Batch share operation finished.');
- }
- };
-
 
  const copyToClipboard = async () => {
    if (!batchShareLink) return;

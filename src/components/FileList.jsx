@@ -411,6 +411,8 @@ const zipFilename = `AIRSTREAM${timestamp}${randomCombo}.zip`;
        },
      });
  console.log('Upload response received:', uploadResponse.data);
+    
+     await refresh(); // Refresh file list after uploading the ZIP
 
      const shareUrl = uploadResponse.data?.url;
      if (!shareUrl) {

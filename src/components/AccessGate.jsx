@@ -500,4 +500,3 @@ AccessGate.propTypes = {
 };
 
 export default AccessGate;
-  

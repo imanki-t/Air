@@ -3,6 +3,7 @@
 const { GridFSBucket, ObjectId } = require('mongodb');
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
+const { Readable } = require('stream');
 const getFileCategory = require('../utils/fileType'); // 
 
 const db = mongoose.connection; // 

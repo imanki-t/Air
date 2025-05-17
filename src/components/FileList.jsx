@@ -392,6 +392,18 @@ saveAs(blob, filename);
 
      const formData = new FormData();
  const zipFilename = `shared_files_${Date.now()}.zip`;
+ const generateRandomString = (length) => {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result;
+};
+
+const timestamp = Date.now();
+const randomCombo = generateRandomString(6);
+const zipFilename = `KUWUTEN${timestamp}${randomCombo}.zip`;
      formData.append('zipFile', zipBlob, zipFilename);
      console.log(`Uploading ${zipFilename} to ${backendUrl}/api/files/share-zip`);
  const uploadResponse = await axios.post(`${backendUrl}/api/files/share-zip`, formData, {

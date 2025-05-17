@@ -592,8 +592,10 @@ const zipFilename = `AIRSTREAM${timestamp}${randomCombo}.zip`;
              title="Sort & Filter"
            >
              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7l4-4m0 0l4 4m-4-4v18" />
-  <path strokeLinecap="round" strokeLinejoin="round" d="M16 17l-4 4m0 0l-4-4m4 4V6" />
+  {/* Up Arrow */}
+  <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+  {/* Down Arrow */}
+  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
 </svg>
            </button>
            {/* Dropdown Panel */}

@@ -3,7 +3,6 @@
 const { GridFSBucket, ObjectId } = require('mongodb');
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
-const { Readable } = require('stream');
 const getFileCategory = require('../utils/fileType'); // 
 
 const db = mongoose.connection; // 
@@ -111,9 +110,7 @@ const uploadAndShareZip = (req, res) => {
     return res.status(400).json({ error: 'No zip file uploaded.' });
   }
 
-  const originalname = req.file.originalname;
-const buffer = req.file.buffer;
-const stream = Readable.from(buffer);
+  const { originalname, stream } = req.file;
   // Assuming the frontend sends a zip file
   const mimetype = 'application/zip';
   const type = 'document'; // Or 'other', depending on how you want to categorize ZIPs 
@@ -150,7 +147,7 @@ const stream = Readable.from(buffer);
         const shareURL = `${process.env.BACKEND_URL}/api/files/share/${shareId}`; // 
 
         // Send the URL back to the frontend
-        res.status(201).json({ url: shareURL, _id: file._id.toString() });
+        res.status(201).json({ url: shareURL }); // 
 
       } catch (updateError) {
         console.error("Error generating share link for zip:", updateError);

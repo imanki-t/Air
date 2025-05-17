@@ -582,7 +582,7 @@ const zipFilename = `AIRSTREAM${timestamp}${randomCombo}.zip`;
              <div
                ref={sortOptionsRef}
                className={cn(
-                 'absolute right-2 mt-2 w-56 rounded-lg shadow-xl z-20 border overflow-hidden',
+                 'absolute -right-2 mt-2 w-56 rounded-lg shadow-xl z-20 border overflow-hidden',
                  'max-h-[40vh] sm:max-h-[75vh] overflow-y-auto',
                  darkMode ? 'bg-gray-800 border-gray-700 divide-gray-700' : 'bg-white border-gray-200 divide-gray-200',
                  'divide-y'

@@ -18,7 +18,7 @@ app.use(express.json());
 // Routes
 app.use('/api/files', fileRoutes);
 
-// Root
+// Root route
 app.get('/', (req, res) => {
   res.send('Storage API');
 });
@@ -34,6 +34,9 @@ const io = new Server(server, {
   }
 });
 
+// Attach io instance to app for use in routes/controllers
+app.set('io', io);
+
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
@@ -47,6 +50,7 @@ io.on('connection', (socket) => {
   });
 });
 
+// Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

@@ -10,6 +10,7 @@
     "dotenv": "",
     "express": "",
     "mongoose": "",
+    "socket.io": "",
     "multer": "",
     "multer-gridfs-storage": "",
     "gridfs-stream": "",

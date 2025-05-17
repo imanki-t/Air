@@ -18,9 +18,9 @@ const AccessGate = ({ onAccessGranted }) => {
   const quotes = [
     "Built a dirt house for the nostalgia. Would die for it.",
     "The future got drip, like me?",
-    "Home is where the creeper didn’t explode.",
+    "Home is where the creeper didn't explode.",
     "Diamond hoe? In a locked chest. Respect it.",
-    "Walk through that nether portal like it’s a runway.",
+    "Walk through that nether portal like it's a runway.",
     "Trust issues? I cover my redstone with obsidian.",
     "Built this world in 2012. Still better than real life.",
     "Every dog I tamed has a name and a backstory.",
@@ -36,99 +36,10 @@ const AccessGate = ({ onAccessGranted }) => {
     "my pickaxe is my therapist",
     "built a dirt house, now I'm emotionally attached",
     "respawned again... I should start a blog",
-    "I tried to hug a creeper, it exploded with love",
-    "Minecraft: where logic goes to nap",
-    "I once mined for 3 days... found gravel",
-    "History will remember me as the dirt block king",
-    "This world ain't big enough for the both of our builds",
-    "Reality can be disappointing, Minecraft never is",
-    "I've built empires out of cobblestone and hope",
-    "Creepers are just misunderstood fireworks",
-    "Don’t question the floating blocks, just accept them",
-    "The real enemy was lag all along",
-    "I craft, therefore I am",
-    "In the beginning, there was wood",
-    "I didn't choose the block life, it chose me",
-    "Even Herobrine fears my redstone skills",
-    "One does not simply walk into the Nether",
-    "The grass is always greener on my Minecraft server",
-    "When in doubt, dig it out",
-    "My bed is too far away, emotionally and physically",
-    "The only war crime in Minecraft is griefing",
-    "Knowledge is power, but diamonds are forever",
-    "Built a castle for fun. Now I defend it like my GPA",
-    "All roads lead to lava",
-    "They see me rollin’... in a minecart",
-    "Every great builder starts with a box",
-    "I’ve seen things… like a chicken riding a spider",
-    "Life’s a glitch and then you respawn",
-    "Redstone is just digital wizardry",
-    "Don't ask why I have 500 blocks of dirt",
-    "Home is where the respawn point is",
-    "Roblox tycoons taught me business better than school",
-    "I survived Natural Disaster Survival and all I got was this badge",
-    "Obby or not to obby, that is the question",
-    "I went to Brookhaven and all my friends turned into spies",
-    "Roblox: where you can be a pizza, a cop, and a ninja in one day",
-    "It’s all fun and games until someone glitches into the void",
-    "The floor is lava, and so is half of my obby",
-    "Roblox avatars have more drip than I do",
-    "I got scammed and it built character",
-    "Adopt Me? More like Rob Me",
-    "Trade requests build personality",
-    "I once built an entire life in Bloxburg… then forgot to save",
-    "Simulator games prepared me for adulting",
-    "I died in Arsenal and now I fear everything",
-    "Roblox: where chaos is part of the charm",
-    "Some people run from the storm. I join it on Roblox",
-    "Obbies are just rage therapy",
-    "Lava parkour builds resilience",
-    "Fake it till you make it… in Royale High",
-    "I've been in more Roblox jobs than real life ones",
-    "My Roblox avatar is cooler than I’ll ever be",
-    "Never trust someone who says 'trust trade'",
-    "Being broke in Roblox is still being fabulous",
-    "My pet in Adopt Me has better housing than me",
-    "Started from a noob, now we here",
-    "History books won’t mention us, but this Minecraft build will",
-    "I invented blockitecture",
-    "Before roads, there were paths made by Minecraft players",
-    "Every great civilization begins with punching a tree",
-    "They conquered Rome. I conquered the End",
-    "We don’t age in Minecraft, we just enchant better gear",
-    "Minecraft physics: because real ones are overrated",
-    "Myth: Steve can’t feel pain. Truth: He just doesn’t show it",
-    "Legend says the first block ever placed still exists",
-    "My empire rose from a single crafting table",
-    "Herobrine was my roommate once",
-    "Lava: nature’s way of saying 'nope'",
-    "Farming wheat since the medieval Minecraft ages",
-    "Built a monument to my lost dog. Still cry at night",
-    "No gods, only Notch",
-    "I fought the Ender Dragon and all I got was trauma",
-    "They built pyramids, I built pixel art",
-    "Minecraft time is faster, but the memories last longer",
-    "Steve is the original renaissance man",
-    "Grass blocks: the true unsung heroes",
-    "If knowledge is power, then bookshelves are armories",
-    "Spiders don’t scare me, unless they glitch through walls",
-    "The cake is a lie… but I still bake it",
-    "XP orbs are just soul fragments, prove me wrong",
-    "All my homies hate phantoms",
-    "My realm, my rules",
-    "Every server has that one chaotic neutral player",
-    "If I had a block for every failed jump, I'd reach the sky limit",
-    "Don't cry because it's night, mine because it happened",
-    "I put the 'craft' in 'outcrafted'",
-    "This world is powered by redstone and dreams",
-    "Placing blocks is therapy",
-    "I fear no man, but baby zombies terrify me",
-    "I built a secret base under my friend’s base. He still doesn’t know.",
   ];
   const [currentQuote, setCurrentQuote] = useState('');
   const [typedQuote, setTypedQuote] = useState('');
   const [showPhases, setShowPhases] = useState(false);
-
 
   useEffect(() => {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -222,7 +133,7 @@ const AccessGate = ({ onAccessGranted }) => {
       audio.play().catch(() => {});
       setFadeOut(true);
       if (onAccessGranted) {
-           setTimeout(() => onAccessGranted(), 800);
+        setTimeout(() => onAccessGranted(), 800);
       }
     } else {
       setError('Access Denied: Invalid Passkey or Username');
@@ -240,66 +151,128 @@ const AccessGate = ({ onAccessGranted }) => {
     setPasswordVisible(!passwordVisible);
   };
 
-  const mobileMarginBottom = loading ? 'mb-0' : 'mb-20';
-
-
   return (
     <div
       className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ease-in-out overflow-hidden ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
-      style={{ background: darkMode ? '#0f172a' : '#ffffff' }}
+      style={{ background: darkMode ? '#121826' : '#f8fafc' }}
     >
+      {/* Abstract Background Shapes */}
       <div className="absolute inset-0 overflow-hidden">
+        {/* Grid Pattern */}
         <div
-          className={`absolute inset-0`}
+          className="absolute inset-0"
           style={{
             backgroundImage: darkMode
-              ? `linear-gradient(to right, rgba(66, 135, 245, 0.2) 1px, transparent 1px),
-                 linear-gradient(to bottom, rgba(66, 135, 245, 0.2) 1px, transparent 1px)`
-              : `linear-gradient(to right, rgba(139, 0, 0, 0.3) 1px, transparent 1px),
-                 linear-gradient(to bottom, rgba(139, 0, 0, 0.3) 1px, transparent 1px)`,
-            backgroundSize: '30px 30px',
-            backgroundColor: darkMode ? '#0f172a' : '#ffffff',
+              ? `linear-gradient(to right, rgba(71, 85, 105, 0.1) 1px, transparent 1px),
+                 linear-gradient(to bottom, rgba(71, 85, 105, 0.1) 1px, transparent 1px)`
+              : `linear-gradient(to right, rgba(226, 232, 240, 1) 1px, transparent 1px),
+                 linear-gradient(to bottom, rgba(226, 232, 240, 1) 1px, transparent 1px)`,
+            backgroundSize: '40px 40px',
           }}
         />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full pointer-events-none">
-          {[1, 2, 3, 4].map(ring => (
-            <div key={ring}
-              className={`absolute rounded-full border ${darkMode ? 'border-blue-500/20' : 'border-red-500/20'}`}
-              style={{
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: `${ring * 60}%`,
-                height: `${ring * 60}%`,
-                animation: `orbital-rotation ${ring * 20 + 40}s linear infinite`
-              }}
+        
+        {/* Abstract Shapes */}
+        <svg className="absolute top-0 left-0 w-full h-full opacity-30" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="smallGrid" width="8" height="8" patternUnits="userSpaceOnUse">
+              <path
+                d="M 8 0 L 0 0 0 8"
+                fill="none"
+                stroke={darkMode ? "#475569" : "#e2e8f0"}
+                strokeWidth="0.5"
+              />
+            </pattern>
+            <pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse">
+              <rect width="80" height="80" fill="url(#smallGrid)" />
+              <path
+                d="M 80 0 L 0 0 0 80"
+                fill="none"
+                stroke={darkMode ? "#475569" : "#e2e8f0"}
+                strokeWidth="1"
+              />
+            </pattern>
+          </defs>
+        </svg>
+
+        {/* Large Circle Top Right */}
+        <div
+          className="absolute -top-64 -right-64 opacity-10"
+          style={{
+            width: "600px",
+            height: "600px",
+            borderRadius: "50%",
+            background: darkMode
+              ? "radial-gradient(circle, rgba(56, 189, 248, 0.2) 0%, rgba(56, 189, 248, 0) 70%)"
+              : "radial-gradient(circle, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0) 70%)",
+          }}
+        />
+
+        {/* Large Circle Bottom Left */}
+        <div
+          className="absolute -bottom-96 -left-96 opacity-10"
+          style={{
+            width: "800px",
+            height: "800px", 
+            borderRadius: "50%",
+            background: darkMode
+              ? "radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, rgba(99, 102, 241, 0) 70%)"
+              : "radial-gradient(circle, rgba(249, 115, 22, 0.2) 0%, rgba(249, 115, 22, 0) 70%)",
+          }}
+        />
+
+        {/* Abstract Blob 1 */}
+        <div className="absolute top-1/4 right-1/4 hidden lg:block">
+          <svg width="400" height="400" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="opacity-5">
+            <path
+              fill={darkMode ? "#3b82f6" : "#ef4444"}
+              d="M45.3,-51.2C59.4,-34.7,72,-19.6,75.5,-1.9C79,15.8,73.3,36.1,59.9,48.8C46.5,61.5,25.3,66.6,3.8,63.3C-17.7,60.1,-39.4,48.6,-54.8,30.7C-70.1,12.9,-79,-11.3,-73.6,-33.3C-68.2,-55.3,-48.4,-76,-28.1,-82.1C-7.8,-88.3,13,-88,31.2,-73.7C49.4,-59.4,65.1,-33.2,45.3,-51.2Z"
+              transform="translate(100 100)"
             />
-          ))}
+          </svg>
         </div>
-        <div className={`absolute top-1/4 left-1/4 w-64 h-64 rounded-full ${darkMode ? 'bg-blue-500/10' : 'bg-red-500/10'} blur-3xl hidden lg:block`}></div>
-        <div className={`absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full ${darkMode ? 'bg-blue-500/10' : 'bg-red-500/10'} blur-3xl hidden lg:block`}></div>
-         <div className={`absolute top-1/2 left-10 w-48 h-48 rounded-full ${darkMode ? 'bg-teal-500/10' : 'bg-green-500/10'} blur-3xl hidden lg:block`}></div>
-         <div className={`absolute bottom-1/2 right-10 w-48 h-48 rounded-full ${darkMode ? 'bg-purple-500/10' : 'bg-yellow-500/10'} blur-3xl hidden lg:block`}></div>
+
+        {/* Abstract Blob 2 */}
+        <div className="absolute bottom-1/4 left-1/4 hidden lg:block">
+          <svg width="500" height="500" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="opacity-5">
+            <path
+              fill={darkMode ? "#818cf8" : "#fb7185"}
+              d="M47.9,-58.9C61.7,-46.6,72.5,-31.2,76.4,-13.8C80.4,3.6,77.4,23,67.7,37.6C58,52.2,41.5,61.9,24.5,66.7C7.5,71.5,-9.9,71.5,-25.2,65.4C-40.6,59.4,-53.9,47.3,-64.2,32C-74.5,16.7,-81.9,-1.7,-78.7,-18.6C-75.6,-35.4,-61.9,-50.8,-46.3,-62.6C-30.8,-74.5,-15.4,-82.9,0.9,-83.9C17.1,-85,34.2,-71.3,47.9,-58.9Z"
+              transform="translate(100 100)"
+            />
+          </svg>
+        </div>
+
+        {/* Abstract Lines */}
+        <div className="absolute inset-0 hidden lg:block">
+          <svg width="100%" height="100%" className="opacity-5">
+            <line x1="0" y1="0" x2="100%" y2="100%" stroke={darkMode ? "#3b82f6" : "#ef4444"} strokeWidth="0.5" />
+            <line x1="100%" y1="0" x2="0" y2="100%" stroke={darkMode ? "#3b82f6" : "#ef4444"} strokeWidth="0.5" />
+            <line x1="50%" y1="0" x2="50%" y2="100%" stroke={darkMode ? "#3b82f6" : "#ef4444"} strokeWidth="0.5" />
+            <line x1="0" y1="50%" x2="100%" y2="50%" stroke={darkMode ? "#3b82f6" : "#ef4444"} strokeWidth="0.5" />
+          </svg>
+        </div>
       </div>
 
-      <header className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-4 sm:px-6 py-4">
+      {/* Header Logo */}
+      <header className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-6">
         <div className="flex items-center space-x-3">
-          <div className={`flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 ${darkMode ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gradient-to-br from-red-500 to-red-600'} rounded-lg shadow-lg`}>
+          <div className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 ${darkMode ? 'bg-blue-600' : 'bg-red-600'} rounded-md shadow-lg`}>
             <img
               src="airstream.png"
-              className="h-8 w-8 sm:h-10 sm:w-10"
+              className="h-8 w-8 sm:h-9 sm:w-9"
               alt="Airstream"
             />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            <span className={`text-transparent bg-clip-text ${darkMode ? 'bg-gradient-to-r from-blue-400 to-blue-500' : 'bg-gradient-to-r from-red-400 to-red-500'}`}>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            <span className={darkMode ? 'text-white' : 'text-gray-900'}>
               AIRSTREAM
             </span>
           </h1>
         </div>
       </header>
 
-      <div className={`relative z-10 w-full max-w-md mx-auto px-4 mt-24 sm:mt-28 ${mobileMarginBottom}`} ref={loginBoxRef}>
+      {/* Main Content */}
+      <div className="relative z-10 w-full max-w-md md:max-w-lg mx-auto px-4 md:px-0">
         {loading ? (
           <div className="flex flex-col items-center justify-center p-8">
             <div className="relative w-56 h-56 md:w-80 md:h-80 mb-6">
@@ -311,7 +284,7 @@ const AccessGate = ({ onAccessGranted }) => {
               {showPhases && phaseVisible && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span
-                    className={`text-xl md:text-2xl font-bold uppercase ${darkMode ? 'text-gray-300' : 'text-black'}`}
+                    className={`text-xl md:text-2xl font-bold uppercase ${darkMode ? 'text-gray-300' : 'text-gray-800'}`}
                     style={{
                       opacity: phaseOpacity,
                       transition: 'opacity 100ms ease-in-out',
@@ -325,91 +298,123 @@ const AccessGate = ({ onAccessGranted }) => {
           </div>
         ) : (
           <div className="flex flex-col items-center">
-            <div className="w-full relative max-w-xs sm:max-w-sm">
-              <div className={`absolute -inset-1 ${darkMode ? 'bg-gradient-to-r from-blue-600 via-blue-600 to-blue-600' : 'bg-gradient-to-r from-red-600 via-red-600 to-red-600'} rounded-2xl opacity-70 blur-sm animate-pulse`}></div>
-              <div className={`relative rounded-xl overflow-hidden border ${darkMode ? 'bg-gray-900/90 backdrop-blur-md border-gray-800' : 'bg-white/90 backdrop-blur-md border-gray-200'}`}>
-                <div className={`absolute top-0 left-0 right-0 h-1 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'}`}></div>
-                <div className={`absolute inset-0 opacity-5`} style={{
-                   backgroundImage: darkMode
-                     ? `radial-gradient(circle, #3b82f6 1px, transparent 1px)`
-                     : `radial-gradient(circle, #000000 1px, transparent 1px)`,
-                   backgroundSize: '20px 20px',
-                }}></div>
-                <div className="p-6 pt-10">
-                   <div className="text-center mb-6">
-                    <h2 className={`text-xl font-bold text-transparent bg-clip-text ${darkMode ? 'bg-gradient-to-r from-blue-400 to-blue-400' : 'bg-gradient-to-r from-red-400 to-red-400'} mb-1`}>
+            {/* Login Box */}
+            <div className="w-full max-w-md md:max-w-lg">
+              <div className={`relative rounded-xl overflow-hidden shadow-2xl ${darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+                <div className={`w-full h-1.5 ${darkMode ? 'bg-blue-600' : 'bg-red-600'}`}></div>
+                
+                <div className="p-8">
+                  <div className="text-center mb-8">
+                    <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'} mb-2`}>
                       SECURE ACCESS
                     </h2>
                     <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Enter your username and passkey to access your secure files!
+                      Enter your username and passkey to access your secure files
                     </p>
                   </div>
-                  <form id="access-form" onSubmit={handleSubmit} className="space-y-4">
-                    <div className="relative">
-                      <div className={`absolute -inset-0.5 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'} rounded-lg blur opacity-30`}></div>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                          placeholder="Username"
-                          className={`w-full px-4 py-3 rounded-lg focus:outline-none focus:ring-2 ${darkMode ? 'bg-gray-800 text-white border border-gray-700 focus:ring-blue-500 focus:border-transparent' : 'bg-gray-100 text-gray-800 border border-gray-300 focus:ring-red-500 focus:border-transparent'}`}
-                          autoComplete="off"
-                        />
+                  
+                  <form id="access-form" onSubmit={handleSubmit} className="space-y-6">
+                    <div className="space-y-4">
+                      {/* Username Input */}
+                      <div>
+                        <label htmlFor="username" className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Username
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <input
+                            id="username"
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            placeholder="Enter your username"
+                            className={`w-full pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                              darkMode 
+                                ? 'bg-gray-700 text-white border border-gray-600 focus:ring-blue-500 focus:border-blue-500' 
+                                : 'bg-gray-50 text-gray-900 border border-gray-300 focus:ring-red-500 focus:border-red-500'
+                            }`}
+                            autoComplete="off"
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Password Input */}
+                      <div>
+                        <label htmlFor="passkey" className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Passkey
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <input
+                            id="passkey"
+                            type={passwordVisible ? "text" : "password"}
+                            value={passkey}
+                            onChange={(e) => setPasskey(e.target.value)}
+                            placeholder="Enter your passkey"
+                            className={`w-full pl-10 pr-10 py-3 rounded-lg focus:outline-none focus:ring-2 transition-colors ${
+                              darkMode 
+                                ? 'bg-gray-700 text-white border border-gray-600 focus:ring-blue-500 focus:border-blue-500' 
+                                : 'bg-gray-50 text-gray-900 border border-gray-300 focus:ring-red-500 focus:border-red-500'
+                            }`}
+                            autoComplete="off"
+                          />
+                          <button
+                            type="button"
+                            onClick={togglePasswordVisibility}
+                            className={`absolute right-3 top-1/2 transform -translate-y-1/2 transition-colors ${darkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-600 hover:text-red-400'}`}
+                          >
+                            {passwordVisible ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59" />
+                              </svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                    <div className="relative">
-                      <div className={`absolute -inset-0.5 ${darkMode ? 'bg-gradient-to-r from-blue-500 to-blue-500' : 'bg-gradient-to-r from-red-500 to-red-500'} rounded-lg blur opacity-30`}></div>
-                      <div className="relative">
-                        <input
-                          type={passwordVisible ? "text" : "password"}
-                          value={passkey}
-                          onChange={(e) => setPasskey(e.target.value)}
-                          placeholder="Passkey"
-                          className={`w-full px-4 py-3 pr-10 rounded-lg focus:outline-none focus:ring-2 ${darkMode ? 'bg-gray-800 text-white border border-gray-700 focus:ring-blue-500 focus:border-transparent' : 'bg-gray-100 text-gray-800 border border-gray-300 focus:ring-red-500 focus:border-transparent'}`}
-                          autoComplete="off"
-                        />
-                        <button
-                          type="button"
-                          onClick={togglePasswordVisibility}
-                          className={`absolute right-3 top-1/2 transform -translate-y-1/2 transition-colors ${darkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-600 hover:text-red-400'}`}
-                        >
-                          {passwordVisible ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59" />
-                            </svg>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                          )}
-                        </button>
-                      </div>
-                    </div>
+                    
+                    {/* Error Display */}
                     {error && (
-                      <div className="py-2 px-3 bg-red-900/50 border border-red-700 rounded-lg text-red-400 text-sm flex items-center space-x-2 animate-pulse">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      <div className={`p-4 rounded-lg flex items-center space-x-3 ${darkMode ? 'bg-red-900/20 border border-red-800/40 text-red-400' : 'bg-red-50 border border-red-200 text-red-800'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                         </svg>
-                        <span>{error}</span>
+                        <span className="text-sm">{error}</span>
                       </div>
                     )}
+                    
+                    {/* Login Button */}
                     <button
                       type="submit"
-                      className={`w-full py-3 px-4 ${darkMode ? 'bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500' : 'bg-gradient-to-r from-red-600 to-red-600 hover:from-red-500 hover:to-red-500'} text-white font-medium rounded-lg transition-all duration-200 relative overflow-hidden group`}
+                      className={`w-full py-3 px-4 flex items-center justify-center space-x-2 rounded-lg text-white font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                        darkMode 
+                          ? 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500' 
+                          : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                      }`}
                     >
-                      <span className={`absolute inset-0 w-full h-full ${darkMode ? 'bg-gradient-to-r from-blue-400 to-blue-400' : 'bg-gradient-to-r from-red-400 to-red-400'} opacity-0 group-hover:opacity-20 transition-opacity duration-200`}></span>
-                      <span className="flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                        </svg>
-                        Unlock Access
-                      </span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <span>Unlock Access</span>
                     </button>
                   </form>
                 </div>
-                <div className={`p-4 border-t ${darkMode ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-600'} text-center text-sm italic`}>
+                
+                {/* Quote Section */}
+                <div className={`p-6 border-t ${darkMode ? 'border-gray-700 text-gray-400' : 'border-gray-200 text-gray-600'} text-center text-sm italic`}>
                   {currentQuote}
                 </div>
               </div>
@@ -418,69 +423,27 @@ const AccessGate = ({ onAccessGranted }) => {
         )}
       </div>
 
-      <div className="fixed bottom-4 left-6 text-sm hidden md:flex flex-col items-start">
-        <div className="flex items-center space-x-1 mb-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-blue-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      {/* Footer Info */}
+      <div className="fixed bottom-6 left-6 hidden md:flex items-center space-x-6">
+        <div className="flex items-center space-x-2">
+          <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${darkMode ? 'text-blue-500' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
           </svg>
-          <span className={darkMode ? 'text-gray-500' : 'text-gray-600'}>256-bit Encryption</span>
+          <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>256-bit Encryption</span>
         </div>
-        <div className="flex items-center space-x-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-blue-400' : 'text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        <div className="flex items-center space-x-2">
+          <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${darkMode ? 'text-blue-500' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
-          <span className={darkMode ? 'text-gray-500' : 'text-gray-600'}>Secure Authentication</span>
+          <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Secure Authentication</span>
         </div>
       </div>
 
-      <div className="hidden md:block fixed bottom-4 right-6 text-sm max-w-xs text-right">
-        <span className={darkMode ? 'text-gray-500' : 'text-gray-600'}>© {new Date().getFullYear()} Airstream • All Rights Reserved</span><br/>
-        <span className={darkMode ? 'text-gray-500' : 'text-gray-600'}>End-to-End Encrypted</span>
-      </div>
-
-      <div className="block md:hidden fixed bottom-4 right-4 max-w-[180px] text-right">
-        <p className={`text-[15px] leading-tight ${darkMode ? 'text-gray-500' : 'text-gray-600'}`}>
-          © {new Date().getFullYear()} AIRSTREAM
-        </p>
-      </div>
-
-      <div className="fixed top-10 left-10 w-16 h-16 opacity-10 hidden lg:block">
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="50" r="40" fill="none" stroke={darkMode ? "#3b82f6" : "#ef4444"} strokeWidth="2" />
-          <path d="M50,10 L50,90 M10,50 L90,50" stroke={darkMode ? "#3b82f6" : "#ef4444"} strokeWidth="1" />
-        </svg>
-      </div>
-      <div className="fixed bottom-10 left-10 w-16 h-16 opacity-10 hidden lg:block">
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="50" r="40" fill="none" stroke={darkMode ? "#8b5cf6" : "#f87171"} strokeWidth="2" />
-          <path d="M50,10 L50,90 M10,50 L90,50" stroke={darkMode ? "#8b5cf6" : "#f87171"} strokeWidth="1" />
-        </svg>
-      </div>
-       <div className="fixed top-20 right-20 w-20 h-20 opacity-10 hidden lg:block">
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-           <path d="M20 40 Q50 10 80 40 T20 40" fill="none" stroke={darkMode ? "#06b6d4" : "#facc15"} strokeWidth="2"/>
-           <circle cx="50" cy="50" r="10" fill={darkMode ? "#06b6d4" : "#facc15"}/>
-        </svg>
-      </div>
-       <div className="fixed bottom-20 left-20 w-24 h-24 opacity-10 hidden lg:block">
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <rect x="10" y="10" width="80" height="80" rx="15" ry="15" fill="none" stroke={darkMode ? "#a78bfa" : "#f472b6"} strokeWidth="3"/>
-           <line x1="20" y1="80" x2="80" y2="20" stroke={darkMode ? "#a78bfa" : "#f472b6"} strokeWidth="2"/>
-           <line x1="20" y1="20" x2="80" y2="80" stroke={darkMode ? "#a78bfa" : "#f472b6"} strokeWidth="2"/>
-        </svg>
+      <div className="fixed bottom-6 right-6 text-sm text-right">
+        <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>© {new Date().getFullYear()} Airstream • All Rights Reserved</span>
       </div>
 
       <style jsx>{`
-        @keyframes orbital-rotation {
-          from { transform: translate(-50%, -50%) rotate(0deg); }
-          to { transform: translate(-50%, -50%) rotate(360deg); }
-        }
-
-        @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-10px); }
-        }
-
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
           10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }

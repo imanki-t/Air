@@ -89,38 +89,57 @@ function App() {
        }
    }, [isLoggedIn]);
 
+  const renderHeader = () => (
+    <header
+      className={`p-6 shadow-md transition-all duration-300 ${
+        darkMode ? 'bg-gray-950 border-gray-700' : 'bg-white border-gray-200'
+      }`}
+    >
+      <div className="max-w-6xl mx-auto flex items-center justify-center">
+        <div className="text-center">
+          <h1 className={`text-4xl font-bold tracking-wide ${darkMode ? 'text-white' : 'text-gray-900'}`}>AIRSTREAM</h1>
+        </div>
+      </div>
+    </header>
+  );
+
+  const renderFooter = () => (
+    <footer
+      className={`p-4 text-center text-sm ${
+        darkMode ? 'text-gray-400' : 'text-gray-500'
+      }`}
+    >
+      © {new Date().getFullYear()} Airstream • All Rights Reserved
+    </footer>
+  );
+
+  // Error page with header and footer
   if (error && (error.includes('Backend not configured') || error.includes('Client error'))) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 text-white p-4">
-        <div className="bg-gray-800 bg-opacity-90 p-6 rounded-lg max-w-lg text-center shadow-lg">
-          <h1 className="text-2xl font-semibold mb-4">Application Error</h1>
-          <p className="mb-6">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded"
-          >
-            Reload Page
-          </button>
+      <div className={`w-full min-h-screen flex flex-col transition-colors duration-300 ${darkMode ? 'bg-gray-950 text-white' : 'bg-white text-gray-900'}`}>
+        {renderHeader()}
+        
+        <div className="flex-grow flex items-center justify-center p-4">
+          <div className={`bg-opacity-90 p-6 rounded-lg max-w-lg text-center shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+            <h1 className="text-2xl font-semibold mb-4">Application Error</h1>
+            <p className="mb-6">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
+            >
+              Reload Page
+            </button>
+          </div>
         </div>
+        
+        {renderFooter()}
       </div>
     );
   }
 
   return (
     <div className={`w-full min-h-screen flex flex-col transition-colors duration-300 ${darkMode ? 'bg-gray-950 text-white' : 'bg-white text-gray-900'}`}>
-      {!hideHeader && (
-        <header
-          className={`p-6 shadow-md transition-all duration-300 ${
-            darkMode ? 'bg-gray-950 border-gray-700' : 'bg-white border-gray-200'
-          }`}
-        >
-          <div className="max-w-6xl mx-auto flex items-center justify-center">
-            <div className="text-center">
-              <h1 className={`text-4xl font-bold tracking-wide ${darkMode ? 'text-white' : 'text-gray-900'}`}>AIRSTREAM</h1>
-            </div>
-          </div>
-        </header>
-      )}
+      {!hideHeader && renderHeader()}
 
       <main className="flex-grow w-full max-w-6xl mx-auto p-4 sm:p-6 flex flex-col relative overflow-hidden">
         {location.pathname === '/dashboard' && (
@@ -173,15 +192,7 @@ function App() {
         </Routes>
       </main>
 
-      {showFooter && (
-        <footer
-          className={`p-4 text-center text-sm ${
-            darkMode ? 'text-gray-400' : 'text-gray-500'
-          }`}
-        >
-          © {new Date().getFullYear()} Airstream • All Rights Reserved
-        </footer>
-      )}
+      {(showFooter || false) && renderFooter()}
     </div>
   );
 }

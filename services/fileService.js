@@ -1,4 +1,4 @@
-// fileService.js
+// services/fileService.js
 
 const { GridFSBucket, ObjectId } = require('mongodb');
 const mongoose = require('mongoose');
@@ -8,7 +8,7 @@ const getFileCategory = require('../utils/fileType');
 const db = mongoose.connection;
 const bucket = new GridFSBucket(db, { bucketName: 'uploads' });
 
-// --- Existing uploadFile function ---
+// --- Upload file ---
 const uploadFile = (req, res) => {
   const { originalname, mimetype, stream } = req.file;
   const resumableUploadId = req.body.resumableUploadId;
@@ -35,7 +35,7 @@ const uploadFile = (req, res) => {
     .on('finish', (file) => res.status(201).json(file));
 };
 
-// --- Existing getFiles function ---
+// --- Get all files ---
 const getFiles = async (req, res) => {
   const files = await db.collection('uploads.files')
     .find({})
@@ -44,17 +44,25 @@ const getFiles = async (req, res) => {
   res.json(files);
 };
 
-// --- Existing deleteFile function ---
+// --- Delete a file (updated with socket emit) ---
 const deleteFile = async (req, res) => {
   try {
     await bucket.delete(new ObjectId(req.params.id));
+
+    // Emit socket event to all clients
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('refreshFileList');
+    }
+
     res.json({ message: 'File deleted' });
   } catch (err) {
+    console.error('Delete error:', err);
     res.status(500).json({ error: err.message });
   }
 };
 
-// --- Existing downloadFile function ---
+// --- Download file ---
 const downloadFile = async (req, res) => {
   const file = await db.collection('uploads.files').findOne({ _id: new ObjectId(req.params.id) });
   if (!file) return res.status(404).json({ error: 'File not found' });
@@ -64,7 +72,7 @@ const downloadFile = async (req, res) => {
   downloadStream.pipe(res);
 };
 
-// --- Existing generateShareLink function ---
+// --- Generate shareable link ---
 const generateShareLink = async (req, res) => {
   const id = req.params.id;
   const shareId = uuidv4();
@@ -78,7 +86,7 @@ const generateShareLink = async (req, res) => {
   res.json({ url: shareURL });
 };
 
-// --- Existing accessSharedFile function ---
+// --- Access shared file via link ---
 const accessSharedFile = async (req, res) => {
   const shareId = req.params.shareId;
   const file = await db.collection('uploads.files').findOne({
@@ -92,19 +100,19 @@ const accessSharedFile = async (req, res) => {
   downloadStream.pipe(res);
 };
 
-// --- Existing cleanupIncompleteUpload function ---
+// --- Cleanup incomplete upload (stub) ---
 const cleanupIncompleteUpload = async (req, res) => {
   try {
     const fileId = req.params.fileId;
     console.log(`Cleanup request received for file ID: ${fileId}`);
-    // Add actual cleanup logic here if needed, e.g., bucket.delete()
+    // Add cleanup logic if needed
     res.json({ message: 'Cleanup request processed' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// +++ MODIFIED FUNCTION: uploadAndShareZip +++
+// --- Upload and share ZIP ---
 const uploadAndShareZip = (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No zip file uploaded.' });
@@ -112,15 +120,14 @@ const uploadAndShareZip = (req, res) => {
 
   const { originalname, stream } = req.file;
   const mimetype = 'application/zip';
-  const type = 'document'; // Or 'other', depending on how you want to categorize ZIPs
+  const type = 'document';
 
-  // Store the exact upload date in metadata for later retrieval
   const uploadDate = new Date();
   const metadata = {
-    filename: originalname || `shared_archive_${Date.now()}.zip`, // Use provided name or generate one
+    filename: originalname || `shared_archive_${Date.now()}.zip`,
     type,
-    isSharedZip: true, // Add a flag to identify these special uploads if needed
-    uploadedAt: uploadDate, // Use the stored date
+    isSharedZip: true,
+    uploadedAt: uploadDate,
   };
 
   const uploadStream = bucket.openUploadStream(metadata.filename, {
@@ -133,51 +140,34 @@ const uploadAndShareZip = (req, res) => {
       console.error("Error uploading zip:", err);
       res.status(500).json({ error: `Failed to upload zip: ${err.message}` });
     })
-    .on('finish', async () => { // Removed 'file' parameter as it seems unreliable
+    .on('finish', async () => {
       try {
-        // File is uploaded, now try to find it in the DB to get its _id.
-        // We'll search using the filename and the exact upload date from metadata.
-        // This is a workaround assuming filename + upload date is unique enough
-        // immediately after upload.
         const uploadedFileDoc = await db.collection('uploads.files').findOne({
-            'metadata.filename': metadata.filename,
-            'metadata.uploadedAt': metadata.uploadedAt // Use the exact date from metadata
+          'metadata.filename': metadata.filename,
+          'metadata.uploadedAt': metadata.uploadedAt
         });
 
         if (!uploadedFileDoc) {
-            console.error("Error: Could not find uploaded zip file in DB after finish.");
-            // If we can't find the file, we can't generate a link.
-            // This might indicate a deeper issue or a timing problem.
-            // More robust error handling/cleanup might be needed here.
-            return res.status(500).json({ error: 'Failed to retrieve uploaded file details for sharing.' });
+          console.error("Error: Could not find uploaded zip file in DB after finish.");
+          return res.status(500).json({ error: 'Failed to retrieve uploaded file details for sharing.' });
         }
 
-        // Now that we have the file document with _id, generate share link
         const shareId = uuidv4();
 
-        // Update the file document with the shareId using the retrieved _id
         await db.collection('uploads.files').updateOne(
-          { _id: uploadedFileDoc._id }, // Use the _id from the fetched document
+          { _id: uploadedFileDoc._id },
           { $set: { 'metadata.shareId': shareId } }
         );
 
-        // Construct the share URL
         const shareURL = `${process.env.BACKEND_URL}/api/files/share/${shareId}`;
-
-        // Send the URL back to the frontend
         res.status(201).json({ url: shareURL });
 
-      } catch (processError) { // Catch errors in the fetching or updating process
+      } catch (processError) {
         console.error("Error processing zip after upload:", processError);
-        // An error occurred after upload but before link generation.
-        // Attempting cleanup (deleting the zip) here is difficult without the _id.
-        // You might need a separate process to clean up orphaned zip files.
         res.status(500).json({ error: `Failed to generate share link: ${processError.message}` });
       }
     });
 };
-// +++ END MODIFIED FUNCTION +++
-
 
 module.exports = {
   uploadFile,
@@ -187,6 +177,5 @@ module.exports = {
   generateShareLink,
   accessSharedFile,
   cleanupIncompleteUpload,
-  uploadAndShareZip, // Ensure the new function is exported
+  uploadAndShareZip,
 };
-

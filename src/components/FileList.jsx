@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import FileItem from './FileItem';
 import axios from 'axios';
 import JSZip from 'jszip';
+import { io } from 'socket.io-client';
 import { saveAs } from 'file-saver';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -68,6 +69,23 @@ const FileList = ({ files = [], refresh, darkMode, isLoading }) => {
  // --- Screen Size Detection for Responsive Items Per Page and Mobile View State ---
  const [isMobileView, setIsMobileView] = useState(false);
 
+ useEffect(() => {
+  const socket = io(import.meta.env.VITE_BACKEND_URL); // uses your VITE_BACKEND_URL
+
+  socket.on("connect", () => {
+    console.log("Connected to WebSocket");
+  });
+
+  socket.on("refreshFileList", () => {
+    console.log("Received refreshFileList event");
+    refresh(); // Refresh files when event received
+  });
+
+  return () => {
+    socket.disconnect();
+  };
+}, []);
+ 
  useEffect(() => {
    const handleResize = () => {
      const mobileBreakpoint = 768; // Adjust breakpoint as needed

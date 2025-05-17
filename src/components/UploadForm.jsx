@@ -4,6 +4,7 @@
 
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { io } from 'socket.io-client';
 import axios from 'axios';
 
 const UPLOAD_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
@@ -27,6 +28,14 @@ const UploadForm = ({ refresh, darkMode }) => {
   const uploadFileRef = useRef(null);
   const lastProgressUpdateRef = useRef({ time: 0, loaded: 0 });
   const uploadTimeoutRef = useRef(null);
+  const socketRef = useRef(null); 
+
+  useEffect(() => {
+    socketRef.current = io(import.meta.env.VITE_BACKEND_URL);
+    return () => {
+      if (socketRef.current) socketRef.current.disconnect();
+    };
+  }, []);
 
   // Check for saved upload state on component mount
   useEffect(() => {
@@ -336,6 +345,11 @@ const UploadForm = ({ refresh, darkMode }) => {
       setPendingResume(null);
       uploadFileRef.current = null;
       setMessage('File uploaded successfully.');
+
+      if (socketRef.current) {
+  socketRef.current.emit('fileUploaded');
+      }
+      
       setFile(null);
       refresh(); // Call the refresh function provided as prop
     } catch (err) {

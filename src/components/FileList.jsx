@@ -337,7 +337,7 @@ const weekNumber = getWeekNumber(now);
 const mixedRandomString = generateMixedRandom(3, 3); // Generate 3 alphabets and 3 numbers
 
 // Updated filename construction with the mixed random string
-const filename = `KUW${formattedDate}${weekNumber}${mixedRandomString}.zip`;
+const filename = `AIR${formattedDate}${weekNumber}${mixedRandomString}.zip`;
 
 saveAs(blob, filename);
      setSelectionMode(false); // Exit selection mode after download
@@ -402,7 +402,7 @@ saveAs(blob, filename);
 
 const timestamp = Date.now();
 const randomCombo = generateRandomString(6);
-const zipFilename = `KUWUTEN${timestamp}${randomCombo}.zip`;
+const zipFilename = `AIRSTREAM${timestamp}${randomCombo}.zip`;
      formData.append('zipFile', zipBlob, zipFilename);
      console.log(`Uploading ${zipFilename} to ${backendUrl}/api/files/share-zip`);
  const uploadResponse = await axios.post(`${backendUrl}/api/files/share-zip`, formData, {

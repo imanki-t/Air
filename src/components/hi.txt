@@ -1,0 +1,382 @@
+import React, { useState, useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
+
+const AccessGate = ({ onAccessGranted }) => {
+  const [passkey, setPasskey] = useState('');
+  const [username, setUsername] = useState('');
+  const [error, setError] = useState('');
+  const [fadeOut, setFadeOut] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [currentPhase, setCurrentPhase] = useState(0);
+  const [phaseVisible, setPhaseVisible] = useState(false);
+  const [phaseOpacity, setPhaseOpacity] = useState(0);
+  const loginBoxRef = useRef(null);
+
+  const phases = ["Encrypting", "Securing", "Connecting", "Verifying"];
+  const quotes = [
+    "Built a dirt house for the nostalgia. Would die for it.",
+    "The future got drip, like me?",
+    "Home is where the creeper didn't explode.",
+    "Diamond hoe? In a locked chest. Respect it.",
+    "Walk through that nether portal like it's a runway.",
+    "Trust issues? I cover my redstone with obsidian.",
+    "Built this world in 2012. Still better than real life.",
+    "Every dog I tamed has a name and a backstory.",
+    "It all started with one tree punch. Now I run the realm.",
+    "if you die in Minecraft you die in real life",
+    "this is the start of a very beautiful save file",
+    "punching trees is always the answer",
+    "if you touch my diamonds we fight",
+    "survival of the blockiest",
+    "one small step for Steve, one giant leap for blockkind",
+    "eat, sleep, mine, repeat",
+    "don't mine straight down... unless you're brave",
+    "my pickaxe is my therapist",
+    "built a dirt house, now I'm emotionally attached",
+    "respawned again... I should start a blog",
+  ];
+  const [currentQuote, setCurrentQuote] = useState('');
+  const [typedQuote, setTypedQuote] = useState('');
+  const [showPhases, setShowPhases] = useState(false);
+
+  useEffect(() => {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setDarkMode(prefersDark);
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e) => setDarkMode(e.matches);
+    mediaQuery.addEventListener('change', handleChange);
+
+    const quote = quotes[Math.floor(Math.random() * quotes.length)];
+    setCurrentQuote(quote);
+    let index = 0;
+    const typeInterval = setInterval(() => {
+      setTypedQuote((prev) => prev + quote.charAt(index));
+      index++;
+      if (index === quote.length) clearInterval(typeInterval);
+    }, 50);
+
+    const initialDelay = 3000;
+    const phaseDuration = 1000;
+    setTimeout(() => {
+      setShowPhases(true);
+    }, initialDelay);
+    setTimeout(() => {
+      setLoading(false);
+    }, initialDelay + (phases.length * phaseDuration));
+    
+    return () => {
+      clearInterval(typeInterval);
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (loading && showPhases) {
+      setPhaseVisible(true);
+      setPhaseOpacity(0);
+      const fadeInSteps = 10;
+      const fadeInInterval = 300 / fadeInSteps;
+
+      let step = 0;
+      const fadeInTimer = setInterval(() => {
+        step++;
+        setPhaseOpacity(step / fadeInSteps);
+        if (step >= fadeInSteps) clearInterval(fadeInTimer);
+      }, fadeInInterval);
+
+      const fadeOutTimer = setTimeout(() => {
+        const fadeOutSteps = 8;
+        const fadeOutInterval = 300 / fadeOutSteps;
+
+        let outStep = 0;
+        const intervalId = setInterval(() => {
+          outStep++;
+          setPhaseOpacity(1 - (outStep / fadeOutSteps));
+
+          if (outStep >= fadeOutSteps) {
+            clearInterval(intervalId);
+            setPhaseVisible(false);
+          }
+        }, fadeOutInterval);
+      }, 600);
+
+      const nextTimer = setTimeout(() => {
+        if (currentPhase < phases.length - 1) {
+          setCurrentPhase(prev => prev + 1);
+        }
+      }, 1000);
+
+      return () => {
+        clearInterval(fadeInTimer);
+        clearTimeout(fadeOutTimer);
+        clearTimeout(nextTimer);
+      };
+    }
+  }, [currentPhase, loading, showPhases, phases.length]);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const correctPasskey = import.meta.env.VITE_SITE_PASSKEY || 'thechosenone';
+    const correctUsername = import.meta.env.VITE_SITE_USERNAME || 'admin';
+
+    if (username === correctUsername && passkey === correctPasskey) {
+      const audio = new Audio('/access-granted.mp3');
+      audio.play().catch(() => {});
+      setFadeOut(true);
+      if (onAccessGranted) {
+           setTimeout(() => onAccessGranted(), 800);
+      }
+    } else {
+      setError('Access Denied: Invalid Passkey or Username');
+      setPasskey('');
+      setUsername('');
+      const form = document.getElementById('access-form');
+      if (form) {
+        form.classList.add('animate-shake');
+        setTimeout(() => form.classList.remove('animate-shake'), 500);
+      }
+    }
+  };
+
+  const togglePasswordVisibility = () => {
+    setPasswordVisible(!passwordVisible);
+  };
+
+  return (
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ease-in-out overflow-hidden ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
+      style={{ background: darkMode ? '#111827' : '#f8fafc' }}
+    >
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div
+          className={`absolute inset-0`}
+          style={{
+            backgroundImage: darkMode
+              ? `linear-gradient(to right, rgba(55, 65, 81, 0.1) 1px, transparent 1px),
+                 linear-gradient(to bottom, rgba(55, 65, 81, 0.1) 1px, transparent 1px)`
+              : `linear-gradient(to right, rgba(226, 232, 240, 0.7) 1px, transparent 1px),
+                 linear-gradient(to bottom, rgba(226, 232, 240, 0.7) 1px, transparent 1px)`,
+            backgroundSize: '40px 40px',
+          }}
+        />
+      </div>
+
+      {/* Header with logo */}
+      <header className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-6">
+        <div className="flex items-center space-x-3">
+          <div className={`flex items-center justify-center w-12 h-12 rounded-lg shadow-md ${darkMode ? 'bg-blue-600' : 'bg-red-600'}`}>
+            <img
+              src="airstream.png"
+              className="h-8 w-8"
+              alt="Airstream"
+            />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            <span className={darkMode ? 'text-blue-500' : 'text-red-600'}>
+              AIRSTREAM
+            </span>
+          </h1>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <div className="relative z-10 w-full max-w-md lg:max-w-lg xl:max-w-xl mx-auto px-4 mt-24">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center p-8">
+            <div className="relative w-32 h-32 md:w-40 md:h-40 mb-6">
+              <div className="absolute inset-0">
+                <div className={`absolute inset-0 rounded-full border-4 ${darkMode ? 'border-t-blue-500' : 'border-t-red-500'} border-r-transparent border-b-transparent border-l-transparent animate-spin`}></div>
+                <div className={`absolute inset-6 rounded-full border-4 border-t-transparent ${darkMode ? 'border-r-blue-500' : 'border-r-red-500'} border-b-transparent border-l-transparent animate-spin`} style={{ animationDuration: '1.5s' }}></div>
+              </div>
+              {showPhases && phaseVisible && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span
+                    className={`text-lg font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}
+                    style={{
+                      opacity: phaseOpacity,
+                      transition: 'opacity 100ms ease-in-out',
+                    }}
+                  >
+                    {phases[currentPhase]}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center">
+            <div className="w-full md:w-3/4 lg:w-full max-w-lg mx-auto">
+              <div className={`rounded-xl shadow-xl overflow-hidden border ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
+                <div className={`h-2 ${darkMode ? 'bg-blue-600' : 'bg-red-600'}`}></div>
+                
+                <div className="p-8">
+                  <div className="text-center mb-8">
+                    <h2 className={`text-2xl font-bold ${darkMode ? 'text-blue-500' : 'text-red-600'} mb-2`}>
+                      SECURE ACCESS
+                    </h2>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Enter your credentials to access your secure files
+                    </p>
+                  </div>
+                  
+                  <form id="access-form" onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                      <label htmlFor="username" className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Username
+                      </label>
+                      <div className="relative">
+                        <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <input
+                          id="username"
+                          type="text"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          placeholder="Enter your username"
+                          className={`w-full pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:ring-2 ${
+                            darkMode 
+                              ? 'bg-gray-700 text-white border border-gray-600 focus:ring-blue-500 focus:border-blue-500' 
+                              : 'bg-gray-50 text-gray-900 border border-gray-200 focus:ring-red-500 focus:border-red-500'
+                          }`}
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="passkey" className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Passkey
+                      </label>
+                      <div className="relative">
+                        <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <input
+                          id="passkey"
+                          type={passwordVisible ? "text" : "password"}
+                          value={passkey}
+                          onChange={(e) => setPasskey(e.target.value)}
+                          placeholder="Enter your passkey"
+                          className={`w-full pl-10 pr-10 py-3 rounded-lg focus:outline-none focus:ring-2 ${
+                            darkMode 
+                              ? 'bg-gray-700 text-white border border-gray-600 focus:ring-blue-500 focus:border-blue-500' 
+                              : 'bg-gray-50 text-gray-900 border border-gray-200 focus:ring-red-500 focus:border-red-500'
+                          }`}
+                          autoComplete="off"
+                        />
+                        <button
+                          type="button"
+                          onClick={togglePasswordVisibility}
+                          className={`absolute right-3 top-1/2 transform -translate-y-1/2 transition-colors ${darkMode ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-red-500'}`}
+                        >
+                          {passwordVisible ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59" />
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {error && (
+                      <div className={`p-4 rounded-lg flex items-center space-x-3 ${darkMode ? 'bg-red-900/30 text-red-300 border border-red-800/50' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-sm font-medium">{error}</span>
+                      </div>
+                    )}
+                    
+                    <button
+                      type="submit"
+                      className={`w-full py-3 px-4 flex items-center justify-center text-white font-medium rounded-lg transition-colors duration-200 ${
+                        darkMode 
+                          ? 'bg-blue-600 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800'
+                          : 'bg-red-600 hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
+                      }`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                      </svg>
+                      Unlock Access
+                    </button>
+                  </form>
+                </div>
+                
+                <div className={`p-4 ${darkMode ? 'bg-gray-900/50 border-t border-gray-700' : 'bg-gray-50 border-t border-gray-100'}`}>
+                  <div className="flex items-center justify-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-blue-400' : 'text-red-500'}`} viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                    </svg>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                      {currentQuote}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-blue-400' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>256-bit Encryption</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 ${darkMode ? 'text-blue-400' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Secure Authentication</span>
+                  </div>
+                </div>
+                <div>
+                  <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>© {new Date().getFullYear()} Airstream</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <style jsx>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+          20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        .animate-shake {
+          animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+AccessGate.propTypes = {
+  onAccessGranted: PropTypes.func,
+};
+
+export default AccessGate;

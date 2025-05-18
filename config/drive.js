@@ -1,7 +1,5 @@
 // config/drive.js
 const { google } = require('googleapis');
-const fs = require('fs');
-const path = require('path');
 
 // Google Drive API configuration
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
@@ -9,9 +7,12 @@ const SCOPES = ['https://www.googleapis.com/auth/drive'];
 // Initialize the Google Drive API client
 const initDriveClient = () => {
   try {
+    // Use credentials from environment variable instead of file
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+    
     const auth = new google.auth.GoogleAuth({
-      // Use the credentials file from Google Developer Console
-      keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+      // Create auth from credentials JSON
+      credentials,
       scopes: SCOPES,
     });
 

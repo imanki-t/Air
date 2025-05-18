@@ -16,6 +16,8 @@
     "gridfs-stream": "",
     "uuid": "",
     "bcryptjs": "",
-    "jsonwebtoken": ""
+    "jsonwebtoken": "",
+    "googleapis": "^118.0.0",
+    "stream-buffers": "^3.0.2"
   }
 }

@@ -1,53 +1,142 @@
 // services/fileService.js
-
-const { GridFSBucket, ObjectId } = require('mongodb');
+const { ObjectId } = require('mongodb');
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const getFileCategory = require('../utils/fileType');
+const { initDriveClient, initDriveFolder } = require('../config/drive');
+const { getDriveIdMapping, storeDriveMapping, bufferToStream, streamToBuffer } = require('../utils/driveUtils');
+
+// Initialize Google Drive client
+const { drive, auth } = initDriveClient();
+let driveFolderId;
+
+// Get the root folder ID
+(async () => {
+  try {
+    driveFolderId = await initDriveFolder(drive);
+    console.log('Google Drive folder initialized:', driveFolderId);
+  } catch (error) {
+    console.error('Failed to initialize Google Drive folder:', error);
+  }
+})();
 
 const db = mongoose.connection;
-const bucket = new GridFSBucket(db, { bucketName: 'uploads' });
 
-// --- Upload file ---
-const uploadFile = (req, res) => {
-  const { originalname, mimetype, stream } = req.file;
-  const resumableUploadId = req.body.resumableUploadId;
-  const resumableProgress = req.body.resumableProgress;
+// --- Upload file to Google Drive ---
+const uploadFile = async (req, res) => {
+  try {
+    if (!driveFolderId) {
+      driveFolderId = await initDriveFolder(drive);
+    }
 
-  const type = getFileCategory(mimetype);
-  const metadata = {
-    filename: originalname,
-    type,
-    uploadedAt: new Date(),
-  };
-  if (resumableUploadId) {
-    metadata.resumableUploadId = resumableUploadId;
-    metadata.resumableProgress = resumableProgress;
+    const { originalname, mimetype, stream } = req.file;
+    const resumableUploadId = req.body.resumableUploadId;
+    const resumableProgress = req.body.resumableProgress;
+
+    const type = getFileCategory(mimetype);
+    const metadata = {
+      filename: originalname,
+      type,
+      uploadedAt: new Date(),
+    };
+
+    if (resumableUploadId) {
+      metadata.resumableUploadId = resumableUploadId;
+      metadata.resumableProgress = resumableProgress;
+    }
+
+    // Create a file in Google Drive
+    const driveFileMetadata = {
+      name: originalname,
+      parents: [driveFolderId],
+      description: JSON.stringify(metadata),
+      mimeType: mimetype,
+    };
+
+    const buffer = await streamToBuffer(stream);
+    
+    const driveRes = await drive.files.create({
+      resource: driveFileMetadata,
+      media: {
+        mimeType: mimetype,
+        body: bufferToStream(buffer)
+      },
+      fields: 'id, name, webContentLink, webViewLink, createdTime, mimeType, size',
+    });
+
+    // Generate MongoDB ObjectId for compatibility with existing code
+    const mongoId = new ObjectId();
+    
+    // Store mapping between MongoDB ObjectId and Google Drive file ID
+    await storeDriveMapping(mongoId, driveRes.data.id, {
+      ...metadata,
+      contentType: mimetype,
+      size: driveRes.data.size,
+      uploadDate: new Date(driveRes.data.createdTime)
+    });
+
+    // Format response similar to GridFS for frontend compatibility
+    const responseObj = {
+      _id: mongoId,
+      length: parseInt(driveRes.data.size || 0),
+      chunkSize: 261120,
+      uploadDate: new Date(driveRes.data.createdTime),
+      filename: driveRes.data.name,
+      contentType: driveRes.data.mimeType,
+      metadata: metadata,
+      driveId: driveRes.data.id,
+      webContentLink: driveRes.data.webContentLink,
+      webViewLink: driveRes.data.webViewLink
+    };
+
+    res.status(201).json(responseObj);
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ error: error.message });
   }
-
-  const uploadStream = bucket.openUploadStream(originalname, {
-    contentType: mimetype,
-    metadata,
-  });
-
-  stream.pipe(uploadStream)
-    .on('error', (err) => res.status(500).json({ error: err.message }))
-    .on('finish', (file) => res.status(201).json(file));
 };
 
 // --- Get all files ---
 const getFiles = async (req, res) => {
-  const files = await db.collection('uploads.files')
-    .find({})
-    .sort({ uploadDate: -1 })
-    .toArray();
-  res.json(files);
+  try {
+    // Retrieve all file mappings from MongoDB
+    const files = await db.collection('drive_mappings')
+      .find({})
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    // Format response to match GridFS structure
+    const formattedFiles = files.map(file => ({
+      _id: file._id,
+      length: file.metadata.size,
+      chunkSize: 261120,
+      uploadDate: file.metadata.uploadDate,
+      filename: file.metadata.filename,
+      contentType: file.metadata.contentType,
+      metadata: file.metadata,
+      driveId: file.driveId
+    }));
+
+    res.json(formattedFiles);
+  } catch (error) {
+    console.error('Error retrieving files:', error);
+    res.status(500).json({ error: error.message });
+  }
 };
 
-// --- Delete a file (updated with socket emit) ---
+// --- Delete a file ---
 const deleteFile = async (req, res) => {
   try {
-    await bucket.delete(new ObjectId(req.params.id));
+    const fileId = req.params.id;
+    const driveId = await getDriveIdMapping(fileId);
+
+    // Delete file from Google Drive
+    await drive.files.delete({
+      fileId: driveId
+    });
+
+    // Delete mapping from MongoDB
+    await db.collection('drive_mappings').deleteOne({ _id: new ObjectId(fileId) });
 
     // Emit socket event to all clients
     const io = req.app.get('io');
@@ -56,48 +145,118 @@ const deleteFile = async (req, res) => {
     }
 
     res.json({ message: 'File deleted' });
-  } catch (err) {
-    console.error('Delete error:', err);
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 // --- Download file ---
 const downloadFile = async (req, res) => {
-  const file = await db.collection('uploads.files').findOne({ _id: new ObjectId(req.params.id) });
-  if (!file) return res.status(404).json({ error: 'File not found' });
+  try {
+    const fileId = req.params.id;
+    const driveId = await getDriveIdMapping(fileId);
 
-  res.set('Content-Type', file.contentType);
-  const downloadStream = bucket.openDownloadStream(file._id);
-  downloadStream.pipe(res);
+    // Get file metadata from Google Drive
+    const fileMetadata = await drive.files.get({
+      fileId: driveId,
+      fields: 'name, mimeType'
+    });
+
+    // Set content disposition header for download
+    res.setHeader('Content-Disposition', `attachment; filename="${fileMetadata.data.name}"`);
+    res.setHeader('Content-Type', fileMetadata.data.mimeType);
+
+    // Stream file from Google Drive
+    const driveResponse = await drive.files.get({
+      fileId: driveId,
+      alt: 'media'
+    }, { responseType: 'stream' });
+
+    driveResponse.data.pipe(res);
+  } catch (error) {
+    console.error('Download error:', error);
+    res.status(500).json({ error: error.message });
+  }
 };
 
 // --- Generate shareable link ---
 const generateShareLink = async (req, res) => {
-  const id = req.params.id;
-  const shareId = uuidv4();
+  try {
+    const fileId = req.params.id;
+    const driveId = await getDriveIdMapping(fileId);
 
-  await db.collection('uploads.files').updateOne(
-    { _id: new ObjectId(id) },
-    { $set: { 'metadata.shareId': shareId } }
-  );
+    // Generate a unique ID for the share link
+    const shareId = uuidv4();
 
-  const shareURL = `${process.env.BACKEND_URL}/api/files/share/${shareId}`;
-  res.json({ url: shareURL });
+    // Update the file permissions in Google Drive
+    await drive.permissions.create({
+      fileId: driveId,
+      requestBody: {
+        role: 'reader',
+        type: 'anyone'
+      }
+    });
+
+    // Get the web link from Google Drive
+    const file = await drive.files.get({
+      fileId: driveId,
+      fields: 'webContentLink, webViewLink'
+    });
+
+    // Store the share ID in MongoDB
+    await db.collection('drive_mappings').updateOne(
+      { _id: new ObjectId(fileId) },
+      { $set: { 'metadata.shareId': shareId } }
+    );
+
+    // Create a custom share URL using our API
+    const shareURL = `${process.env.BACKEND_URL}/api/files/share/${shareId}`;
+    
+    res.json({ url: shareURL });
+  } catch (error) {
+    console.error('Share error:', error);
+    res.status(500).json({ error: error.message });
+  }
 };
 
 // --- Access shared file via link ---
 const accessSharedFile = async (req, res) => {
-  const shareId = req.params.shareId;
-  const file = await db.collection('uploads.files').findOne({
-    'metadata.shareId': shareId,
-  });
+  try {
+    const shareId = req.params.shareId;
+    
+    // Find the file with the given share ID
+    const fileMapping = await db.collection('drive_mappings').findOne({
+      'metadata.shareId': shareId
+    });
 
-  if (!file) return res.status(404).json({ error: 'Link not found' });
+    if (!fileMapping) {
+      return res.status(404).json({ error: 'Link not found' });
+    }
 
-  res.set('Content-Type', file.contentType);
-  const downloadStream = bucket.openDownloadStream(file._id);
-  downloadStream.pipe(res);
+    const driveId = fileMapping.driveId;
+
+    // Get file metadata from Google Drive
+    const fileMetadata = await drive.files.get({
+      fileId: driveId,
+      fields: 'name, mimeType'
+    });
+
+    // Set content disposition header for download
+    res.setHeader('Content-Disposition', `attachment; filename="${fileMetadata.data.name}"`);
+    res.setHeader('Content-Type', fileMetadata.data.mimeType);
+
+    // Stream file from Google Drive
+    const driveResponse = await drive.files.get({
+      fileId: driveId,
+      alt: 'media'
+    }, { responseType: 'stream' });
+
+    driveResponse.data.pipe(res);
+  } catch (error) {
+    console.error('Share access error:', error);
+    res.status(500).json({ error: error.message });
+  }
 };
 
 // --- Cleanup incomplete upload (stub) ---
@@ -105,68 +264,97 @@ const cleanupIncompleteUpload = async (req, res) => {
   try {
     const fileId = req.params.fileId;
     console.log(`Cleanup request received for file ID: ${fileId}`);
-    // Add cleanup logic if needed
+    
+    // For Google Drive integration, this can be a no-op
+    // or actual cleanup if needed
+    
     res.json({ message: 'Cleanup request processed' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    console.error('Cleanup error:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 // --- Upload and share ZIP ---
-const uploadAndShareZip = (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No zip file uploaded.' });
-  }
+const uploadAndShareZip = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No zip file uploaded.' });
+    }
 
-  const { originalname, stream } = req.file;
-  const mimetype = 'application/zip';
-  const type = 'document';
+    if (!driveFolderId) {
+      driveFolderId = await initDriveFolder(drive);
+    }
 
-  const uploadDate = new Date();
-  const metadata = {
-    filename: originalname || `shared_archive_${Date.now()}.zip`,
-    type,
-    isSharedZip: true,
-    uploadedAt: uploadDate,
-  };
+    const { originalname, stream } = req.file;
+    const filename = originalname || `shared_archive_${Date.now()}.zip`;
+    const mimetype = 'application/zip';
+    const type = 'document';
+    const uploadDate = new Date();
 
-  const uploadStream = bucket.openUploadStream(metadata.filename, {
-    contentType: mimetype,
-    metadata,
-  });
+    const metadata = {
+      filename,
+      type,
+      isSharedZip: true,
+      uploadedAt: uploadDate,
+    };
 
-  stream.pipe(uploadStream)
-    .on('error', (err) => {
-      console.error("Error uploading zip:", err);
-      res.status(500).json({ error: `Failed to upload zip: ${err.message}` });
-    })
-    .on('finish', async () => {
-      try {
-        const uploadedFileDoc = await db.collection('uploads.files').findOne({
-          'metadata.filename': metadata.filename,
-          'metadata.uploadedAt': metadata.uploadedAt
-        });
+    // Create a zip file in Google Drive
+    const driveFileMetadata = {
+      name: filename,
+      parents: [driveFolderId],
+      description: JSON.stringify(metadata),
+      mimeType: mimetype,
+    };
 
-        if (!uploadedFileDoc) {
-          console.error("Error: Could not find uploaded zip file in DB after finish.");
-          return res.status(500).json({ error: 'Failed to retrieve uploaded file details for sharing.' });
-        }
+    const buffer = await streamToBuffer(stream);
+    
+    const driveRes = await drive.files.create({
+      resource: driveFileMetadata,
+      media: {
+        mimeType: mimetype,
+        body: bufferToStream(buffer)
+      },
+      fields: 'id, name, webContentLink, webViewLink, createdTime, mimeType, size',
+    });
 
-        const shareId = uuidv4();
+    // Generate MongoDB ObjectId for compatibility with existing code
+    const mongoId = new ObjectId();
+    
+    // Store mapping between MongoDB ObjectId and Google Drive file ID
+    await storeDriveMapping(mongoId, driveRes.data.id, {
+      ...metadata,
+      contentType: mimetype,
+      size: driveRes.data.size,
+      uploadDate: uploadDate
+    });
 
-        await db.collection('uploads.files').updateOne(
-          { _id: uploadedFileDoc._id },
-          { $set: { 'metadata.shareId': shareId } }
-        );
+    // Generate a unique share ID
+    const shareId = uuidv4();
 
-        const shareURL = `${process.env.BACKEND_URL}/api/files/share/${shareId}`;
-        res.status(201).json({ url: shareURL });
-
-      } catch (processError) {
-        console.error("Error processing zip after upload:", processError);
-        res.status(500).json({ error: `Failed to generate share link: ${processError.message}` });
+    // Update the file permissions in Google Drive
+    await drive.permissions.create({
+      fileId: driveRes.data.id,
+      requestBody: {
+        role: 'reader',
+        type: 'anyone'
       }
     });
+
+    // Store the share ID in MongoDB
+    await db.collection('drive_mappings').updateOne(
+      { _id: mongoId },
+      { $set: { 'metadata.shareId': shareId } }
+    );
+
+    // Create a custom share URL using our API
+    const shareURL = `${process.env.BACKEND_URL}/api/files/share/${shareId}`;
+    
+    res.status(201).json({ url: shareURL });
+  } catch (error) {
+    console.error('Error uploading and sharing zip:', error);
+    res.status(500).json({ error: error.message });
+  }
 };
 
 module.exports = {

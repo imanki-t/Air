@@ -6,6 +6,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import axios from 'axios';
+import { getFile, getBackendId, deleteFile } from './src/fileStore'; // Adjusted to include deleteFile and getBackendId
 
 const UPLOAD_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
 const STORAGE_KEY = 'fileUploadState';
@@ -28,15 +29,13 @@ const UploadForm = ({ refresh, darkMode }) => {
   const uploadFileRef = useRef(null);
   const lastProgressUpdateRef = useRef({ time: 0, loaded: 0 });
   const uploadTimeoutRef = useRef(null);
-  const socketRef = useRef(null); 
-
+  const socketRef = useRef(null);
   useEffect(() => {
     socketRef.current = io(import.meta.env.VITE_BACKEND_URL);
     return () => {
       if (socketRef.current) socketRef.current.disconnect();
     };
   }, []);
-
   // Check for saved upload state on component mount
   useEffect(() => {
     checkForSavedUploads();
@@ -55,11 +54,11 @@ const UploadForm = ({ refresh, darkMode }) => {
 
       }
       if (uploadTimeoutRef.current) {
+
         clearTimeout(uploadTimeoutRef.current);
       }
     };
   }, []);
-
   // Separate function to check for saved uploads
   const checkForSavedUploads = () => {
     try {
@@ -102,7 +101,6 @@ const UploadForm = ({ refresh, darkMode }) => {
       window.removeEventListener('resize', updateTruncateLength);
     };
   }, []);
-
   // Save upload state when upload is interrupted
   const saveUploadState = (uploadData = null) => {
     const dataToSave = uploadData ||
@@ -135,7 +133,6 @@ const UploadForm = ({ refresh, darkMode }) => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
     }
   };
-
   // Auto-dismiss messages after timeout
   useEffect(() => {
     if (message) {
@@ -153,29 +150,84 @@ const UploadForm = ({ refresh, darkMode }) => {
 
 
       return () => {
+
         clearTimeout(timer);
       };
     }
   }, [message]);
+  // Updated cleanup function for incomplete uploads
 
-  // Cleanup function for incomplete uploads
-  const cleanupIncompleteUpload = async (fileId) => {
-    try {
-      await axios.delete(
-        `${import.meta.env.VITE_BACKEND_URL}/api/files/cleanup/${fileId}`
-      );
-      console.log('Cleaned up incomplete upload');
-    } catch (error) {
-      console.error('Error cleaning up incomplete upload:', error);
+import { getFile, getBackendId, deleteFile } from './src/fileStore'; // Adjusted to include deleteFile and getBackendId
+import axios from 'axios'; // Added axios import
+
+// Updated function that properly handles the file ID
+const cleanupIncompleteUpload = async (fileId) => {
+  try {
+    // First, check if we need to get a proper ID from IndexedDB
+    let backendId = fileId;
+
+    // If the fileId appears to be a filename or not a MongoDB ObjectId
+    if (fileId && typeof fileId === 'string' && !/^[0-9a-fA-F]{24}$/.test(fileId)) {
+      // Try to get the file object from IndexedDB
+      try {
+        const fileObject = await getFile(fileId);
+        if (fileObject && fileObject.mongoId) {
+          // Use the MongoDB ID if available
+          backendId = fileObject.mongoId;
+        } else {
+             // If no mongoId in file object, try to get it directly by filename
+             const directBackendId = await getBackendId(fileId);
+             if (directBackendId) {
+                 backendId = directBackendId;
+             }
+        }
+      } catch (dbError) {
+        console.log('Could not retrieve file from IndexedDB:', dbError);
+        // Continue with the original ID if we can't get the stored object
+      }
     }
-  };
+
+    console.log(`Cleaning up file with ID: ${backendId}`);
+
+    // Check if backendId is valid before making the API call
+    if (!backendId || typeof backendId !== 'string' || !/^[0-9a-fA-F]{24}$/.test(backendId)) {
+        console.log('Invalid backendId, skipping backend cleanup.');
+         // Still attempt to remove from IndexedDB
+        try {
+            await deleteFile(fileId);
+        } catch (deleteError) {
+            console.log('Note: Could not delete from IndexedDB after invalid backendId:', deleteError);
+        }
+        return; // Exit the function if backendId is invalid
+    }
+
+    // Make the API call with the appropriate ID
+    const response = await axios.delete(
+      `${import.meta.env.VITE_BACKEND_URL}/api/files/cleanup/${backendId}`
+    );
+
+    console.log('Cleanup successful:', response.data);
+
+
+    // Also remove from IndexedDB if needed
+    try {
+      await deleteFile(fileId);
+    } catch (deleteError) {
+      console.log('Note: Could not delete from IndexedDB:', deleteError);
+      // Not critical, so we continue
+    }
+
+  } catch (error) {
+    console.error('Error cleaning up file:', error);
+    // Still return normally since the backend will clean up what it can
+  }
+};
 
   // Format filename for display
   const getTruncatedFileName = (name) => {
     if (!name) return '';
     return name.length > truncateLength ? name.slice(0, truncateLength) + '...' : name;
   };
-
   // Format time remaining with units
   const formatTimeRemaining = (seconds) => {
     if (!seconds && seconds !== 0) return 'Calculating...';
@@ -198,7 +250,6 @@ const UploadForm = ({ refresh, darkMode }) => {
         's' : ''} ${hours} hour${hours !== 1 ? 's' : ''}`;
     }
   };
-
   // Calculate estimated time remaining
   const calculateTimeRemaining = (loaded, total, uploadSpeed) => {
     if (uploadSpeed <= 0) return null;
@@ -207,7 +258,6 @@ const UploadForm = ({ refresh, darkMode }) => {
 
     return formatTimeRemaining(remainingTimeSeconds);
   };
-
   // Format bytes to readable size
   const formatBytes = (bytes, decimals = 2) => {
     if (bytes === 0) return '0 Bytes';
@@ -218,7 +268,6 @@ const UploadForm = ({ refresh, darkMode }) => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   };
-
   // Verify if the selected file matches the stored file signature
   const verifyFileSignature = async (selectedFile, fileSignature) => {
     if (!selectedFile || !fileSignature) return false;
@@ -232,7 +281,8 @@ const UploadForm = ({ refresh, darkMode }) => {
 
         // Compare with stored signature
 
-        resolve(selectedSignature === fileSignature);
+        resolve(selectedSignature ===
+          fileSignature);
       };
 
       // Only read a small slice of the file
@@ -291,6 +341,7 @@ const UploadForm = ({ refresh, darkMode }) => {
           },
           onUploadProgress: (event) => {
             // Ensure we
+
             if (!event.total) {
               setMessage('Unable to calculate upload progress. Upload is continuing...');
               return;
@@ -300,12 +351,14 @@ const UploadForm = ({ refresh, darkMode }) => {
 
             setProgress(percent);
 
+
             // Calculate upload speed
             const now = Date.now();
             const timeDiff = now - lastProgressUpdateRef.current.time;
             if (timeDiff > 500) { // Update speed every 500ms for stability
               const loadedDiff =
                 event.loaded - lastProgressUpdateRef.current.loaded;
+
               const speedBps = (loadedDiff / timeDiff) * 1000;
               // bytes per second
               setUploadSpeed(speedBps);
@@ -328,6 +381,7 @@ const UploadForm = ({ refresh, darkMode }) => {
                 fileName: fileToUpload.name,
 
                 fileSize: fileToUpload.size,
+
                 fileType: fileToUpload.type,
                 progress: percent,
                 fileId: fileToUpload.name.replace(/[^a-zA-Z0-9]/g, '_') + Date.now()
@@ -336,7 +390,6 @@ const UploadForm = ({ refresh, darkMode }) => {
           }
         }
       );
-
       // Remove the event listeners after upload completes
       window.removeEventListener('unload', handleUnload);
       window.removeEventListener('beforeunload', handleUnload);
@@ -347,9 +400,9 @@ const UploadForm = ({ refresh, darkMode }) => {
       setMessage('File uploaded successfully.');
 
       if (socketRef.current) {
-  socketRef.current.emit('fileUploaded');
+        socketRef.current.emit('fileUploaded');
       }
-      
+
       setFile(null);
       refresh(); // Call the refresh function provided as prop
     } catch (err) {
@@ -499,57 +552,7 @@ const UploadForm = ({ refresh, darkMode }) => {
           if (pendingResume.fileSignature) {
 
             const isMatchingFile = await verifyFileSignature(droppedFile, pendingResume.fileSignature);
-            if (isMatchingFile) {
-              setMessage('Resume file verified. Ready to resume upload.');
-              // Auto-start upload when correct file is detected
-              setTimeout(() => handleUpload(), 500);
-            } else {
-              setMessage('Different file detected. Starting new upload.');
-              setPendingResume(null);
-              localStorage.removeItem(STORAGE_KEY);
-            }
-          } else {
-            setMessage('Ready to resume upload.');
-            // Auto-start upload when correct file is detected
-            setTimeout(() => handleUpload(), 500);
-          }
-        } else {
-          // Wrong file for resume - clear file and show resume UI again
-          setMessage('Different file detected. Please select the correct file.');
-          setFile(null);
-          uploadFileRef.current = null;
-        }
-      }
-    }
-  }, [pendingResume]);
 
-  // Handle drag over
-  const handleDragOver = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-
-  // Handle file input change
-  const handleFileInputChange = async (e) => {
-    if (!e.target.files || e.target.files.length === 0) {
-      return;
-    }
-
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setMessage('');
-      setFile(selectedFile);
-      uploadFileRef.current = selectedFile;
-
-      // Check if this is a resume situation
-      if (pendingResume) {
-        if (pendingResume.fileName === selectedFile.name &&
-          pendingResume.fileSize === selectedFile.size) {
-
-          // Verify file signature if available
-          if (pendingResume.fileSignature) {
-            const isMatchingFile =
-              await verifyFileSignature(selectedFile, pendingResume.fileSignature);
             if (isMatchingFile) {
               setMessage('Resume file verified. Ready to resume upload.');
               // Auto-start upload when correct file is detected
@@ -573,7 +576,6 @@ const UploadForm = ({ refresh, darkMode }) => {
       }
     }
   };
-
   // Handle resume upload - this will prompt user to select the file again
   const handleResumeUpload = () => {
     if (fileInputRef.current) {
@@ -589,7 +591,6 @@ const UploadForm = ({ refresh, darkMode }) => {
 
     // Clear the message immediately
     setMessage('');
-
     // If we had a file ID, request cleanup on the server
     if (pendingResume?.fileId) {
       cleanupIncompleteUpload(pendingResume.fileId);
@@ -614,26 +615,27 @@ const UploadForm = ({ refresh, darkMode }) => {
       return darkMode ? 'text-red-400' : 'text-red-600';
     }
   };
-
   return (
     <form
       onSubmit={handleUpload}
       className={`mb-6 p-6 rounded-xl shadow-md transition-colors duration-300 ${
         darkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
-      }`}
+        }`}
     >
       <h3 className={`text-2xl font-semibold mb-2 text-center ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-        ‎ 
+        ‎
       </h3>
 
       {/* Resume Notice */}
       {pendingResume && !isUploading && !file &&
+
         (
           <div className={`mb-6 p-5 rounded-lg ${darkMode ? 'bg-blue-800/40 border border-blue-600' : 'bg-blue-50 border border-blue-400'}`}>
             <div className="mb-4">
               <h4 className={`text-lg font-semibold ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
                 Resume Previous Upload
               </h4>
+
               <p className={`text-sm mt-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
 
                 Your previous upload of "{getTruncatedFileName(pendingResume.fileName)}"
@@ -645,11 +647,13 @@ const UploadForm = ({ refresh, darkMode }) => {
               <button
                 type="button"
                 onClick={handleResumeUpload}
+
                 className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors mr-4" // Added mr-4
               >
                 Resume
               </button>
               <button
+
                 type="button"
                 onClick={handleCancelResume}
                 className={`flex-1 px-4 py-2.5 rounded-md font-medium transition-colors ${
@@ -657,11 +661,12 @@ const UploadForm = ({ refresh, darkMode }) => {
                     ?
                     'bg-gray-700 hover:bg-gray-600 text-white'
                     : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                }`}
+                  }`}
               >
                 Cancel
               </button>
             </div>
+
 
           </div>
 
@@ -673,14 +678,16 @@ const UploadForm = ({ refresh, darkMode }) => {
           htmlFor="fileInput"
           className={`block w-full cursor-pointer px-4 py-8 rounded-lg mb-5 text-center transition-colors ${
             darkMode
+
               ? 'bg-gray-700 hover:bg-gray-600 border-2 border-dashed border-gray-600'
 
               : 'bg-gray-100 hover:bg-gray-200 border-2 border-dashed border-gray-300'
-          } ${file ? (darkMode ? 'border-blue-500' : 'border-blue-400') : ''}`}
+            } ${file ? (darkMode ? 'border-blue-500' : 'border-blue-400') : ''}`}
           title={file ? file.name : 'Drag and drop file or click to browse'}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
         >
+
           <div className="flex flex-col items-center justify-center">
 
             <svg xmlns="http://www.w3.org/2000/svg" className={`h-12 w-12 mb-3 ${darkMode ?
@@ -698,6 +705,7 @@ const UploadForm = ({ refresh, darkMode }) => {
                   <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
 
                     {formatBytes(file.size)}
+
                   </p>
                 )}
               </div>
@@ -717,6 +725,7 @@ const UploadForm = ({ refresh, darkMode }) => {
         type="file"
 
         ref={fileInputRef}
+
         onChange={handleFileInputChange}
         className="hidden"
       />
@@ -728,6 +737,7 @@ const UploadForm = ({ refresh, darkMode }) => {
           <div className={`w-full rounded-full h-6 mb-3 overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
 
             <div
+
               className="bg-blue-600 h-full transition-all duration-200 ease-in-out"
               style={{ width: `${progress}%` }}
             >
@@ -735,6 +745,7 @@ const UploadForm = ({ refresh, darkMode }) => {
               <div className="w-full h-full opacity-30 bg-gradient-to-r from-transparent via-white to-transparent animate-pulse"></div>
 
             </div>
+
           </div>
 
           {/* Progress info container - fixed height and properly spaced */}
@@ -763,6 +774,7 @@ const UploadForm = ({ refresh, darkMode }) => {
             <button
 
               type="button"
+
               onClick={handleCancel}
               className="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors"
             >
@@ -773,19 +785,22 @@ const UploadForm = ({ refresh, darkMode }) => {
 
       )}
 
-      {/* Action buttons - only show when file is selected and not uploading */}
+      {/* Action
+        buttons - only show when file is selected and not uploading */}
       {file && !isUploading && (
         <div className="flex gap-3 mt-2">
           <button
             type="submit"
             className={`flex-1 px-4 py-2.5 text-white rounded-md font-medium transition-colors ${
               message.includes('Different file')
+
                 ? 'bg-blue-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700'
-            }`}
+              }`}
             disabled={message.includes('Different file')}
           >
-            {pendingResume ? 'Resume Upload' : 'Upload'}
+            {pendingResume ?
+              'Resume Upload' : 'Upload'}
           </button>
           <button
             type="button"
@@ -794,6 +809,7 @@ const UploadForm = ({ refresh, darkMode }) => {
           >
             Remove
           </button>
+
 
         </div>
       )}

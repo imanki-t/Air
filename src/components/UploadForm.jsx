@@ -157,9 +157,6 @@ const UploadForm = ({ refresh, darkMode }) => {
   }, [message]);
   // Updated cleanup function for incomplete uploads
 
-import { getFile, getBackendId, deleteFile } from './src/fileStore'; // Adjusted to include deleteFile and getBackendId
-import axios from 'axios'; // Added axios import
-
 // Updated function that properly handles the file ID
 const cleanupIncompleteUpload = async (fileId) => {
   try {

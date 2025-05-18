@@ -8,13 +8,38 @@ const StreamBuffers = require('stream-buffers');
 const getDriveIdMapping = async (fileId) => {
   const db = mongoose.connection;
   try {
-    const file = await db.collection('drive_mappings').findOne({ _id: new ObjectId(fileId) });
-    if (!file) {
-      throw new Error('File mapping not found');
+    // Check if it's a valid ObjectId first
+    let query;
+    
+    if (ObjectId.isValid(fileId) && String(new ObjectId(fileId)) === fileId) {
+      // Valid ObjectId format
+      query = { _id: new ObjectId(fileId) };
+    } else {
+      // Try to find by filename
+      query = { 'metadata.filename': fileId };
     }
+    
+    const file = await db.collection('drive_mappings').findOne(query);
+    
+    if (!file) {
+      // Try one more approach - if it's a string representation of ObjectId
+      // but doesn't pass the equality check
+      if (ObjectId.isValid(fileId)) {
+        const alternativeFile = await db.collection('drive_mappings').findOne({ 
+          _id: new ObjectId(fileId)
+        });
+        
+        if (alternativeFile) {
+          return alternativeFile.driveId;
+        }
+      }
+      
+      throw new Error(`File mapping not found for: ${fileId}`);
+    }
+    
     return file.driveId;
   } catch (error) {
-    console.error('Error getting Drive ID mapping:', error);
+    console.error(`Error getting Drive ID mapping for ${fileId}:`, error);
     throw error;
   }
 };
@@ -23,12 +48,27 @@ const getDriveIdMapping = async (fileId) => {
 const storeDriveMapping = async (mongoId, driveId, metadata) => {
   const db = mongoose.connection;
   try {
+    // Ensure mongoId is a valid ObjectId
+    let validMongoId = mongoId;
+    
+    if (!(mongoId instanceof ObjectId)) {
+      if (ObjectId.isValid(mongoId)) {
+        validMongoId = new ObjectId(mongoId);
+      } else {
+        // Generate a new ObjectId if the provided one isn't valid
+        validMongoId = new ObjectId();
+        console.warn(`Invalid ObjectId provided (${mongoId}), generated new one: ${validMongoId}`);
+      }
+    }
+    
     await db.collection('drive_mappings').insertOne({
-      _id: mongoId,
+      _id: validMongoId,
       driveId: driveId,
       metadata: metadata,
       createdAt: new Date()
     });
+    
+    return validMongoId; // Return the (potentially new) ObjectId
   } catch (error) {
     console.error('Error storing Drive ID mapping:', error);
     throw error;
@@ -55,9 +95,23 @@ const streamToBuffer = async (stream) => {
   });
 };
 
+// Helper function to safely check and convert to ObjectId
+const safeObjectId = (id) => {
+  try {
+    if (ObjectId.isValid(id) && String(new ObjectId(id)) === id) {
+      return new ObjectId(id);
+    }
+    return null;
+  } catch (error) {
+    console.error(`Error converting to ObjectId: ${id}`, error);
+    return null;
+  }
+};
+
 module.exports = {
   getDriveIdMapping,
   storeDriveMapping,
   bufferToStream,
-  streamToBuffer
+  streamToBuffer,
+  safeObjectId
 };

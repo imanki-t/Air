@@ -4,7 +4,13 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const getFileCategory = require('../utils/fileType');
 const { initDriveClient, initDriveFolder } = require('../config/drive');
-const { getDriveIdMapping, storeDriveMapping, bufferToStream, streamToBuffer } = require('../utils/driveUtils');
+const { 
+  getDriveIdMapping, 
+  storeDriveMapping, 
+  bufferToStream, 
+  streamToBuffer,
+  safeObjectId
+} = require('../utils/driveUtils');
 
 // Initialize Google Drive client
 const { drive, auth } = initDriveClient();
@@ -135,8 +141,11 @@ const deleteFile = async (req, res) => {
       fileId: driveId
     });
 
-    // Delete mapping from MongoDB
-    await db.collection('drive_mappings').deleteOne({ _id: new ObjectId(fileId) });
+    // Delete mapping from MongoDB using safe ObjectId conversion
+    const objectId = safeObjectId(fileId);
+    const deleteQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
+    
+    await db.collection('drive_mappings').deleteOne(deleteQuery);
 
     // Emit socket event to all clients
     const io = req.app.get('io');
@@ -163,8 +172,11 @@ const downloadFile = async (req, res) => {
       fields: 'name, mimeType'
     });
 
-    // Set content disposition header for download
-    res.setHeader('Content-Disposition', `attachment; filename="${fileMetadata.data.name}"`);
+    // Safely encode the filename to avoid invalid characters in HTTP headers
+    const safeFilename = encodeURIComponent(fileMetadata.data.name).replace(/['()]/g, escape);
+    
+    // Set content disposition header for download with properly encoded filename
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
     res.setHeader('Content-Type', fileMetadata.data.mimeType);
 
     // Stream file from Google Drive
@@ -204,9 +216,13 @@ const generateShareLink = async (req, res) => {
       fields: 'webContentLink, webViewLink'
     });
 
+    // Use safeObjectId to handle potential invalid ObjectIds
+    const objectId = safeObjectId(fileId);
+    const updateQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
+
     // Store the share ID in MongoDB
     await db.collection('drive_mappings').updateOne(
-      { _id: new ObjectId(fileId) },
+      updateQuery,
       { $set: { 'metadata.shareId': shareId } }
     );
 
@@ -242,8 +258,11 @@ const accessSharedFile = async (req, res) => {
       fields: 'name, mimeType'
     });
 
-    // Set content disposition header for download
-    res.setHeader('Content-Disposition', `attachment; filename="${fileMetadata.data.name}"`);
+    // Safely encode the filename to avoid invalid characters in HTTP headers
+    const safeFilename = encodeURIComponent(fileMetadata.data.name).replace(/['()]/g, escape);
+    
+    // Set content disposition header for download with properly encoded filename
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
     res.setHeader('Content-Type', fileMetadata.data.mimeType);
 
     // Stream file from Google Drive
@@ -271,14 +290,23 @@ const cleanupIncompleteUpload = async (req, res) => {
     
     // First check if we're dealing with a MongoDB ObjectId or a filename
     let query;
+    let mongoId = null;
     
     try {
-      // Try to parse as MongoDB ObjectId
-      const mongoObjectId = new ObjectId(fileId);
-      query = { _id: mongoObjectId };
+      // Check if it's a valid MongoDB ObjectId format
+      if (ObjectId.isValid(fileId) && String(new ObjectId(fileId)) === fileId) {
+        // It's a valid ObjectId with correct format
+        mongoId = new ObjectId(fileId);
+        query = { _id: mongoId };
+        console.log(`Valid ObjectId format: ${fileId}`);
+      } else {
+        // Not a valid ObjectId format, treat as filename
+        console.log(`Not a valid ObjectId format: ${fileId}, will check if it's a filename`);
+        query = { 'metadata.filename': fileId };
+      }
     } catch (objectIdError) {
-      // Not a valid ObjectId, check if it's a filename
-      console.log(`Not a valid ObjectId: ${fileId}, will check if it's a filename`);
+      // Fallback to using filename in case of any error
+      console.log(`Error with ObjectId: ${objectIdError.message}, will check if it's a filename`);
       query = { 'metadata.filename': fileId };
     }
     
@@ -292,7 +320,7 @@ const cleanupIncompleteUpload = async (req, res) => {
     }
     
     const driveId = fileMapping.driveId;
-    const mongoId = fileMapping._id;
+    mongoId = fileMapping._id; // Ensure we have the MongoDB ObjectId
     
     console.log(`Found mapping: MongoDB ID ${mongoId}, Drive ID ${driveId}`);
     
@@ -339,6 +367,7 @@ const cleanupIncompleteUpload = async (req, res) => {
     res.status(200).json({ message: 'Cleanup process completed' });
   }
 };
+
 // --- Upload and share ZIP ---
 const uploadAndShareZip = async (req, res) => {
   try {

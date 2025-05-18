@@ -5,7 +5,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import axios from 'axios';
-import { getFile, deleteFile } from './src/fileStore'; // Adjusted import for the new cleanup function
+import { getFile, deleteFile } from '../src/fileStore'; // Adjusted import for the new cleanup function
 
 const UPLOAD_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
 const STORAGE_KEY = 'fileUploadState';

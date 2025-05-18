@@ -323,7 +323,7 @@ Access your dashboard now and experience seamless file management designed just 
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-col items-center justify-between md:flex-row">
             <div className="flex items-center space-x-2">
-              <img src="airstream.png" alt="Airstream Logo" className="w-10 h-10 rounded-lg" />
+              <img src="air.png" alt="Airstream" className="w-10 h-10 rounded-lg" />
 <span className="text-2xl font-bold tracking-tight">Airstream</span>
             </div>
 

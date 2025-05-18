@@ -269,17 +269,32 @@ const cleanupIncompleteUpload = async (req, res) => {
       return res.status(400).json({ message: 'Invalid file ID' });
     }
     
-    // Check if the file exists in our mapping
-    const fileMapping = await db.collection('drive_mappings').findOne({ 
-      _id: new ObjectId(fileId) 
-    });
+    // First check if we're dealing with a MongoDB ObjectId or a filename
+    let query;
+    
+    try {
+      // Try to parse as MongoDB ObjectId
+      const mongoObjectId = new ObjectId(fileId);
+      query = { _id: mongoObjectId };
+    } catch (objectIdError) {
+      // Not a valid ObjectId, check if it's a filename
+      console.log(`Not a valid ObjectId: ${fileId}, will check if it's a filename`);
+      query = { 'metadata.filename': fileId };
+    }
+    
+    // Check if the file exists in our mapping using the determined query
+    const fileMapping = await db.collection('drive_mappings').findOne(query);
     
     if (!fileMapping) {
+      console.log(`No file mapping found for: ${fileId}`);
       // If no mapping exists, we don't need to do any cleanup on Drive
       return res.json({ message: 'No file found to clean up' });
     }
     
     const driveId = fileMapping.driveId;
+    const mongoId = fileMapping._id;
+    
+    console.log(`Found mapping: MongoDB ID ${mongoId}, Drive ID ${driveId}`);
     
     // First check if the file exists on Google Drive
     try {
@@ -306,11 +321,9 @@ const cleanupIncompleteUpload = async (req, res) => {
     }
     
     // Delete mapping from MongoDB
-    await db.collection('drive_mappings').deleteOne({ 
-      _id: new ObjectId(fileId) 
-    });
+    await db.collection('drive_mappings').deleteOne({ _id: mongoId });
     
-    console.log(`Deleted incomplete file mapping with MongoDB ID: ${fileId}`);
+    console.log(`Deleted incomplete file mapping with MongoDB ID: ${mongoId}`);
     
     // Notify clients about the change
     const io = req.app.get('io');
@@ -326,7 +339,6 @@ const cleanupIncompleteUpload = async (req, res) => {
     res.status(200).json({ message: 'Cleanup process completed' });
   }
 };
-
 // --- Upload and share ZIP ---
 const uploadAndShareZip = async (req, res) => {
   try {

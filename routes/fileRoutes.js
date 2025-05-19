@@ -1,15 +1,16 @@
-// routes/fileRoutes.js
+// routes/fileRoutes.js with rate limiting only on share link GET routes
 const express = require('express'); 
 const router = express.Router(); 
 const multer = require('multer'); 
 const { Readable } = require('stream'); 
 const controller = require('../controllers/fileController'); 
+const { apiLimiter } = require('../middleware/rateLimitMiddleware'); // Import rate limiter
 
 // Multer config
 const storage = multer.memoryStorage(); 
 const upload = multer({ storage: storage }); // Set limits if needed: limits: { fileSize: ... }
 
-// Existing upload route
+// Upload route (NO rate limiting)
 router.post('/upload', upload.single('file'), (req, res, next) => { 
   if (req.file) {
       req.file.stream = Readable.from(req.file.buffer); // convert buffer to stream 
@@ -17,7 +18,7 @@ router.post('/upload', upload.single('file'), (req, res, next) => {
   next(); 
 }, controller.uploadFile); 
 
-// /share-zip route
+// Share-zip route (NO rate limiting)
 router.post('/share-zip', upload.single('zipFile'), (req, res, next) => {
     // Convert buffer to stream, similar to the /upload route
     if (req.file) {
@@ -29,17 +30,25 @@ router.post('/share-zip', upload.single('zipFile'), (req, res, next) => {
     next();
 }, controller.uploadAndShareZip);
 
-// Existing routes
+// Get files route (NO rate limiting)
 router.get('/', controller.getFiles); 
+
+// Download file route (NO rate limiting)
 router.get('/download/:id', controller.downloadFile); 
+
+// Cleanup route (NO rate limiting)
 router.delete('/cleanup/:fileId', controller.cleanupIncompleteUpload); 
+
+// Delete file route (NO rate limiting)
 router.delete('/:id', controller.deleteFile); 
+
+// Generate share link route (NO rate limiting)
 router.post('/share/:id', controller.generateShareLink); 
 
-// Keep the original route for backward compatibility
-router.get('/share/:shareId', controller.accessSharedFile); 
+// Share link access route with rate limiting (this is the only route with rate limiting)
+router.get('/share/:shareId', apiLimiter, controller.accessSharedFile); 
 
-// Add route to manually trigger cleanup of expired links (optional, for admin/testing purposes)
+// Manual cleanup route (NO rate limiting)
 router.post('/cleanup-expired-links', async (req, res) => {
     try {
         const count = await controller.scheduleCleanup();

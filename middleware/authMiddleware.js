@@ -5,9 +5,9 @@
  * Excludes shared file routes which should be publicly accessible
  */
 const protectRoute = (req, res, next) => {
-  // Allow access to shared file routes (for accessing shared files only)
-  // This specifically targets the GET route for accessing already shared files
-  if (req.method === 'GET' && req.path.includes('/api/files/share/')) {
+  // Allow access to ALL shared file routes (for accessing shared files)
+  // This specifically targets ALL routes for accessing already shared files
+  if (req.path.includes('/api/files/share/')) {
     return next();
   }
   

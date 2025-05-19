@@ -1,3 +1,4 @@
+// package.json with added security dependencies
 {
   "name": "Airstream",
   "version": "1.0.0",
@@ -18,6 +19,9 @@
     "bcryptjs": "",
     "jsonwebtoken": "",
     "googleapis": "^118.0.0",
-    "stream-buffers": "^3.0.2"
+    "stream-buffers": "^3.0.2",
+    "cookie-parser": "^1.4.6",      
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5"  
   }
 }

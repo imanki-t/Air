@@ -1,4 +1,4 @@
-// server.js
+// server.js with rate limiter added
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -7,6 +7,7 @@ const fileRoutes = require('./routes/fileRoutes');
 const http = require('http');
 const { Server } = require('socket.io');
 const protectRoute = require('./middleware/authMiddleware'); // Import our middleware
+const { apiLimiter } = require('./middleware/rateLimitMiddleware'); // Import rate limiter
 const { scheduleCleanup } = require('./services/fileService'); // Import the cleanup function
 const { accessSharedFile } = require('./services/fileService'); // Import for shorter share links
 
@@ -23,13 +24,16 @@ app.get('/', (req, res) => {
   res.send('Storage API');
 });
 
-// Short share link route (public, not protected by middleware)
+// Apply rate limiting to all routes
+app.use(apiLimiter);
+
+// Short share link route (public, not protected by middleware but still rate limited)
 app.get('/s/:shareId', accessSharedFile);
 
 // Apply the protection middleware to all API routes
 app.use('/api', protectRoute);
 
-// Routes (now protected, except for shared file access)
+// Routes (now protected and rate limited)
 app.use('/api/files', fileRoutes);
 
 // Create HTTP server for WebSocket

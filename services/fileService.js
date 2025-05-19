@@ -1,7 +1,7 @@
 // services/fileService.js
 const { ObjectId } = require('mongodb');
 const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const getFileCategory = require('../utils/fileType');
 const { initDriveClient, initDriveFolder } = require('../config/drive');
 const { 
@@ -27,6 +27,19 @@ let driveFolderId;
 })();
 
 const db = mongoose.connection;
+
+// Generate a short share ID (6 characters)
+const generateShortShareId = () => {
+  // Generate a random buffer and convert to a base64 string
+  const buffer = crypto.randomBytes(4); // 4 bytes = 32 bits
+  // Convert to base64 (which is ~4/3 the size, so ~5.33 chars)
+  // and take the first 6 characters
+  return buffer.toString('base64')
+    .replace(/\+/g, '0')  // Replace + with 0
+    .replace(/\//g, '1')  // Replace / with 1
+    .replace(/=/g, '')    // Remove padding
+    .substring(0, 6);     // Take only first 6 chars
+};
 
 // --- Upload file to Google Drive ---
 const uploadFile = async (req, res) => {
@@ -248,8 +261,8 @@ const generateShareLink = async (req, res) => {
     const fileId = req.params.id;
     const driveId = await getDriveIdMapping(fileId);
 
-    // Generate a unique ID for the share link
-    const shareId = uuidv4();
+    // Generate a short (6 character) unique ID for the share link
+    const shareId = generateShortShareId();
 
     // Update the file permissions in Google Drive
     await drive.permissions.create({
@@ -299,8 +312,8 @@ const generateShareLink = async (req, res) => {
       }
     );
 
-    // Create a custom share URL using our API
-    const shareURL = `${process.env.BACKEND_URL}/api/files/share/${shareId}`;
+    // Create a shorter share URL using simplified path
+    const shareURL = `${process.env.BACKEND_URL}/s/${shareId}`;
     
     res.json({ 
       url: shareURL,
@@ -504,8 +517,8 @@ const uploadAndShareZip = async (req, res) => {
       uploadDate: uploadDate
     });
 
-    // Generate a unique share ID
-    const shareId = uuidv4();
+    // Generate a unique short share ID
+    const shareId = generateShortShareId();
 
     // Calculate expiration date (30 days from now)
     const expirationDate = new Date();
@@ -532,8 +545,8 @@ const uploadAndShareZip = async (req, res) => {
       }
     );
 
-    // Create a custom share URL using our API
-    const shareURL = `${process.env.BACKEND_URL}/api/files/share/${shareId}`;
+    // Create a shorter share URL using simplified path
+    const shareURL = `${process.env.BACKEND_URL}/s/${shareId}`;
     
     res.status(201).json({ 
       url: shareURL,

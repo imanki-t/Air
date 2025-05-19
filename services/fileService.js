@@ -192,6 +192,42 @@ const downloadFile = async (req, res) => {
   }
 };
 
+// --- Helper function to cleanup expired or voided share links ---
+const cleanupExpiredLinks = async () => {
+  try {
+    const now = new Date();
+    
+    // Find all links that are expired (more than 30 days old) or voided
+    const expiredOrVoidedLinks = await db.collection('drive_mappings').find({
+      $or: [
+        { 'metadata.shareExpires': { $lt: now } },
+        { 'metadata.shareVoided': true }
+      ]
+    }).toArray();
+    
+    // Remove the share information from these files
+    for (const link of expiredOrVoidedLinks) {
+      await db.collection('drive_mappings').updateOne(
+        { _id: link._id },
+        { 
+          $unset: { 
+            'metadata.shareId': "",
+            'metadata.shareExpires': "",
+            'metadata.shareVoided': ""
+          }
+        }
+      );
+      
+      console.log(`Cleaned up expired/voided share link for file: ${link._id}`);
+    }
+    
+    return expiredOrVoidedLinks.length;
+  } catch (error) {
+    console.error('Error cleaning up expired links:', error);
+    return 0;
+  }
+};
+
 // --- Generate shareable link ---
 const generateShareLink = async (req, res) => {
   try {
@@ -220,16 +256,42 @@ const generateShareLink = async (req, res) => {
     const objectId = safeObjectId(fileId);
     const updateQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
 
-    // Store the share ID in MongoDB
+    // Calculate expiration date (30 days from now)
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + 30);
+
+    // Find existing share IDs for this file and mark them as voided
+    const existingFile = await db.collection('drive_mappings').findOne(updateQuery);
+    if (existingFile && existingFile.metadata && existingFile.metadata.shareId) {
+      // Mark the previous share ID as voided
+      await db.collection('drive_mappings').updateOne(
+        updateQuery,
+        { $set: { 'metadata.shareVoided': true } }
+      );
+      
+      // Clean up the voided link immediately
+      await cleanupExpiredLinks();
+    }
+
+    // Store the new share ID and expiration date in MongoDB
     await db.collection('drive_mappings').updateOne(
       updateQuery,
-      { $set: { 'metadata.shareId': shareId } }
+      { 
+        $set: { 
+          'metadata.shareId': shareId,
+          'metadata.shareExpires': expirationDate,
+          'metadata.shareVoided': false
+        } 
+      }
     );
 
     // Create a custom share URL using our API
     const shareURL = `${process.env.BACKEND_URL}/api/files/share/${shareId}`;
     
-    res.json({ url: shareURL });
+    res.json({ 
+      url: shareURL,
+      expires: expirationDate
+    });
   } catch (error) {
     console.error('Share error:', error);
     res.status(500).json({ error: error.message });
@@ -241,13 +303,19 @@ const accessSharedFile = async (req, res) => {
   try {
     const shareId = req.params.shareId;
     
-    // Find the file with the given share ID
+    // First, clean up any expired links
+    await cleanupExpiredLinks();
+    
+    // Find the file with the given share ID that is not expired or voided
+    const now = new Date();
     const fileMapping = await db.collection('drive_mappings').findOne({
-      'metadata.shareId': shareId
+      'metadata.shareId': shareId,
+      'metadata.shareExpires': { $gt: now },
+      'metadata.shareVoided': { $ne: true }
     });
 
     if (!fileMapping) {
-      return res.status(404).json({ error: 'Link not found' });
+      return res.status(404).json({ error: 'Link not found or has expired' });
     }
 
     const driveId = fileMapping.driveId;
@@ -425,6 +493,10 @@ const uploadAndShareZip = async (req, res) => {
     // Generate a unique share ID
     const shareId = uuidv4();
 
+    // Calculate expiration date (30 days from now)
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + 30);
+
     // Update the file permissions in Google Drive
     await drive.permissions.create({
       fileId: driveRes.data.id,
@@ -434,20 +506,35 @@ const uploadAndShareZip = async (req, res) => {
       }
     });
 
-    // Store the share ID in MongoDB
+    // Store the share ID and expiration date in MongoDB
     await db.collection('drive_mappings').updateOne(
       { _id: mongoId },
-      { $set: { 'metadata.shareId': shareId } }
+      { 
+        $set: { 
+          'metadata.shareId': shareId,
+          'metadata.shareExpires': expirationDate,
+          'metadata.shareVoided': false
+        } 
+      }
     );
 
     // Create a custom share URL using our API
     const shareURL = `${process.env.BACKEND_URL}/api/files/share/${shareId}`;
     
-    res.status(201).json({ url: shareURL });
+    res.status(201).json({ 
+      url: shareURL,
+      expires: expirationDate
+    });
   } catch (error) {
     console.error('Error uploading and sharing zip:', error);
     res.status(500).json({ error: error.message });
   }
+};
+
+// Expose the cleanupExpiredLinks function publicly
+const scheduleCleanup = () => {
+  // Clean up expired links - can be called directly or set up as a scheduled task
+  return cleanupExpiredLinks();
 };
 
 module.exports = {
@@ -459,4 +546,5 @@ module.exports = {
   accessSharedFile,
   cleanupIncompleteUpload,
   uploadAndShareZip,
+  scheduleCleanup // Export the cleanup scheduler function
 };

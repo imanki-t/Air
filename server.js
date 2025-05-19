@@ -6,6 +6,7 @@ const connectDB = require('./config/db');
 const fileRoutes = require('./routes/fileRoutes');
 const http = require('http');
 const { Server } = require('socket.io');
+const protectRoute = require('./middleware/authMiddleware'); // Import our middleware
 
 dotenv.config();
 const app = express();
@@ -15,13 +16,16 @@ connectDB();
 app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json());
 
-// Routes
-app.use('/api/files', fileRoutes);
-
 // Root route
 app.get('/', (req, res) => {
   res.send('Storage API');
 });
+
+// Apply the protection middleware to all API routes
+app.use('/api', protectRoute);
+
+// Routes (now protected, except for shared file access)
+app.use('/api/files', fileRoutes);
 
 // Create HTTP server for WebSocket
 const server = http.createServer(app);

@@ -16,6 +16,9 @@ dotenv.config();
 // Create Express app
 const app = express();
 
+// Trust reverse proxy (needed for correct IP detection behind proxies like Render)
+app.set('trust proxy', 1);
+
 // Connect to MongoDB
 connectDB();
 
@@ -27,7 +30,6 @@ app.use(helmet({
       connectSrc: ["'self'", process.env.FRONTEND_URL]
     }
   },
-  // Disable some features for compatibility if needed
   crossOriginEmbedderPolicy: false
 }));
 
@@ -37,29 +39,23 @@ app.use(cookieParser());
 // Advanced CORS configuration
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) {
-      // In production, you might want to restrict this further
-      return callback(null, true);
-    }
-    
+    if (!origin) return callback(null, true);
+
     const allowedOrigins = [process.env.FRONTEND_URL];
-    
-    // Allow localhost in development
     if (process.env.NODE_ENV !== 'production') {
       allowedOrigins.push('http://localhost:3000');
     }
-    
+
     if (allowedOrigins.some(allowed => origin.startsWith(allowed))) {
       callback(null, true);
     } else {
       callback(new Error('CORS policy violation'));
     }
   },
-  credentials: true, // Important for cookies
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'X-XSRF-TOKEN'],
-  maxAge: 86400 // Cache preflight requests for 24 hours
+  maxAge: 86400
 }));
 
 // Parse JSON requests
@@ -84,16 +80,13 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
-      // Apply the same origin rules as the rest API
-      if (!origin) {
-        return callback(null, true);
-      }
-      
+      if (!origin) return callback(null, true);
+
       const allowedOrigins = [process.env.FRONTEND_URL];
       if (process.env.NODE_ENV !== 'production') {
         allowedOrigins.push('http://localhost:3000');
       }
-      
+
       if (allowedOrigins.some(allowed => origin.startsWith(allowed))) {
         callback(null, true);
       } else {
@@ -111,8 +104,6 @@ app.set('io', io);
 // Socket.IO connection handler
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
-  
-  // Get origin of connection
   const origin = socket.handshake.headers.origin;
   console.log(`Socket connection from origin: ${origin}`);
 

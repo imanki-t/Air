@@ -35,6 +35,8 @@ router.get('/download/:id', controller.downloadFile);
 router.delete('/cleanup/:fileId', controller.cleanupIncompleteUpload); 
 router.delete('/:id', controller.deleteFile); 
 router.post('/share/:id', controller.generateShareLink); 
+
+// Keep the original route for backward compatibility
 router.get('/share/:shareId', controller.accessSharedFile); 
 
 // Add route to manually trigger cleanup of expired links (optional, for admin/testing purposes)

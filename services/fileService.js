@@ -197,17 +197,31 @@ const cleanupExpiredLinks = async () => {
   try {
     const now = new Date();
     
+    // Ensure the MongoDB connection is established
+    if (!db || !db.collection) {
+      console.log('MongoDB connection not ready yet. Skipping cleanup.');
+      return 0;
+    }
+    
     // Find all links that are expired (more than 30 days old) or voided
-    const expiredOrVoidedLinks = await db.collection('drive_mappings').find({
+    // Using async/await pattern with cursor to ensure compatibility
+    const collection = db.collection('drive_mappings');
+    const cursor = collection.find({
       $or: [
         { 'metadata.shareExpires': { $lt: now } },
         { 'metadata.shareVoided': true }
       ]
-    }).toArray();
+    });
+    
+    // Convert cursor to array safely
+    const expiredOrVoidedLinks = await cursor.toArray().catch(err => {
+      console.error('Error converting cursor to array:', err);
+      return [];
+    });
     
     // Remove the share information from these files
     for (const link of expiredOrVoidedLinks) {
-      await db.collection('drive_mappings').updateOne(
+      await collection.updateOne(
         { _id: link._id },
         { 
           $unset: { 
@@ -532,9 +546,20 @@ const uploadAndShareZip = async (req, res) => {
 };
 
 // Expose the cleanupExpiredLinks function publicly
-const scheduleCleanup = () => {
-  // Clean up expired links - can be called directly or set up as a scheduled task
-  return cleanupExpiredLinks();
+const scheduleCleanup = async () => {
+  try {
+    // Ensure database is connected before attempting cleanup
+    if (!mongoose.connection.readyState || mongoose.connection.readyState !== 1) {
+      console.log('MongoDB connection not ready. Delaying cleanup...');
+      return 0;
+    }
+    
+    // Clean up expired links
+    return await cleanupExpiredLinks();
+  } catch (error) {
+    console.error('Schedule cleanup error:', error);
+    return 0;
+  }
 };
 
 module.exports = {

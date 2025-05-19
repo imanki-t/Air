@@ -7,6 +7,7 @@ const fileRoutes = require('./routes/fileRoutes');
 const http = require('http');
 const { Server } = require('socket.io');
 const protectRoute = require('./middleware/authMiddleware'); // Import our middleware
+const { scheduleCleanup } = require('./services/fileService'); // Import the cleanup function
 
 dotenv.config();
 const app = express();
@@ -53,6 +54,30 @@ io.on('connection', (socket) => {
     console.log('Client disconnected:', socket.id);
   });
 });
+
+// Schedule periodic cleanup of expired links (every hour)
+const ONE_HOUR = 60 * 60 * 1000;
+setInterval(async () => {
+  try {
+    const cleanedCount = await scheduleCleanup();
+    if (cleanedCount > 0) {
+      console.log(`Cleaned up ${cleanedCount} expired or voided share links`);
+    }
+  } catch (error) {
+    console.error('Error during scheduled cleanup:', error);
+  }
+}, ONE_HOUR);
+
+// Also clean up on server start
+scheduleCleanup()
+  .then(count => {
+    if (count > 0) {
+      console.log(`Server startup: Cleaned up ${count} expired or voided share links`);
+    }
+  })
+  .catch(err => {
+    console.error('Error cleaning up links during server startup:', err);
+  });
 
 // Start server
 const PORT = process.env.PORT || 5000;

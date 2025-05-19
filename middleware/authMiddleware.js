@@ -5,11 +5,17 @@
  * Excludes shared file routes which should be publicly accessible
  */
 const protectRoute = (req, res, next) => {
-  // Allow access to ALL shared file routes (for accessing shared files)
-  // This checks for /share/ anywhere in the URL path to ensure all shared file routes are accessible
-  if (req.path.includes('/share/')) {
+  // Allow public access ONLY to GET requests to shared file routes
+  // This ensures only downloading shared files is public, but creating share links requires authorization
+  if (req.method === 'GET' && req.path.includes('/share/')) {
     return next();
   }
+  
+  // Also allow public access to GET requests for the share-zip endpoint if we want uploads to be public
+  // Remove this condition if you want to protect the share-zip endpoint too
+  // if (req.method === 'GET' && req.path.includes('/share-zip')) {
+  //   return next();
+  // }
   
   const origin = req.headers.origin;
   const referer = req.headers.referer;

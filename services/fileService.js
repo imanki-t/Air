@@ -28,82 +28,6 @@ let driveFolderId;
 
 const db = mongoose.connection;
 
-// Function to set up the periodic cleanup task for expired links
-const setupExpiredLinksCleanup = () => {
-  // Run cleanup every 10 days
-  const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
-  
-  // Schedule the first cleanup
-  setTimeout(async () => {
-    try {
-      await cleanupExpiredLinks();
-      console.log('Expired links cleanup completed successfully');
-    } catch (error) {
-      console.error('Error during expired links cleanup:', error);
-    }
-    
-    // Set up recurring cleanup
-    setInterval(async () => {
-      try {
-        await cleanupExpiredLinks();
-        console.log('Expired links cleanup completed successfully');
-      } catch (error) {
-        console.error('Error during expired links cleanup:', error);
-      }
-    }, TEN_DAYS_MS);
-  }, TEN_DAYS_MS);
-  
-  console.log('Expired links cleanup scheduled to run every 10 days');
-};
-
-// Function to cleanup expired links
-const cleanupExpiredLinks = async () => {
-  try {
-    console.log('Starting expired links cleanup...');
-    
-    // Calculate the date 90 days ago
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    
-    // Find files with expired share links
-    const filesToUpdate = await db.collection('drive_mappings').find({
-      'metadata.shareId': { $exists: true },
-      'metadata.shareCreatedAt': { $lt: ninetyDaysAgo }
-    }).toArray();
-    
-    console.log(`Found ${filesToUpdate.length} files with expired share links`);
-    
-    // Process each file with expired share links
-    for (const file of filesToUpdate) {
-      try {
-        // Remove the shareId and shareCreatedAt from the metadata
-        await db.collection('drive_mappings').updateOne(
-          { _id: file._id },
-          { 
-            $unset: { 
-              'metadata.shareId': "", 
-              'metadata.shareCreatedAt': "" 
-            } 
-          }
-        );
-        
-        console.log(`Expired share link removed for file: ${file._id}`);
-      } catch (fileError) {
-        console.error(`Error cleaning up expired link for file ${file._id}:`, fileError);
-        // Continue with next file even if there's an error with the current one
-      }
-    }
-    
-    console.log('Expired links cleanup completed');
-  } catch (error) {
-    console.error('Expired links cleanup error:', error);
-    throw error;
-  }
-};
-
-// Start the cleanup schedule when this module is loaded
-setupExpiredLinksCleanup();
-
 // --- Upload file to Google Drive ---
 const uploadFile = async (req, res) => {
   try {
@@ -295,19 +219,11 @@ const generateShareLink = async (req, res) => {
     // Use safeObjectId to handle potential invalid ObjectIds
     const objectId = safeObjectId(fileId);
     const updateQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
-    
-    // First check if there's an existing shareId to remove
-    const existingFile = await db.collection('drive_mappings').findOne(updateQuery);
-    
-    // Store the share ID in MongoDB with creation timestamp for expiration tracking
+
+    // Store the share ID in MongoDB
     await db.collection('drive_mappings').updateOne(
       updateQuery,
-      { 
-        $set: { 
-          'metadata.shareId': shareId,
-          'metadata.shareCreatedAt': new Date()
-        } 
-      }
+      { $set: { 'metadata.shareId': shareId } }
     );
 
     // Create a custom share URL using our API
@@ -331,28 +247,7 @@ const accessSharedFile = async (req, res) => {
     });
 
     if (!fileMapping) {
-      return res.status(404).json({ error: 'Link not found or expired' });
-    }
-    
-    // Check if the share link has expired (90 days)
-    if (fileMapping.metadata.shareCreatedAt) {
-      const shareCreatedAt = new Date(fileMapping.metadata.shareCreatedAt);
-      const ninetyDaysLater = new Date(shareCreatedAt);
-      ninetyDaysLater.setDate(ninetyDaysLater.getDate() + 90);
-      
-      if (new Date() > ninetyDaysLater) {
-        // Link has expired, remove the shareId from the database
-        await db.collection('drive_mappings').updateOne(
-          { _id: fileMapping._id },
-          { 
-            $unset: { 
-              'metadata.shareId': "", 
-              'metadata.shareCreatedAt': "" 
-            } 
-          }
-        );
-        return res.status(410).json({ error: 'This share link has expired' });
-      }
+      return res.status(404).json({ error: 'Link not found' });
     }
 
     const driveId = fileMapping.driveId;
@@ -539,15 +434,10 @@ const uploadAndShareZip = async (req, res) => {
       }
     });
 
-    // Store the share ID in MongoDB with creation timestamp for expiration
+    // Store the share ID in MongoDB
     await db.collection('drive_mappings').updateOne(
       { _id: mongoId },
-      { 
-        $set: { 
-          'metadata.shareId': shareId,
-          'metadata.shareCreatedAt': new Date() 
-        } 
-      }
+      { $set: { 'metadata.shareId': shareId } }
     );
 
     // Create a custom share URL using our API
@@ -569,6 +459,4 @@ module.exports = {
   accessSharedFile,
   cleanupIncompleteUpload,
   uploadAndShareZip,
-  // Export the cleanup function for testing or manual triggering
-  cleanupExpiredLinks
 };

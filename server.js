@@ -8,6 +8,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const protectRoute = require('./middleware/authMiddleware'); // Import our middleware
 const { scheduleCleanup } = require('./services/fileService'); // Import the cleanup function
+const { accessSharedFile } = require('./services/fileService'); // Import for shorter share links
 
 dotenv.config();
 const app = express();
@@ -21,6 +22,9 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.send('Storage API');
 });
+
+// Short share link route (public, not protected by middleware)
+app.get('/s/:shareId', accessSharedFile);
 
 // Apply the protection middleware to all API routes
 app.use('/api', protectRoute);

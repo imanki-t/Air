@@ -6,8 +6,8 @@
  */
 const protectRoute = (req, res, next) => {
   // Allow access to ALL shared file routes (for accessing shared files)
-  // This specifically targets ALL routes for accessing already shared files
-  if (req.path.includes('/api/files/share/')) {
+  // This checks for /share/ anywhere in the URL path to ensure all shared file routes are accessible
+  if (req.path.includes('/share/')) {
     return next();
   }
   

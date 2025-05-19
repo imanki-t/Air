@@ -7,7 +7,7 @@
 const protectRoute = (req, res, next) => {
   // Allow public access ONLY to GET requests to shared file routes
   // This ensures only downloading shared files is public, but creating share links requires authorization
-  if (req.method === 'GET' && req.path.includes('/share/')) {
+  if (req.method === 'GET' && (req.path.includes('/share/') || req.path.includes('/s/'))) {
     return next();
   }
   

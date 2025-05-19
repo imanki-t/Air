@@ -19,6 +19,7 @@
     "jsonwebtoken": "",
     "googleapis": "^118.0.0",
     "stream-buffers": "^3.0.2",
-    "crypto": "^1.0.1"
+    "crypto": "^1.0.1",
+    "express-rate-limit": "^6.7.0"
   }
 }

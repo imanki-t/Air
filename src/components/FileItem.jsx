@@ -70,43 +70,47 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showShare, showDeleteConfirm, showMenu, handleKeyDown]);
 
-  // --- Actions ---
-  const download = async () => {
-    setShowMenu(false);
-    setIsActionLoading(true);
-    setDownloadProgress(0);
-    try {
-      const response = await axios({
-        url: `${backendUrl}/api/files/download/${file._id}`,
-        method: 'GET',
-        responseType: 'blob',
-        onDownloadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-             setDownloadProgress(percentCompleted);
-          } else {
-              setDownloadProgress(50); // Indeterminate fallback
-          }
-        },
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', file.filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Download failed:', err);
-      alert(`Failed to download ${file.filename}.`);
-    } finally {
-      setIsActionLoading(false);
-      // Reset progress slightly later to show completion
-      setTimeout(() => setDownloadProgress(0), 1200);
-    }
-  };
+// --- Actions ---
+const download = async () => {
+  setShowMenu(false); //
+  setIsActionLoading(true); //
+  setDownloadProgress(0); //
+  try { //
+    const response = await axios({ //
+      url: `${backendUrl}/api/files/download/${file._id}`, //
+      method: 'GET', //
+      responseType: 'blob', //
+      onDownloadProgress: (progressEvent) => {
+        // --- MODIFICATION START ---
+        // Only update progress if progressEvent.total is a positive number
+        if (progressEvent.total && progressEvent.total > 0) {
+           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total); //
+           setDownloadProgress(percentCompleted); //
+        }
+        // If progressEvent.total is not available (or is 0), downloadProgress will retain
+        // its current value (which was set to 0 at the start of this download function).
+        // The previous 'else { setDownloadProgress(50); }' block has been removed.
+        // --- MODIFICATION END ---
+      },
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data])); //
+    const link = document.createElement('a'); //
+    link.href = url; //
+    link.setAttribute('download', file.filename); //
+    document.body.appendChild(link); //
+    link.click(); //
+    link.remove(); //
+    window.URL.revokeObjectURL(url); //
+  } catch (err) { //
+    console.error('Download failed:', err); //
+    alert(`Failed to download ${file.filename}.`); //
+  } finally { //
+    setIsActionLoading(false); //
+    // Reset progress slightly later to show completion
+    setTimeout(() => setDownloadProgress(0), 1200); //
+  }
+};
+      
 
   const deleteFile = async () => {
     setIsActionLoading(true);

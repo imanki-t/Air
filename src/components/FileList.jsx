@@ -516,7 +516,7 @@ return (
         </div>
         <input
           type="text"
-          placeholder="Search files..." // Added placeholder
+          placeholder="" // Added placeholder
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
           className={cn(

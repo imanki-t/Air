@@ -801,7 +801,7 @@ onClick={() => setShowSortOptions(prev => !prev)}
         )}>
           {/* Render File Items */}
           {paginatedFiles.map(file => (
-            <div className="relative overflow-visible" key={file._id}>
+            
             <FileItem
               key={file._id}
               file={file}
@@ -813,7 +813,7 @@ onClick={() => setShowSortOptions(prev => !prev)}
               selectionMode={selectionMode}
               refresh={refresh}
             />
-          </div>    
+            
           ))}
         </div>
       ) : (

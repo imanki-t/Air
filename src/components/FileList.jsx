@@ -454,7 +454,7 @@ return (
        </div>
        <input
          type="text"
-         placeholder="Search files..."
+         placeholder=""
          value={searchInput}
          onChange={e => setSearchInput(e.target.value)}
          className={cn(
@@ -560,7 +560,7 @@ onClick={() => setShowSortOptions(prev => !prev)}
              <div>
                  <div className={cn('px-4 py-2 text-xs font-semibold uppercase tracking-wider', darkMode ? 'text-gray-400' : 'text-gray-500')}>Sort by</div>
                  {[
-                   { label: 'Latest', id: 'latest' },
+                   { label: 'Default', id: 'latest' },
                    { label: 'Oldest', id: 'oldest' },
                    { label: 'Alphabetical (A-Z)', id: 'alphabetical' },
                    { label: 'Reverse Alphabetical (Z-A)', id: 'reverseAlphabetical' },

@@ -647,8 +647,8 @@ onClick={() => setShowSortOptions(prev => !prev)}
              <div>
                  <div className={cn('px-4 py-2 text-xs font-semibold uppercase tracking-wider', darkMode ? 'text-gray-400' : 'text-gray-500')}>Sort by</div>
                  {[
-                   { label: 'Latest First (Default)', id: 'default' },
-                   { label: 'Oldest First', id: 'date' },
+                   { label: 'Default', id: 'default' },
+                   { label: 'Oldest', id: 'date' },
                    { label: 'Name (A-Z)', id: 'name-asc' },
                    { label: 'Name (Z-A)', id: 'name-desc' },
                    { label: 'Larger Files', id: 'size-desc' },

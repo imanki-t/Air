@@ -147,33 +147,14 @@ try {
 }
 };
 
-const copyToClipboard = async () => {
- if (!shareLink || !shareLinkInputRef.current) return;
-
- try {
-   // Select the text in the input field
-   shareLinkInputRef.current.select();
-   // For mobile devices, ensure the selection is visible and copyable
-   shareLinkInputRef.current.setSelectionRange(0, shareLink.length);
-
-   // Attempt to copy the selected text
-   const success = document.execCommand('copy');
-   if (success) {
-     setCopied(true);
-     setTimeout(() => setCopied(false), 2000);
-     // Remove selection immediately after copying
-     window.getSelection().removeAllRanges(); // <--- ADDED THIS LINE
-   } else {
-     console.error('document.execCommand("copy") returned false');
-     // Fallback for environments where execCommand might be restricted or fail
-     // A more robust solution for cross-browser compatibility would involve navigator.clipboard.writeText
-     // but it might be restricted in iframes.
-     // For now, if execCommand fails, we'll just log the error.
-   }
- } catch (err) {
-   console.error('Copy failed:', err);
-   // alert('Failed to copy link.'); // Replaced with a more graceful message later if needed
- }
+const copyToClipboard = async (link) => {
+  try {
+    await navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  } catch (err) {
+    console.error('Failed to copy text: ', err);
+  }
 };
 
 // --- Helpers ---
@@ -628,7 +609,7 @@ return (
                disabled={isActionLoading} aria-label="Shareable link" onClick={(e) => e.target.select()}
              />
              <button
-               onClick={copyToClipboard}
+               onClick={() => copyToClipboard(shareLink)}
                disabled={!shareLink || copied || isActionLoading}
                className={cn(
                    `w-full px-3 py-2 rounded-md font-medium text-sm transition-colors flex items-center justify-center gap-2`,
@@ -638,12 +619,6 @@ return (
                              : (darkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
                )}
              >
-               {copied ? (
-                  <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</>
-               ) : (
-                   'Copy Link'
-               )}
-             </button>
          </div>
 
         {/* Footer Text */}

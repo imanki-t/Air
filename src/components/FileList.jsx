@@ -801,6 +801,7 @@ onClick={() => setShowSortOptions(prev => !prev)}
         )}>
           {/* Render File Items */}
           {paginatedFiles.map(file => (
+            
             <FileItem
               key={file._id}
               file={file}
@@ -812,6 +813,7 @@ onClick={() => setShowSortOptions(prev => !prev)}
               selectionMode={selectionMode}
               refresh={refresh}
             />
+            
           ))}
         </div>
       ) : (

@@ -175,7 +175,7 @@ const sortedFiles = [...filesToDisplayAndSort].sort((a, b) => {
  }
 });
 
-const paginatedFiles = isPaginationEnabled ? sortedFiles.slice(startIndex, endIndex) : sortedFiles;
+const paginatedFiles = isPaginationEnabled ? sortedFiles : sortedFiles.slice(startIndex, endIndex);
 
 
 const handleNextPage = () => {

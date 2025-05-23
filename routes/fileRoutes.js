@@ -33,9 +33,6 @@ router.post('/share-zip', upload.single('zipFile'), (req, res, next) => {
 // Get files route (NO rate limiting)
 router.get('/', controller.getFiles); 
 
-// NEW: Image thumbnail route (NO rate limiting - protected by auth middleware)
-router.get('/thumbnail/:id', controller.getThumbnail);
-
 // Download file route (NO rate limiting)
 router.get('/download/:id', controller.downloadFile); 
 

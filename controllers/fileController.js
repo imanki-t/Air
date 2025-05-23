@@ -6,6 +6,7 @@ module.exports = {
   getFiles: fileService.getFiles,
   deleteFile: fileService.deleteFile,
   downloadFile: fileService.downloadFile,
+  previewFile: fileService.previewFile, // NEW: Add preview endpoint
   cleanupIncompleteUpload: fileService.cleanupIncompleteUpload,
   generateShareLink: fileService.generateShareLink,
   accessSharedFile: fileService.accessSharedFile,

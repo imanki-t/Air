@@ -10,6 +10,5 @@ module.exports = {
   generateShareLink: fileService.generateShareLink,
   accessSharedFile: fileService.accessSharedFile,
   uploadAndShareZip: fileService.uploadAndShareZip,
-  scheduleCleanup: fileService.scheduleCleanup,
-  getThumbnail: fileService.getThumbnail, // Add the new thumbnail function
+  scheduleCleanup: fileService.scheduleCleanup, // Add the cleanup scheduler function
 };

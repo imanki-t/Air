@@ -36,6 +36,9 @@ router.get('/', controller.getFiles);
 // Download file route (NO rate limiting)
 router.get('/download/:id', controller.downloadFile); 
 
+// NEW: Preview/Thumbnail file route (NO rate limiting, with 24-hour caching)
+router.get('/preview/:id', controller.previewFile);
+
 // Cleanup route (NO rate limiting)
 router.delete('/cleanup/:fileId', controller.cleanupIncompleteUpload); 
 

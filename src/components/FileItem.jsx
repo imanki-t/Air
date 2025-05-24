@@ -203,7 +203,7 @@ const renderPreview = (isListView) => {
 // const url = `${backendUrl}/api/files/download/${file._id}`;
 
 // New way (thumbnail for preview)
-const thumbnailUrl = `${backendUrl}/api/files/thumbnail/${file._id}`;
+const thumbnailUrl = `${backendUrl}/api/files/preview/${file._id}`;
 const type = file.metadata?.type || 'other';
 
 // Classes for image/video previews

@@ -1,15 +1,14 @@
-/** @type {import('tailwindcss').Config} */
 export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: 'class', // Use 'class' to control dark mode manually
+  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
-        inter: ['Inter', 'sans-serif'], // in case you want to refer to it as 'inter'
+        inter: ['Inter', 'sans-serif'],
       },
       colors: {
         'timeless-dark': '#0f172a',

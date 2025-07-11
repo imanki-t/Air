@@ -1,5 +1,5 @@
 import React from 'react';
-import FileItem from '../FileItem'; // Assuming FileItem is in the parent components folder
+import FileItem from '../FileItem';
 
 const cn = (...classes) => classes.filter(Boolean).join(' ');
 

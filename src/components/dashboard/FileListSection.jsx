@@ -1,10 +1,10 @@
-// src/components/dashboard/FileListSection.jsx
+// src/components/dashboard/FileListSection.jsx - UPDATED WITH TOAST
 import React, { useState } from 'react';
-import axios from 'axios';
 import fileService from '../../services/fileService';
+import { showToast, showConfirm } from '../Toast';
 
 const FileListSection = ({ files, title, onRefresh, onShare, viewType }) => {
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
+  const [viewMode, setViewMode] = useState('list');
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -62,51 +62,58 @@ const FileListSection = ({ files, title, onRefresh, onShare, viewType }) => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
+      showToast('File downloaded successfully', 'success');
     } catch (error) {
       console.error('Download failed:', error);
-      alert('Failed to download file');
+      showToast('Failed to download file', 'error');
     }
   };
 
   const handleDelete = async (file) => {
-    if (viewType === 'trash') {
-      if (!window.confirm(`Permanently delete "${file.filename}"?`)) return;
-      try {
+    const message = viewType === 'trash' 
+      ? `Permanently delete "${file.filename}"? This cannot be undone.`
+      : `Move "${file.filename}" to trash?`;
+    
+    const confirmed = await showConfirm(message);
+    if (!confirmed) return;
+
+    try {
+      if (viewType === 'trash') {
         await fileService.permanentlyDelete(file._id);
-        onRefresh();
-      } catch (error) {
-        console.error('Delete failed:', error);
-        alert('Failed to delete file');
-      }
-    } else {
-      if (!window.confirm(`Move "${file.filename}" to trash?`)) return;
-      try {
+        showToast('File permanently deleted', 'success');
+      } else {
         await fileService.moveToTrash(file._id);
-        onRefresh();
-      } catch (error) {
-        console.error('Move to trash failed:', error);
-        alert('Failed to move file to trash');
+        showToast('File moved to trash', 'success');
       }
+      onRefresh();
+    } catch (error) {
+      console.error('Delete failed:', error);
+      showToast('Failed to delete file', 'error');
     }
   };
 
   const handleStar = async (file) => {
     try {
       await fileService.toggleStar(file._id);
+      showToast(
+        file.metadata?.isStarred ? 'Removed from starred' : 'Added to starred', 
+        'success'
+      );
       onRefresh();
     } catch (error) {
       console.error('Star toggle failed:', error);
-      alert('Failed to star/unstar file');
+      showToast('Failed to update file', 'error');
     }
   };
 
   const handleRestore = async (file) => {
     try {
       await fileService.restoreFromTrash(file._id);
+      showToast('File restored successfully', 'success');
       onRefresh();
     } catch (error) {
       console.error('Restore failed:', error);
-      alert('Failed to restore file');
+      showToast('Failed to restore file', 'error');
     }
   };
 

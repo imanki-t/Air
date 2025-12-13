@@ -50,6 +50,7 @@ const userSchema = new mongoose.Schema({
     deviceInfo: String
   }],
   lastLogin: Date,
+  lastVerificationEmailSent: Date, // NEW: Track when verification email was last sent
   createdAt: {
     type: Date,
     default: Date.now
@@ -59,7 +60,9 @@ const userSchema = new mongoose.Schema({
     default: Date.now
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  // Disable versioning to avoid version conflicts
+  versionKey: false
 });
 
 // Virtual for checking if account is locked
@@ -125,8 +128,30 @@ userSchema.methods.createEmailVerificationToken = function() {
     .digest('hex');
   
   this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  this.lastVerificationEmailSent = Date.now(); // Track when email was sent
   
   return verificationToken;
+};
+
+// Check if user can resend verification email (5 minute cooldown)
+userSchema.methods.canResendVerificationEmail = function() {
+  if (!this.lastVerificationEmailSent) return true;
+  
+  const cooldownPeriod = 5 * 60 * 1000; // 5 minutes
+  const timeSinceLastEmail = Date.now() - this.lastVerificationEmailSent.getTime();
+  
+  return timeSinceLastEmail >= cooldownPeriod;
+};
+
+// Get time until user can resend verification email
+userSchema.methods.getVerificationEmailCooldown = function() {
+  if (!this.lastVerificationEmailSent) return 0;
+  
+  const cooldownPeriod = 5 * 60 * 1000; // 5 minutes
+  const timeSinceLastEmail = Date.now() - this.lastVerificationEmailSent.getTime();
+  const remainingTime = cooldownPeriod - timeSinceLastEmail;
+  
+  return remainingTime > 0 ? Math.ceil(remainingTime / 1000) : 0; // Return seconds
 };
 
 // Generate password reset token
@@ -143,35 +168,106 @@ userSchema.methods.createPasswordResetToken = function() {
   return resetToken;
 };
 
-// Add refresh token
-userSchema.methods.addRefreshToken = async function(token, deviceInfo) {
+// Add refresh token - IMPROVED with retry logic
+userSchema.methods.addRefreshToken = async function(token, deviceInfo, retries = 3) {
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
   
-  this.refreshTokens.push({
-    token,
-    expiresAt,
-    deviceInfo
-  });
-  
-  // Keep only last 5 refresh tokens
-  if (this.refreshTokens.length > 5) {
-    this.refreshTokens = this.refreshTokens.slice(-5);
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      // Use atomic update operation instead of modify + save
+      const result = await this.constructor.findByIdAndUpdate(
+        this._id,
+        {
+          $push: {
+            refreshTokens: {
+              $each: [{
+                token,
+                expiresAt,
+                deviceInfo,
+                createdAt: new Date()
+              }],
+              $slice: -5 // Keep only last 5 tokens
+            }
+          }
+        },
+        { new: true }
+      );
+      
+      if (result) {
+        // Update the current instance
+        this.refreshTokens = result.refreshTokens;
+        return true;
+      }
+    } catch (error) {
+      if (attempt === retries - 1) {
+        console.error('Failed to add refresh token after retries:', error);
+        throw error;
+      }
+      // Wait a bit before retrying
+      await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)));
+    }
   }
   
-  await this.save();
+  return false;
 };
 
-// Remove refresh token
-userSchema.methods.removeRefreshToken = async function(token) {
-  this.refreshTokens = this.refreshTokens.filter(rt => rt.token !== token);
-  await this.save();
+// Remove refresh token - IMPROVED with atomic operation
+userSchema.methods.removeRefreshToken = async function(token, retries = 3) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      // Use atomic update operation
+      const result = await this.constructor.findByIdAndUpdate(
+        this._id,
+        {
+          $pull: {
+            refreshTokens: { token: token }
+          }
+        },
+        { new: true }
+      );
+      
+      if (result) {
+        // Update the current instance
+        this.refreshTokens = result.refreshTokens;
+        return true;
+      }
+    } catch (error) {
+      if (attempt === retries - 1) {
+        console.error('Failed to remove refresh token after retries:', error);
+        throw error;
+      }
+      // Wait a bit before retrying
+      await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)));
+    }
+  }
+  
+  return false;
 };
 
-// Clean expired tokens
+// Clean expired tokens - IMPROVED with atomic operation
 userSchema.methods.cleanExpiredTokens = async function() {
   const now = Date.now();
-  this.refreshTokens = this.refreshTokens.filter(rt => rt.expiresAt > now);
-  await this.save();
+  
+  try {
+    const result = await this.constructor.findByIdAndUpdate(
+      this._id,
+      {
+        $pull: {
+          refreshTokens: {
+            expiresAt: { $lt: now }
+          }
+        }
+      },
+      { new: true }
+    );
+    
+    if (result) {
+      this.refreshTokens = result.refreshTokens;
+    }
+  } catch (error) {
+    console.error('Failed to clean expired tokens:', error);
+    // Don't throw - this is not critical
+  }
 };
 
 const User = mongoose.model('User', userSchema);

@@ -1,5 +1,5 @@
 // src/components/RemainingComponents.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import authService from '../services/authService';
 
@@ -10,6 +10,28 @@ export const VerifyEmailNotice = () => {
   const email = location.state?.email;
   const [resending, setResending] = useState(false);
   const [message, setMessage] = useState('');
+  const [checking, setChecking] = useState(false);
+
+  // Check verification status on mount
+  useEffect(() => {
+    const checkVerificationStatus = async () => {
+      try {
+        const profile = await authService.getProfile();
+        if (profile.user.isEmailVerified) {
+          // Update local storage with verified status
+          authService.setUser(profile.user);
+          navigate('/dashboard');
+        }
+      } catch (error) {
+        console.error('Failed to check verification status:', error);
+      }
+    };
+
+    // Only check if user is logged in
+    if (authService.isAuthenticated()) {
+      checkVerificationStatus();
+    }
+  }, [navigate]);
 
   const handleResend = async () => {
     setResending(true);
@@ -21,6 +43,26 @@ export const VerifyEmailNotice = () => {
       setMessage('Failed to resend email. Try again later.');
     } finally {
       setResending(false);
+    }
+  };
+
+  const handleCheckStatus = async () => {
+    setChecking(true);
+    setMessage('');
+    try {
+      const profile = await authService.getProfile();
+      if (profile.user.isEmailVerified) {
+        // Update local storage
+        authService.setUser(profile.user);
+        setMessage('Email verified! Redirecting...');
+        setTimeout(() => navigate('/dashboard'), 1500);
+      } else {
+        setMessage('Email not verified yet. Please check your inbox and click the verification link.');
+      }
+    } catch (error) {
+      setMessage('Failed to check status. Please try again.');
+    } finally {
+      setChecking(false);
     }
   };
 
@@ -37,10 +79,23 @@ export const VerifyEmailNotice = () => {
           We've sent a verification link to <strong>{email}</strong>. Click the link to activate your account.
         </p>
         {message && (
-          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-blue-800 dark:text-blue-400 text-sm">
+          <div className={`mb-4 p-3 border rounded-lg text-sm ${
+            message.includes('verified') || message.includes('sent')
+              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-400'
+              : message.includes('Failed') || message.includes('not verified')
+              ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-400'
+              : 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-400'
+          }`}>
             {message}
           </div>
         )}
+        <button
+          onClick={handleCheckStatus}
+          disabled={checking}
+          className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 mb-3"
+        >
+          {checking ? 'Checking...' : 'I\'ve Verified My Email'}
+        </button>
         <button
           onClick={handleResend}
           disabled={resending}

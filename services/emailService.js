@@ -1,29 +1,21 @@
 // services/emailService.js
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
 class EmailService {
   constructor() {
-    // Check if SMTP credentials are configured
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.warn('⚠️  SMTP credentials not configured. Email functionality will be disabled.');
-      this.transporter = null;
+    // Check if Resend API key is configured
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('⚠️  Resend API key not configured. Email functionality will be disabled.');
+      this.resend = null;
       return;
     }
 
     try {
-      this.transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: false, // true for 465, false for other ports
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        }
-      });
-      console.log('✅ Email service initialized');
+      this.resend = new Resend(process.env.RESEND_API_KEY);
+      console.log('✅ Email service initialized with Resend');
     } catch (error) {
       console.error('❌ Failed to initialize email service:', error);
-      this.transporter = null;
+      this.resend = null;
     }
   }
 
@@ -31,12 +23,13 @@ class EmailService {
    * Send verification email
    */
   async sendVerificationEmail(user, token) {
-    if (!this.transporter) {
+    if (!this.resend) {
       console.warn('Email service not available. Skipping verification email.');
       return false;
     }
 
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+    const verificationUrl = `https://airstream.onrender.com/verify-email?token=${token}`;
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
     
     const htmlContent = `
       <!DOCTYPE html>
@@ -78,8 +71,8 @@ class EmailService {
     `;
 
     try {
-      await this.transporter.sendMail({
-        from: `"Airstream" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      await this.resend.emails.send({
+        from: fromEmail,
         to: user.email,
         subject: 'Verify Your Email - Airstream',
         html: htmlContent
@@ -97,12 +90,13 @@ class EmailService {
    * Send password reset email
    */
   async sendPasswordResetEmail(user, token) {
-    if (!this.transporter) {
+    if (!this.resend) {
       console.warn('Email service not available. Skipping password reset email.');
       return false;
     }
 
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const resetUrl = `https://airstream.onrender.com/reset-password?token=${token}`;
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
     
     const htmlContent = `
       <!DOCTYPE html>
@@ -151,8 +145,8 @@ class EmailService {
     `;
 
     try {
-      await this.transporter.sendMail({
-        from: `"Airstream" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      await this.resend.emails.send({
+        from: fromEmail,
         to: user.email,
         subject: 'Password Reset Request - Airstream',
         html: htmlContent
@@ -170,11 +164,13 @@ class EmailService {
    * Send welcome email after verification
    */
   async sendWelcomeEmail(user) {
-    if (!this.transporter) {
+    if (!this.resend) {
       console.warn('Email service not available. Skipping welcome email.');
       return false;
     }
 
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -213,7 +209,7 @@ class EmailService {
             </div>
             
             <div style="text-align: center;">
-              <a href="${process.env.FRONTEND_URL}/dashboard" class="button">Go to Dashboard</a>
+              <a href="https://airstream.onrender.com/dashboard" class="button">Go to Dashboard</a>
             </div>
             
             <p>Happy file managing!<br>The Airstream Team</p>
@@ -227,8 +223,8 @@ class EmailService {
     `;
 
     try {
-      await this.transporter.sendMail({
-        from: `"Airstream" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      await this.resend.emails.send({
+        from: fromEmail,
         to: user.email,
         subject: 'Welcome to Airstream! 🎉',
         html: htmlContent

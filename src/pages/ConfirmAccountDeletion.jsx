@@ -1,14 +1,14 @@
-// src/pages/ConfirmAccountDeletion.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ThemeToggle from '../components/ThemeToggle';
+import { Trash2, AlertTriangle, Loader2, ArrowLeft } from 'lucide-react';
 
 const ConfirmAccountDeletion = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState('processing');
-  const [message, setMessage] = useState('Processing your request...');
+  const [message, setMessage] = useState('Processing deletion request...');
 
   useEffect(() => {
     const confirmDeletion = async () => {
@@ -16,7 +16,7 @@ const ConfirmAccountDeletion = () => {
       
       if (!token) {
         setStatus('error');
-        setMessage('Invalid deletion link. No token provided.');
+        setMessage('Invalid deletion link. Token missing.');
         return;
       }
 
@@ -25,9 +25,7 @@ const ConfirmAccountDeletion = () => {
           `${import.meta.env.VITE_BACKEND_URL}/api/auth/confirm-account-deletion/${token}`,
           {
             method: 'GET',
-            headers: {
-              'Content-Type': 'application/json'
-            }
+            headers: { 'Content-Type': 'application/json' }
           }
         );
 
@@ -35,22 +33,17 @@ const ConfirmAccountDeletion = () => {
 
         if (response.ok) {
           setStatus('success');
-          setMessage('Your account has been permanently deleted. We\'re sorry to see you go.');
-          
+          setMessage('Your account has been permanently deleted.');
           localStorage.clear();
           sessionStorage.clear();
-          
-          setTimeout(() => {
-            navigate('/', { replace: true });
-          }, 3000);
+          setTimeout(() => navigate('/', { replace: true }), 3000);
         } else {
           setStatus('error');
-          setMessage(data.error || 'Account deletion failed. The link may have expired.');
+          setMessage(data.error || 'Deletion failed. Link may have expired.');
         }
       } catch (error) {
-        console.error('Deletion confirmation error:', error);
         setStatus('error');
-        setMessage('An error occurred during account deletion. Please try again.');
+        setMessage('System error. Please try again.');
       }
     };
 
@@ -58,68 +51,59 @@ const ConfirmAccountDeletion = () => {
   }, [searchParams, navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background text-foreground px-4 relative">
-      <div className="absolute top-4 right-4">
+    <div className="min-h-screen w-full flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-4 relative">
+      <div className="absolute top-6 right-6">
         <ThemeToggle />
       </div>
       
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="max-w-md w-full bg-card border border-border rounded-lg shadow-lg p-8 text-center"
+        className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl p-8 text-center"
       >
-        <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-6">
-          {status === 'processing' && (
-            <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-          )}
-          
-          {status === 'success' && (
-            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          )}
-          
-          {status === 'error' && (
-            <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          )}
+        <div className="flex justify-center mb-6">
+           <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors duration-500
+             ${status === 'processing' ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400' : ''}
+             ${status === 'success' ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500' : ''}
+             ${status === 'error' ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : ''}
+           `}>
+             {status === 'processing' && <Loader2 className="w-8 h-8 animate-spin" />}
+             {status === 'success' && <Trash2 className="w-8 h-8" />}
+             {status === 'error' && <AlertTriangle className="w-8 h-8" />}
+           </div>
         </div>
 
-        <h1 className="text-2xl font-bold mb-2">
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">
           {status === 'processing' && 'Deleting Account'}
           {status === 'success' && 'Account Deleted'}
-          {status === 'error' && 'Deletion Failed'}
+          {status === 'error' && 'Deletion Error'}
         </h1>
 
-        <p className={`text-sm mb-6 ${
-          status === 'success' ? 'text-green-600 dark:text-green-400' : 
-          status === 'error' ? 'text-destructive' : 
-          'text-muted-foreground'
-        }`}>
+        <p className="text-zinc-500 dark:text-zinc-400 mb-8">
           {message}
         </p>
 
         {status === 'error' && (
           <button
             onClick={() => navigate('/')}
-            className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            className="w-full flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-all"
           >
+            <ArrowLeft className="w-4 h-4 mr-2" />
             Return to Home
           </button>
         )}
 
         {status === 'success' && (
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <div className="flex items-center justify-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+            <Loader2 className="w-4 h-4 animate-spin" />
             <span>Redirecting to home...</span>
           </div>
         )}
 
         {status === 'processing' && (
-          <p className="text-sm text-muted-foreground">
-            Please wait while we process your request...
-          </p>
+           <div className="h-1 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+             <div className="h-full bg-indigo-600 animate-progress origin-left"></div>
+           </div>
         )}
       </motion.div>
     </div>
@@ -127,3 +111,4 @@ const ConfirmAccountDeletion = () => {
 };
 
 export default ConfirmAccountDeletion;
+

@@ -1,4 +1,4 @@
-// models/DriveMapping.js
+// models/DriveMapping.js - UPDATED WITH NEW FIELDS
 const mongoose = require('mongoose');
 
 const driveMappingSchema = new mongoose.Schema({
@@ -42,7 +42,17 @@ const driveMappingSchema = new mongoose.Schema({
     isSharedZip: Boolean,
     uploadedAt: Date,
     resumableUploadId: String,
-    resumableProgress: Number
+    resumableProgress: Number,
+    // NEW FIELDS
+    isStarred: {
+      type: Boolean,
+      default: false
+    },
+    isTrashed: {
+      type: Boolean,
+      default: false
+    },
+    trashedAt: Date
   },
   createdAt: {
     type: Date,
@@ -55,6 +65,8 @@ const driveMappingSchema = new mongoose.Schema({
 driveMappingSchema.index({ userId: 1, createdAt: -1 });
 driveMappingSchema.index({ userId: 1, folderId: 1 });
 driveMappingSchema.index({ 'metadata.shareId': 1 });
+driveMappingSchema.index({ userId: 1, 'metadata.isStarred': 1 });
+driveMappingSchema.index({ userId: 1, 'metadata.isTrashed': 1 });
 
 const DriveMapping = mongoose.model('DriveMapping', driveMappingSchema, 'drive_mappings');
 

@@ -1,77 +1,108 @@
-// src/pages/Home.jsx
+// src/pages/Home.jsx - UPDATED WITH NEW LOGO
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import ThemeToggle from '../components/ThemeToggle';
+import authService from '../services/authService';
 
 const Home = () => {
+  const navigate = useNavigate();
+  const isAuthenticated = authService.isAuthenticated();
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Navbar */}
-      <header className="px-6 py-4 border-b border-border sticky top-0 bg-background/80 backdrop-blur-md z-50">
+      <header className="px-4 sm:px-6 py-4 border-b border-border sticky top-0 bg-background/95 backdrop-blur-md z-50">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold">Airstream</span>
-          </div>
+          <Link to="/" className="flex items-center gap-3">
+            <img src="/air.png" alt="Airstream" className="h-8 w-8 sm:h-10 sm:w-10 object-contain" />
+            <span className="text-lg sm:text-xl font-bold">Airstream</span>
+          </Link>
 
-          <div className="flex items-center gap-4">
-            <ThemeToggle />
-            <Link to="/auth/login">
-              <button className="px-4 py-2 text-sm font-medium hover:text-primary transition-colors">
-                Sign In
-              </button>
-            </Link>
-            <Link to="/auth/signup">
-              <button className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm">
-                Get Started
-              </button>
-            </Link>
+          <div className="flex items-center gap-2 sm:gap-4">
+            {isAuthenticated ? (
+              <>
+                <button
+                  onClick={() => navigate('/workspace')}
+                  className="px-3 sm:px-4 py-2 text-sm font-medium hover:text-primary transition-colors"
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={() => {
+                    authService.logout();
+                    window.location.href = '/';
+                  }}
+                  className="px-3 sm:px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/auth/login">
+                  <button className="px-3 sm:px-4 py-2 text-sm font-medium hover:text-primary transition-colors">
+                    Sign In
+                  </button>
+                </Link>
+                <Link to="/auth/signup">
+                  <button className="px-3 sm:px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm">
+                    Get Started
+                  </button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       <main className="flex-1 flex flex-col">
         {/* Hero Section */}
-        <section className="flex-1 flex flex-col items-center justify-center px-6 py-24 md:py-32 text-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-secondary/30 via-background to-background">
+        <section className="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-16 sm:py-24 md:py-32 text-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-secondary/30 via-background to-background">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="max-w-4xl mx-auto space-y-8"
+            className="max-w-4xl mx-auto space-y-6 sm:space-y-8"
           >
             <span className="inline-block px-3 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-full">
-              New: Enterprise-grade security for everyone
+              Secure Cloud Storage
             </span>
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-foreground">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight text-foreground">
               Your files, <span className="text-primary">elevated.</span>
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed px-4">
               Experience the minimalist workspace designed for focus. Store, share, and collaborate without the clutter.
             </p>
-            <div className="flex items-center justify-center gap-4 pt-4">
-              <Link to="/auth/signup">
-                <button className="px-8 py-4 bg-primary text-primary-foreground rounded-lg text-lg font-medium hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/20">
-                  Start for free
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 pt-4">
+              {isAuthenticated ? (
+                <button
+                  onClick={() => navigate('/workspace')}
+                  className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-primary text-primary-foreground rounded-lg text-base sm:text-lg font-medium hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/20"
+                >
+                  Go to Dashboard
                 </button>
-              </Link>
-              <Link to="/auth/login">
-                <button className="px-8 py-4 bg-secondary text-secondary-foreground rounded-lg text-lg font-medium hover:bg-secondary/80 transition-colors">
-                  View Demo
-                </button>
-              </Link>
+              ) : (
+                <>
+                  <Link to="/auth/signup" className="w-full sm:w-auto">
+                    <button className="w-full px-6 sm:px-8 py-3 sm:py-4 bg-primary text-primary-foreground rounded-lg text-base sm:text-lg font-medium hover:bg-primary/90 transition-all shadow-lg hover:shadow-primary/20">
+                      Start for free
+                    </button>
+                  </Link>
+                  <Link to="/auth/login" className="w-full sm:w-auto">
+                    <button className="w-full px-6 sm:px-8 py-3 sm:py-4 bg-secondary text-secondary-foreground rounded-lg text-base sm:text-lg font-medium hover:bg-secondary/80 transition-colors">
+                      View Demo
+                    </button>
+                  </Link>
+                </>
+              )}
             </div>
           </motion.div>
         </section>
 
         {/* Features Grid */}
-        <section className="px-6 py-24 bg-card border-y border-border">
+        <section className="px-4 sm:px-6 py-16 sm:py-24 bg-card border-y border-border">
           <div className="max-w-7xl mx-auto">
-            <div className="grid md:grid-cols-3 gap-12">
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-12">
               {[
                 {
                   icon: (
@@ -105,7 +136,7 @@ const Home = () => {
                   <div className="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center text-primary mb-4">
                     {feature.icon}
                   </div>
-                  <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                  <h3 className="text-lg sm:text-xl font-semibold mb-2">{feature.title}</h3>
                   <p className="text-muted-foreground leading-relaxed">{feature.desc}</p>
                 </div>
               ))}
@@ -114,10 +145,10 @@ const Home = () => {
         </section>
       </main>
 
-      <footer className="px-6 py-12 border-t border-border bg-background">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+      <footer className="px-4 sm:px-6 py-8 sm:py-12 border-t border-border bg-background">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} Airstream Inc.</p>
-          <div className="flex gap-6">
+          <div className="flex gap-4 sm:gap-6">
             <a href="#" className="hover:text-foreground">Privacy</a>
             <a href="#" className="hover:text-foreground">Terms</a>
             <a href="#" className="hover:text-foreground">Contact</a>

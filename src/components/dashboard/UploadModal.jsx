@@ -1,6 +1,7 @@
 // src/components/dashboard/UploadModal.jsx
 import React, { useState } from 'react';
 import axios from 'axios';
+import { motion } from 'framer-motion';
 
 export const UploadModal = ({ folderId, onClose, onComplete }) => {
   const [file, setFile] = useState(null);
@@ -43,52 +44,69 @@ export const UploadModal = ({ folderId, onClose, onComplete }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Upload File</h2>
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-card text-card-foreground border border-border rounded-lg shadow-lg max-w-md w-full p-6"
+      >
+        <h2 className="text-xl font-semibold mb-4">Upload File</h2>
         
-        <div className="mb-4">
-          <input
-            type="file"
-            onChange={handleFileChange}
-            className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 dark:file:bg-blue-900/20 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/30"
-          />
-          {file && (
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              Selected: {file.name}
-            </p>
-          )}
+        <div className="mb-6">
+          <label className="block w-full cursor-pointer">
+            <div className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg transition-colors ${file ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-secondary/50'}`}>
+              {file ? (
+                <div className="text-center p-4">
+                  <p className="text-sm font-medium text-primary truncate max-w-[200px]">{file.name}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <svg className="w-8 h-8 mb-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <p className="text-sm text-muted-foreground"><span className="font-semibold text-primary">Click to upload</span> or drag and drop</p>
+                </div>
+              )}
+              <input type="file" className="hidden" onChange={handleFileChange} />
+            </div>
+          </label>
         </div>
 
         {uploading && (
-          <div className="mb-4">
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
+          <div className="mb-6">
+            <div className="flex justify-between text-xs mb-1">
+              <span>Uploading...</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                className="bg-primary h-full rounded-full"
               />
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{progress}%</p>
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex justify-end gap-3">
           <button
             onClick={onClose}
             disabled={uploading}
-            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleUpload}
             disabled={!file || uploading}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 rounded-md transition-colors disabled:opacity-50 shadow-sm"
           >
             {uploading ? 'Uploading...' : 'Upload'}
           </button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };

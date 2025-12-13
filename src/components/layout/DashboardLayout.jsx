@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import ThemeToggle from '../ThemeToggle';
 import Sidebar from '../dashboard/Sidebar';
+import { useTheme } from '../../context/ThemeContext';
+import { Sun, Moon, Menu, Search } from '../ui/Icons';
+import { Input } from '../ui/Core';
 
 const DashboardLayout = ({
   children,
@@ -14,6 +16,11 @@ const DashboardLayout = ({
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
@@ -103,20 +110,14 @@ const DashboardLayout = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            {/* Search Bar - Hidden on very small screens if needed, or adaptable */}
+            {/* Search Bar */}
             <div className="hidden sm:flex items-center w-full max-w-md">
-              <div className="relative w-full group">
-                <svg
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                {/* Search input is managed by parent or internal state?
-                    For now, it's a slot for the parent to inject, or we can render the search prop here if provided */}
-                 {/* Assuming headerActions might contain the search input, or we put a placeholder */}
+              <div className="relative w-full">
+                <Input
+                  leftIcon={<Search size={16} />}
+                  placeholder="Search files..."
+                  className="w-full bg-secondary/50 border-transparent focus:bg-background focus:border-primary transition-all duration-200"
+                />
               </div>
             </div>
             {/* Header Actions Injection */}
@@ -126,8 +127,6 @@ const DashboardLayout = ({
           </div>
 
           <div className="flex items-center gap-4">
-            <ThemeToggle />
-
             {/* User Dropdown */}
             <div className="relative">
               <button
@@ -172,6 +171,18 @@ const DashboardLayout = ({
                       >
                         Settings
                       </button>
+
+                      <button
+                        onClick={toggleTheme}
+                        className="w-full flex items-center justify-between px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <span>Theme</span>
+                        <div className="flex items-center gap-2">
+                           {theme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
+                           <span className="text-xs text-muted-foreground capitalize">{theme}</span>
+                        </div>
+                      </button>
+
                       <div className="h-px bg-border my-1" />
                       <button
                         onClick={() => {

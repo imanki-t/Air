@@ -21,11 +21,12 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Public Route Component
-const PublicRoute = ({ children }) => {
+// Public Route Component - IMPROVED: Don't redirect if on certain pages
+const PublicRoute = ({ children, allowWhenAuthenticated = false }) => {
   const isAuthenticated = authService.isAuthenticated();
   
-  if (isAuthenticated) {
+  // If authenticated and we shouldn't allow, redirect to workspace
+  if (isAuthenticated && !allowWhenAuthenticated) {
     return <Navigate to="/workspace" replace />;
   }
 
@@ -48,7 +49,7 @@ function App() {
           }
         />
 
-        {/* Auth Routes */}
+        {/* Auth Routes - IMPROVED: Allow going back during certain auth flows */}
         <Route
           path="/auth/login"
           element={
@@ -65,8 +66,24 @@ function App() {
             </PublicRoute>
           }
         />
-        <Route path="/auth/verify-email" element={<VerifyEmailNotice />} />
-        <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+        {/* Allow access to verify-email even when authenticated */}
+        <Route 
+          path="/auth/verify-email" 
+          element={
+            <PublicRoute allowWhenAuthenticated={true}>
+              <VerifyEmailNotice />
+            </PublicRoute>
+          } 
+        />
+        {/* Allow access to forgot-password even when authenticated */}
+        <Route 
+          path="/auth/forgot-password" 
+          element={
+            <PublicRoute allowWhenAuthenticated={true}>
+              <ForgotPassword />
+            </PublicRoute>
+          } 
+        />
 
         {/* Protected Routes */}
         <Route

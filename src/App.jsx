@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import VerifyEmail from './pages/VerifyEmail';
 import { VerifyEmailNotice, ForgotPassword } from './components/RemainingComponents';
 
 // Protected Route Component
@@ -21,7 +22,7 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Public Route Component - IMPROVED: Don't redirect if on certain pages
+// Public Route Component
 const PublicRoute = ({ children, allowWhenAuthenticated = false }) => {
   const isAuthenticated = authService.isAuthenticated();
   
@@ -49,7 +50,7 @@ function App() {
           }
         />
 
-        {/* Auth Routes - IMPROVED: Allow going back during certain auth flows */}
+        {/* Auth Routes */}
         <Route
           path="/auth/login"
           element={
@@ -66,7 +67,19 @@ function App() {
             </PublicRoute>
           }
         />
-        {/* Allow access to verify-email even when authenticated */}
+        
+        {/* Email Verification Routes */}
+        {/* This is the route that handles the email link click */}
+        <Route 
+          path="/verify-email" 
+          element={
+            <PublicRoute allowWhenAuthenticated={true}>
+              <VerifyEmail />
+            </PublicRoute>
+          } 
+        />
+        
+        {/* This is the waiting page after signup */}
         <Route 
           path="/auth/verify-email" 
           element={
@@ -75,7 +88,7 @@ function App() {
             </PublicRoute>
           } 
         />
-        {/* Allow access to forgot-password even when authenticated */}
+        
         <Route 
           path="/auth/forgot-password" 
           element={

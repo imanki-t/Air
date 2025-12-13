@@ -1,59 +1,93 @@
-// services/emailService.js - Updated for Brevo API
-const axios = require('axios');
+// services/emailService.js - Gmail API Implementation
+const { google } = require('googleapis');
 
 class EmailService {
   constructor() {
-    // Check if Brevo API key is configured
-    if (!process.env.BREVO_API_KEY) {
-      console.warn('⚠️  Brevo API key not configured. Email functionality will be disabled.');
-      this.apiKey = null;
+    // Check if Gmail credentials are configured
+    if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET || !process.env.GMAIL_REFRESH_TOKEN) {
+      console.warn('⚠️  Gmail API credentials not configured. Email functionality will be disabled.');
+      this.gmail = null;
       return;
     }
 
-    this.apiKey = process.env.BREVO_API_KEY;
-    this.apiUrl = 'https://api.brevo.com/v3/smtp/email';
-    console.log('✅ Email service initialized with Brevo API');
+    try {
+      // Create OAuth2 client
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GMAIL_CLIENT_ID,
+        process.env.GMAIL_CLIENT_SECRET,
+        'https://developers.google.com/oauthplayground' // Redirect URI
+      );
+
+      // Set credentials
+      oauth2Client.setCredentials({
+        refresh_token: process.env.GMAIL_REFRESH_TOKEN
+      });
+
+      // Initialize Gmail API
+      this.gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+      this.fromEmail = process.env.GMAIL_FROM_EMAIL || process.env.SMTP_USER;
+      
+      console.log('✅ Email service initialized with Gmail API');
+    } catch (error) {
+      console.error('❌ Failed to initialize Gmail API:', error.message);
+      this.gmail = null;
+    }
   }
 
   /**
-   * Send email via Brevo API
+   * Create email message in RFC 2822 format
+   */
+  createMessage(to, subject, htmlContent, fromName = 'Airstream') {
+    const from = fromName ? `${fromName} <${this.fromEmail}>` : this.fromEmail;
+    
+    const messageParts = [
+      `From: ${from}`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=utf-8',
+      '',
+      htmlContent
+    ];
+
+    const message = messageParts.join('\n');
+    
+    // Encode the message in base64url format
+    const encodedMessage = Buffer.from(message)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    return encodedMessage;
+  }
+
+  /**
+   * Send email via Gmail API
    */
   async sendEmail(to, subject, htmlContent, fromName = 'Airstream') {
-    if (!this.apiKey) {
+    if (!this.gmail) {
       console.warn('Email service not available. Skipping email.');
       return false;
     }
 
     try {
-      const response = await axios.post(
-        this.apiUrl,
-        {
-          sender: {
-            name: fromName,
-            email: process.env.BREVO_FROM_EMAIL || 'noreply@airstream.com'
-          },
-          to: [
-            {
-              email: to,
-              name: to.split('@')[0]
-            }
-          ],
-          subject: subject,
-          htmlContent: htmlContent
-        },
-        {
-          headers: {
-            'accept': 'application/json',
-            'api-key': this.apiKey,
-            'content-type': 'application/json'
-          }
-        }
-      );
+      const encodedMessage = this.createMessage(to, subject, htmlContent, fromName);
 
-      console.log(`Email sent successfully to ${to}`);
+      const response = await this.gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: encodedMessage
+        }
+      });
+
+      console.log(`✅ Email sent successfully to ${to} (Message ID: ${response.data.id})`);
       return true;
     } catch (error) {
-      console.error('Error sending email:', error.response?.data || error.message);
+      console.error('❌ Error sending email:', error.message);
+      if (error.response) {
+        console.error('Error details:', error.response.data);
+      }
       return false;
     }
   }
@@ -62,7 +96,7 @@ class EmailService {
    * Send verification email
    */
   async sendVerificationEmail(user, token) {
-    if (!this.apiKey) {
+    if (!this.gmail) {
       console.warn('Email service not available. Skipping verification email.');
       return false;
     }
@@ -120,7 +154,7 @@ class EmailService {
    * Send password reset email
    */
   async sendPasswordResetEmail(user, token) {
-    if (!this.apiKey) {
+    if (!this.gmail) {
       console.warn('Email service not available. Skipping password reset email.');
       return false;
     }
@@ -185,7 +219,7 @@ class EmailService {
    * Send welcome email after verification
    */
   async sendWelcomeEmail(user) {
-    if (!this.apiKey) {
+    if (!this.gmail) {
       console.warn('Email service not available. Skipping welcome email.');
       return false;
     }

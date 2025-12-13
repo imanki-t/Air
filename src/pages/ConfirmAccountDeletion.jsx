@@ -7,7 +7,7 @@ import ThemeToggle from '../components/ThemeToggle';
 const ConfirmAccountDeletion = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState('processing'); // processing, success, error
+  const [status, setStatus] = useState('processing');
   const [message, setMessage] = useState('Processing your request...');
 
   useEffect(() => {
@@ -37,11 +37,9 @@ const ConfirmAccountDeletion = () => {
           setStatus('success');
           setMessage('Your account has been permanently deleted. We\'re sorry to see you go.');
           
-          // Clear any stored tokens
           localStorage.clear();
           sessionStorage.clear();
           
-          // Redirect to home after 3 seconds
           setTimeout(() => {
             navigate('/', { replace: true });
           }, 3000);
@@ -70,7 +68,6 @@ const ConfirmAccountDeletion = () => {
         animate={{ opacity: 1, scale: 1 }}
         className="max-w-md w-full bg-card border border-border rounded-lg shadow-lg p-8 text-center"
       >
-        {/* Status Icon */}
         <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-6">
           {status === 'processing' && (
             <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -89,14 +86,12 @@ const ConfirmAccountDeletion = () => {
           )}
         </div>
 
-        {/* Status Title */}
         <h1 className="text-2xl font-bold mb-2">
           {status === 'processing' && 'Deleting Account'}
           {status === 'success' && 'Account Deleted'}
           {status === 'error' && 'Deletion Failed'}
         </h1>
 
-        {/* Status Message */}
         <p className={`text-sm mb-6 ${
           status === 'success' ? 'text-green-600 dark:text-green-400' : 
           status === 'error' ? 'text-destructive' : 
@@ -105,7 +100,6 @@ const ConfirmAccountDeletion = () => {
           {message}
         </p>
 
-        {/* Action Buttons */}
         {status === 'error' && (
           <button
             onClick={() => navigate('/')}

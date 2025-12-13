@@ -1,5 +1,5 @@
-// src/App.jsx
-import React from 'react';
+// src/App.jsx - UPDATED WITH ACCOUNT DELETION ROUTE
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import authService from './services/authService';
 
@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import VerifyEmail from './pages/VerifyEmail';
+import ConfirmAccountDeletion from './pages/ConfirmAccountDeletion';
 import { VerifyEmailNotice, ForgotPassword } from './components/RemainingComponents';
 
 // Protected Route Component
@@ -22,11 +23,11 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Public Route Component
+// Public Route Component - UPDATED: Allow authenticated users on home
 const PublicRoute = ({ children, allowWhenAuthenticated = false }) => {
   const isAuthenticated = authService.isAuthenticated();
   
-  // If authenticated and we shouldn't allow, redirect to workspace
+  // Only redirect to workspace if not allowed when authenticated
   if (isAuthenticated && !allowWhenAuthenticated) {
     return <Navigate to="/workspace" replace />;
   }
@@ -35,19 +36,32 @@ const PublicRoute = ({ children, allowWhenAuthenticated = false }) => {
 };
 
 function App() {
+  // Apply theme on mount
+  useEffect(() => {
+    const user = authService.getUser();
+    const theme = user?.theme || 'system';
+    
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else if (theme === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      // System preference
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  }, []);
+
   return (
     <div className="min-h-screen">
       <Routes>
-        {/* Home Route */}
+        {/* Home Route - UPDATED: Allow authenticated users */}
         <Route
           path="/"
-          element={
-            authService.isAuthenticated() ? (
-              <Navigate to="/workspace" replace />
-            ) : (
-              <Home />
-            )
-          }
+          element={<Home />}
         />
 
         {/* Auth Routes */}
@@ -69,7 +83,6 @@ function App() {
         />
         
         {/* Email Verification Routes */}
-        {/* This is the route that handles the email link click */}
         <Route 
           path="/verify-email" 
           element={
@@ -79,7 +92,6 @@ function App() {
           } 
         />
         
-        {/* This is the waiting page after signup */}
         <Route 
           path="/auth/verify-email" 
           element={
@@ -94,6 +106,16 @@ function App() {
           element={
             <PublicRoute allowWhenAuthenticated={true}>
               <ForgotPassword />
+            </PublicRoute>
+          } 
+        />
+
+        {/* Account Deletion Confirmation */}
+        <Route 
+          path="/confirm-account-deletion" 
+          element={
+            <PublicRoute allowWhenAuthenticated={true}>
+              <ConfirmAccountDeletion />
             </PublicRoute>
           } 
         />

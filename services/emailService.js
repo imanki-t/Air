@@ -11,10 +11,10 @@ class EmailService {
     }
 
     try {
-      this.transporter = nodemailer.createTransporter({
+      this.transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
         port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: false,
+        secure: false, // true for 465, false for other ports
         auth: {
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS
@@ -27,6 +27,9 @@ class EmailService {
     }
   }
 
+  /**
+   * Send verification email
+   */
   async sendVerificationEmail(user, token) {
     if (!this.transporter) {
       console.warn('Email service not available. Skipping verification email.');
@@ -90,6 +93,9 @@ class EmailService {
     }
   }
 
+  /**
+   * Send password reset email
+   */
   async sendPasswordResetEmail(user, token) {
     if (!this.transporter) {
       console.warn('Email service not available. Skipping password reset email.');
@@ -160,6 +166,9 @@ class EmailService {
     }
   }
 
+  /**
+   * Send welcome email after verification
+   */
   async sendWelcomeEmail(user) {
     if (!this.transporter) {
       console.warn('Email service not available. Skipping welcome email.');

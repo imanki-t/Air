@@ -1,6 +1,7 @@
 // src/components/dashboard/Sidebar.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Sidebar = ({ user, currentView, setCurrentView, onLogout }) => {
   const navigate = useNavigate();
@@ -46,115 +47,200 @@ const Sidebar = ({ user, currentView, setCurrentView, onLogout }) => {
   ];
 
   return (
-    <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+    <motion.aside
+      initial={{ x: -300, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      transition={{ duration: 0.5, type: "spring" }}
+      className="w-72 bg-slate-900/50 backdrop-blur-xl border-r border-purple-500/20 flex flex-col relative z-20"
+    >
       {/* Logo */}
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="p-6 border-b border-purple-500/20"
+      >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-            </svg>
-          </div>
-          <span className="text-xl font-bold text-gray-900 dark:text-white">Airstream</span>
+          <motion.div
+            whileHover={{ rotate: 360, scale: 1.1 }}
+            transition={{ duration: 0.6 }}
+            className="relative"
+          >
+            <motion.div
+              animate={{
+                boxShadow: [
+                  "0 0 20px rgba(168, 85, 247, 0.5)",
+                  "0 0 30px rgba(59, 130, 246, 0.5)",
+                  "0 0 20px rgba(20, 184, 166, 0.5)",
+                  "0 0 20px rgba(168, 85, 247, 0.5)",
+                ],
+              }}
+              transition={{ duration: 4, repeat: Infinity }}
+              className="w-12 h-12 bg-gradient-to-br from-purple-600 via-blue-600 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg"
+            >
+              <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+              </svg>
+            </motion.div>
+          </motion.div>
+          <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-teal-400 bg-clip-text text-transparent">
+            Airstream
+          </span>
         </div>
-      </div>
+      </motion.div>
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1">
-        {menuItems.map((item) => (
-          <button
+        {menuItems.map((item, index) => (
+          <motion.button
             key={item.id}
+            initial={{ x: -50, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.1 * index, type: "spring" }}
             onClick={() => setCurrentView(item.id)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            whileHover={{ x: 5, scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
               currentView === item.id
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                ? 'bg-gradient-to-r from-purple-600/20 to-blue-600/20 text-purple-300 border border-purple-500/30 shadow-lg shadow-purple-500/20'
+                : 'text-gray-400 hover:bg-slate-800/50 hover:text-gray-300'
             }`}
           >
-            {item.icon}
+            <motion.div
+              animate={currentView === item.id ? { rotate: [0, 10, -10, 0] } : {}}
+              transition={{ duration: 0.5 }}
+            >
+              {item.icon}
+            </motion.div>
             <span className="font-medium">{item.label}</span>
-          </button>
+            {currentView === item.id && (
+              <motion.div
+                layoutId="activeIndicator"
+                className="ml-auto w-1.5 h-1.5 bg-purple-400 rounded-full"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+              />
+            )}
+          </motion.button>
         ))}
       </nav>
 
       {/* Storage Usage */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-        <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">Storage</span>
-            <span className="text-sm font-medium text-gray-900 dark:text-white">45GB of 100GB</span>
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.4 }}
+        className="p-4 border-t border-purple-500/20"
+      >
+        <div className="bg-slate-800/50 backdrop-blur-xl rounded-xl p-4 border border-purple-500/20">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm text-gray-400">Storage Used</span>
+            <span className="text-sm font-medium text-purple-300">45GB / 100GB</span>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2">
-            <div className="bg-blue-600 h-2 rounded-full" style={{ width: '45%' }}></div>
+          <div className="relative w-full bg-slate-700/50 rounded-full h-2.5 overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: '45%' }}
+              transition={{ duration: 1, delay: 0.5 }}
+              className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 via-blue-500 to-teal-500 rounded-full"
+            />
+            <motion.div
+              animate={{
+                x: ['0%', '200%'],
+                opacity: [0, 1, 0],
+              }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              className="absolute top-0 left-0 h-full w-1/3 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+            />
           </div>
         </div>
-      </div>
-
-      {/* Settings */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-        <button
-          onClick={() => navigate('/settings')}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <span className="font-medium">Settings</span>
-        </button>
-      </div>
+      </motion.div>
 
       {/* User Profile */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700 relative">
-        <button
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="p-4 border-t border-purple-500/20 relative"
+      >
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setShowUserMenu(!showUserMenu)}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-800/50 transition-colors"
         >
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-            <span className="text-white font-bold text-sm">
+          <motion.div
+            animate={{
+              boxShadow: [
+                "0 0 20px rgba(236, 72, 153, 0.3)",
+                "0 0 30px rgba(139, 92, 246, 0.3)",
+                "0 0 20px rgba(236, 72, 153, 0.3)",
+              ],
+            }}
+            transition={{ duration: 3, repeat: Infinity }}
+            className="w-11 h-11 bg-gradient-to-br from-pink-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg"
+          >
+            <span className="text-white font-bold text-lg">
               {user?.username?.charAt(0).toUpperCase() || 'U'}
             </span>
-          </div>
+          </motion.div>
           <div className="flex-1 text-left">
-            <p className="font-medium text-gray-900 dark:text-white text-sm">{user?.username || 'User'}</p>
-            <p className="text-xs text-gray-600 dark:text-gray-400">Free Account</p>
+            <p className="font-medium text-white text-sm">{user?.username || 'User'}</p>
+            <p className="text-xs text-gray-400">{user?.email || 'user@example.com'}</p>
           </div>
-          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-          </svg>
-        </button>
+          <motion.svg
+            animate={{ rotate: showUserMenu ? 180 : 0 }}
+            className="w-5 h-5 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </motion.svg>
+        </motion.button>
 
         {/* User Menu */}
-        {showUserMenu && (
-          <div className="absolute bottom-full left-4 right-4 mb-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
-            <button
-              onClick={() => {
-                navigate('/profile');
-                setShowUserMenu(false);
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        <AnimatePresence>
+          {showUserMenu && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="absolute bottom-full left-4 right-4 mb-2 bg-slate-900/95 backdrop-blur-xl border border-purple-500/30 rounded-xl shadow-2xl shadow-purple-500/20 overflow-hidden"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span>Profile</span>
-            </button>
-            <button
-              onClick={() => {
-                onLogout();
-                setShowUserMenu(false);
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              <span>Logout</span>
-            </button>
-          </div>
-        )}
-      </div>
-    </aside>
+              <motion.button
+                whileHover={{ backgroundColor: "rgba(139, 92, 246, 0.1)", x: 5 }}
+                onClick={() => {
+                  navigate('/profile');
+                  setShowUserMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-gray-300 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>Profile Settings</span>
+              </motion.button>
+              <div className="h-px bg-purple-500/20" />
+              <motion.button
+                whileHover={{ backgroundColor: "rgba(239, 68, 68, 0.1)", x: 5 }}
+                onClick={() => {
+                  onLogout();
+                  setShowUserMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-400 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Logout</span>
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.aside>
   );
 };
 

@@ -4,7 +4,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import authService from '../services/authService';
 import ThemeToggle from './ThemeToggle';
 
-// VerifyEmailNotice Component
+// VerifyEmailNotice Component - IMPROVED
 export const VerifyEmailNotice = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -12,6 +12,7 @@ export const VerifyEmailNotice = () => {
   const [resending, setResending] = useState(false);
   const [message, setMessage] = useState('');
   const [checking, setChecking] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
   // Check verification status on mount
   useEffect(() => {
@@ -21,7 +22,7 @@ export const VerifyEmailNotice = () => {
         if (profile.user.isEmailVerified) {
           // Update local storage with verified status
           authService.setUser(profile.user);
-          navigate('/dashboard');
+          navigate('/workspace');
         }
       } catch (error) {
         console.error('Failed to check verification status:', error);
@@ -34,14 +35,34 @@ export const VerifyEmailNotice = () => {
     }
   }, [navigate]);
 
+  // Countdown timer for resend cooldown
+  useEffect(() => {
+    if (cooldownSeconds > 0) {
+      const timer = setTimeout(() => {
+        setCooldownSeconds(prev => prev - 1);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [cooldownSeconds]);
+
   const handleResend = async () => {
+    if (cooldownSeconds > 0) return; // Prevent resend during cooldown
+    
     setResending(true);
     setMessage('');
     try {
       await authService.resendVerification(email);
       setMessage('Verification email sent! Check your inbox.');
+      setCooldownSeconds(300); // 5 minutes cooldown
     } catch (error) {
-      setMessage('Failed to resend email. Try again later.');
+      if (error.response?.status === 429) {
+        const retryAfter = error.response.data.retryAfter || 300;
+        setCooldownSeconds(retryAfter);
+        setMessage(error.response.data.error || 'Please wait before requesting another email.');
+      } else {
+        setMessage('Failed to resend email. Try again later.');
+      }
     } finally {
       setResending(false);
     }
@@ -56,7 +77,7 @@ export const VerifyEmailNotice = () => {
         // Update local storage
         authService.setUser(profile.user);
         setMessage('Email verified! Redirecting...');
-        setTimeout(() => navigate('/dashboard'), 1500);
+        setTimeout(() => navigate('/workspace'), 1500);
       } else {
         setMessage('Email not verified yet. Please check your inbox and click the verification link.');
       }
@@ -65,6 +86,12 @@ export const VerifyEmailNotice = () => {
     } finally {
       setChecking(false);
     }
+  };
+
+  const formatCooldown = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -86,7 +113,7 @@ export const VerifyEmailNotice = () => {
           <div className={`mb-4 p-3 border rounded-md text-sm ${
             message.includes('verified') || message.includes('sent')
               ? 'bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400'
-              : message.includes('Failed') || message.includes('not verified')
+              : message.includes('Failed') || message.includes('not verified') || message.includes('wait')
               ? 'bg-destructive/10 border-destructive/20 text-destructive'
               : 'bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400'
           }`}>
@@ -102,17 +129,17 @@ export const VerifyEmailNotice = () => {
         </button>
         <button
           onClick={handleResend}
-          disabled={resending}
-          className="w-full px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 disabled:opacity-50 mb-3 transition-colors"
+          disabled={resending || cooldownSeconds > 0}
+          className="w-full px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 disabled:opacity-50 mb-3 transition-colors relative"
         >
-          {resending ? 'Resending...' : 'Resend Email'}
+          {resending ? 'Resending...' : cooldownSeconds > 0 ? `Wait ${formatCooldown(cooldownSeconds)}` : 'Resend Email'}
         </button>
-        <button
-          onClick={() => navigate('/login')}
-          className="w-full px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
+        <Link
+          to="/auth/login"
+          className="w-full block px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
         >
           Back to Login
-        </button>
+        </Link>
       </div>
     </div>
   );
@@ -186,7 +213,7 @@ export const ForgotPassword = () => {
             {loading ? 'Sending...' : 'Send Reset Link'}
           </button>
 
-          <Link to="/login" className="block text-center text-sm text-primary hover:text-primary/80 transition-colors mt-4">
+          <Link to="/auth/login" className="block text-center text-sm text-primary hover:text-primary/80 transition-colors mt-4">
             Back to Login
           </Link>
         </form>

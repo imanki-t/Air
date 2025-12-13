@@ -1,4 +1,4 @@
-// models/User.js
+// models/User.js - UPDATED WITH ACTUAL FEATURES
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Password is required'],
     minlength: [8, 'Password must be at least 8 characters'],
-    select: false // Don't return password by default
+    select: false
   },
   isEmailVerified: {
     type: Boolean,
@@ -49,11 +49,30 @@ const userSchema = new mongoose.Schema({
     expiresAt: Date,
     deviceInfo: String
   }],
-  lastLogin: Date,
-  lastVerificationEmailSent: Date, // NEW: Track when verification email was last sent
+  lastLogin: {
+    type: Date,
+    default: null
+  },
+  lastVerificationEmailSent: Date,
+  accountDeletionToken: String,
+  accountDeletionExpires: Date,
+  storageUsed: {
+    type: Number,
+    default: 0
+  },
+  storageLimit: {
+    type: Number,
+    default: 15 * 1024 * 1024 * 1024 // 15GB default
+  },
+  theme: {
+    type: String,
+    enum: ['light', 'dark', 'system'],
+    default: 'system'
+  },
   createdAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
+    immutable: true
   },
   updatedAt: {
     type: Date,
@@ -61,7 +80,6 @@ const userSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true,
-  // Disable versioning to avoid version conflicts
   versionKey: false
 });
 
@@ -90,7 +108,6 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 
 // Handle failed login attempts
 userSchema.methods.incLoginAttempts = async function() {
-  // If lock has expired, reset attempts
   if (this.lockUntil && this.lockUntil < Date.now()) {
     return await this.updateOne({
       $set: { loginAttempts: 1 },
@@ -102,7 +119,6 @@ userSchema.methods.incLoginAttempts = async function() {
   const maxAttempts = 5;
   const lockTime = 2 * 60 * 60 * 1000; // 2 hours
   
-  // Lock account after max attempts
   if (this.loginAttempts + 1 >= maxAttempts && !this.isLocked) {
     updates.$set = { lockUntil: Date.now() + lockTime };
   }
@@ -113,7 +129,10 @@ userSchema.methods.incLoginAttempts = async function() {
 // Reset login attempts on successful login
 userSchema.methods.resetLoginAttempts = async function() {
   return await this.updateOne({
-    $set: { loginAttempts: 0, lastLogin: Date.now() },
+    $set: { 
+      loginAttempts: 0, 
+      lastLogin: Date.now() 
+    },
     $unset: { lockUntil: 1 }
   });
 };
@@ -127,8 +146,8 @@ userSchema.methods.createEmailVerificationToken = function() {
     .update(verificationToken)
     .digest('hex');
   
-  this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-  this.lastVerificationEmailSent = Date.now(); // Track when email was sent
+  this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+  this.lastVerificationEmailSent = Date.now();
   
   return verificationToken;
 };
@@ -137,7 +156,7 @@ userSchema.methods.createEmailVerificationToken = function() {
 userSchema.methods.canResendVerificationEmail = function() {
   if (!this.lastVerificationEmailSent) return true;
   
-  const cooldownPeriod = 5 * 60 * 1000; // 5 minutes
+  const cooldownPeriod = 5 * 60 * 1000;
   const timeSinceLastEmail = Date.now() - this.lastVerificationEmailSent.getTime();
   
   return timeSinceLastEmail >= cooldownPeriod;
@@ -147,11 +166,11 @@ userSchema.methods.canResendVerificationEmail = function() {
 userSchema.methods.getVerificationEmailCooldown = function() {
   if (!this.lastVerificationEmailSent) return 0;
   
-  const cooldownPeriod = 5 * 60 * 1000; // 5 minutes
+  const cooldownPeriod = 5 * 60 * 1000;
   const timeSinceLastEmail = Date.now() - this.lastVerificationEmailSent.getTime();
   const remainingTime = cooldownPeriod - timeSinceLastEmail;
   
-  return remainingTime > 0 ? Math.ceil(remainingTime / 1000) : 0; // Return seconds
+  return remainingTime > 0 ? Math.ceil(remainingTime / 1000) : 0;
 };
 
 // Generate password reset token
@@ -163,18 +182,31 @@ userSchema.methods.createPasswordResetToken = function() {
     .update(resetToken)
     .digest('hex');
   
-  this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+  this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
   
   return resetToken;
 };
 
-// Add refresh token - IMPROVED with retry logic
+// Generate account deletion token
+userSchema.methods.createAccountDeletionToken = function() {
+  const deletionToken = crypto.randomBytes(32).toString('hex');
+  
+  this.accountDeletionToken = crypto
+    .createHash('sha256')
+    .update(deletionToken)
+    .digest('hex');
+  
+  this.accountDeletionExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  
+  return deletionToken;
+};
+
+// Add refresh token
 userSchema.methods.addRefreshToken = async function(token, deviceInfo, retries = 3) {
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      // Use atomic update operation instead of modify + save
       const result = await this.constructor.findByIdAndUpdate(
         this._id,
         {
@@ -186,7 +218,7 @@ userSchema.methods.addRefreshToken = async function(token, deviceInfo, retries =
                 deviceInfo,
                 createdAt: new Date()
               }],
-              $slice: -5 // Keep only last 5 tokens
+              $slice: -5
             }
           }
         },
@@ -194,7 +226,6 @@ userSchema.methods.addRefreshToken = async function(token, deviceInfo, retries =
       );
       
       if (result) {
-        // Update the current instance
         this.refreshTokens = result.refreshTokens;
         return true;
       }
@@ -203,7 +234,6 @@ userSchema.methods.addRefreshToken = async function(token, deviceInfo, retries =
         console.error('Failed to add refresh token after retries:', error);
         throw error;
       }
-      // Wait a bit before retrying
       await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)));
     }
   }
@@ -211,11 +241,10 @@ userSchema.methods.addRefreshToken = async function(token, deviceInfo, retries =
   return false;
 };
 
-// Remove refresh token - IMPROVED with atomic operation
+// Remove refresh token
 userSchema.methods.removeRefreshToken = async function(token, retries = 3) {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      // Use atomic update operation
       const result = await this.constructor.findByIdAndUpdate(
         this._id,
         {
@@ -227,7 +256,6 @@ userSchema.methods.removeRefreshToken = async function(token, retries = 3) {
       );
       
       if (result) {
-        // Update the current instance
         this.refreshTokens = result.refreshTokens;
         return true;
       }
@@ -236,7 +264,6 @@ userSchema.methods.removeRefreshToken = async function(token, retries = 3) {
         console.error('Failed to remove refresh token after retries:', error);
         throw error;
       }
-      // Wait a bit before retrying
       await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)));
     }
   }
@@ -244,7 +271,7 @@ userSchema.methods.removeRefreshToken = async function(token, retries = 3) {
   return false;
 };
 
-// Clean expired tokens - IMPROVED with atomic operation
+// Clean expired tokens
 userSchema.methods.cleanExpiredTokens = async function() {
   const now = Date.now();
   
@@ -266,8 +293,35 @@ userSchema.methods.cleanExpiredTokens = async function() {
     }
   } catch (error) {
     console.error('Failed to clean expired tokens:', error);
-    // Don't throw - this is not critical
   }
+};
+
+// Update storage used
+userSchema.methods.updateStorageUsed = async function() {
+  const DriveMapping = mongoose.model('DriveMapping');
+  
+  const result = await DriveMapping.aggregate([
+    { 
+      $match: { 
+        userId: this._id,
+        $or: [
+          { 'metadata.isTrashed': { $exists: false } },
+          { 'metadata.isTrashed': false }
+        ]
+      } 
+    },
+    {
+      $group: {
+        _id: null,
+        totalSize: { $sum: '$metadata.size' }
+      }
+    }
+  ]);
+  
+  this.storageUsed = result.length > 0 ? result[0].totalSize : 0;
+  await this.save();
+  
+  return this.storageUsed;
 };
 
 const User = mongoose.model('User', userSchema);

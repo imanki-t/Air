@@ -3,31 +3,30 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import authService from './services/authService';
 
-// Auth Pages
+// Pages
+import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import { VerifyEmailNotice, ForgotPassword } from './components/RemainingComponents';
-
-// Main Pages
 import Dashboard from './pages/Dashboard';
+import { VerifyEmailNotice, ForgotPassword } from './components/RemainingComponents';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = authService.isAuthenticated();
   
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/auth/login" replace />;
   }
 
   return children;
 };
 
-// Public Route Component (redirect if already logged in)
+// Public Route Component
 const PublicRoute = ({ children }) => {
   const isAuthenticated = authService.isAuthenticated();
   
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/workspace" replace />;
   }
 
   return children;
@@ -35,11 +34,23 @@ const PublicRoute = ({ children }) => {
 
 function App() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen">
       <Routes>
-        {/* Public Routes */}
+        {/* Home Route */}
         <Route
-          path="/login"
+          path="/"
+          element={
+            authService.isAuthenticated() ? (
+              <Navigate to="/workspace" replace />
+            ) : (
+              <Home />
+            )
+          }
+        />
+
+        {/* Auth Routes */}
+        <Route
+          path="/auth/login"
           element={
             <PublicRoute>
               <Login />
@@ -47,19 +58,19 @@ function App() {
           }
         />
         <Route
-          path="/signup"
+          path="/auth/signup"
           element={
             <PublicRoute>
               <Signup />
             </PublicRoute>
           }
         />
-        <Route path="/verify-email-notice" element={<VerifyEmailNotice />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/auth/verify-email" element={<VerifyEmailNotice />} />
+        <Route path="/auth/forgot-password" element={<ForgotPassword />} />
 
         {/* Protected Routes */}
         <Route
-          path="/dashboard"
+          path="/workspace"
           element={
             <ProtectedRoute>
               <Dashboard />
@@ -67,19 +78,7 @@ function App() {
           }
         />
 
-        {/* Root redirect */}
-        <Route
-          path="/"
-          element={
-            authService.isAuthenticated() ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-
-        {/* 404 */}
+        {/* 404 Redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

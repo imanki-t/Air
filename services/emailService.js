@@ -1,21 +1,60 @@
-// services/emailService.js
-const { Resend } = require('resend');
+// services/emailService.js - Updated for Brevo API
+const axios = require('axios');
 
 class EmailService {
   constructor() {
-    // Check if Resend API key is configured
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('⚠️  Resend API key not configured. Email functionality will be disabled.');
-      this.resend = null;
+    // Check if Brevo API key is configured
+    if (!process.env.BREVO_API_KEY) {
+      console.warn('⚠️  Brevo API key not configured. Email functionality will be disabled.');
+      this.apiKey = null;
       return;
     }
 
+    this.apiKey = process.env.BREVO_API_KEY;
+    this.apiUrl = 'https://api.brevo.com/v3/smtp/email';
+    console.log('✅ Email service initialized with Brevo API');
+  }
+
+  /**
+   * Send email via Brevo API
+   */
+  async sendEmail(to, subject, htmlContent, fromName = 'Airstream') {
+    if (!this.apiKey) {
+      console.warn('Email service not available. Skipping email.');
+      return false;
+    }
+
     try {
-      this.resend = new Resend(process.env.RESEND_API_KEY);
-      console.log('✅ Email service initialized with Resend');
+      const response = await axios.post(
+        this.apiUrl,
+        {
+          sender: {
+            name: fromName,
+            email: process.env.BREVO_FROM_EMAIL || 'noreply@airstream.com'
+          },
+          to: [
+            {
+              email: to,
+              name: to.split('@')[0]
+            }
+          ],
+          subject: subject,
+          htmlContent: htmlContent
+        },
+        {
+          headers: {
+            'accept': 'application/json',
+            'api-key': this.apiKey,
+            'content-type': 'application/json'
+          }
+        }
+      );
+
+      console.log(`Email sent successfully to ${to}`);
+      return true;
     } catch (error) {
-      console.error('❌ Failed to initialize email service:', error);
-      this.resend = null;
+      console.error('Error sending email:', error.response?.data || error.message);
+      return false;
     }
   }
 
@@ -23,13 +62,12 @@ class EmailService {
    * Send verification email
    */
   async sendVerificationEmail(user, token) {
-    if (!this.resend) {
+    if (!this.apiKey) {
       console.warn('Email service not available. Skipping verification email.');
       return false;
     }
 
-    const verificationUrl = `https://airstream.onrender.com/verify-email?token=${token}`;
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
     
     const htmlContent = `
       <!DOCTYPE html>
@@ -70,33 +108,24 @@ class EmailService {
       </html>
     `;
 
-    try {
-      await this.resend.emails.send({
-        from: fromEmail,
-        to: user.email,
-        subject: 'Verify Your Email - Airstream',
-        html: htmlContent
-      });
-      
-      console.log(`Verification email sent to ${user.email}`);
-      return true;
-    } catch (error) {
-      console.error('Error sending verification email:', error);
-      return false;
-    }
+    return await this.sendEmail(
+      user.email,
+      'Verify Your Email - Airstream',
+      htmlContent,
+      'Airstream'
+    );
   }
 
   /**
    * Send password reset email
    */
   async sendPasswordResetEmail(user, token) {
-    if (!this.resend) {
+    if (!this.apiKey) {
       console.warn('Email service not available. Skipping password reset email.');
       return false;
     }
 
-    const resetUrl = `https://airstream.onrender.com/reset-password?token=${token}`;
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
     
     const htmlContent = `
       <!DOCTYPE html>
@@ -144,32 +173,22 @@ class EmailService {
       </html>
     `;
 
-    try {
-      await this.resend.emails.send({
-        from: fromEmail,
-        to: user.email,
-        subject: 'Password Reset Request - Airstream',
-        html: htmlContent
-      });
-      
-      console.log(`Password reset email sent to ${user.email}`);
-      return true;
-    } catch (error) {
-      console.error('Error sending password reset email:', error);
-      return false;
-    }
+    return await this.sendEmail(
+      user.email,
+      'Password Reset Request - Airstream',
+      htmlContent,
+      'Airstream'
+    );
   }
 
   /**
    * Send welcome email after verification
    */
   async sendWelcomeEmail(user) {
-    if (!this.resend) {
+    if (!this.apiKey) {
       console.warn('Email service not available. Skipping welcome email.');
       return false;
     }
-
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
     
     const htmlContent = `
       <!DOCTYPE html>
@@ -209,7 +228,7 @@ class EmailService {
             </div>
             
             <div style="text-align: center;">
-              <a href="https://airstream.onrender.com/dashboard" class="button">Go to Dashboard</a>
+              <a href="${process.env.FRONTEND_URL}/dashboard" class="button">Go to Dashboard</a>
             </div>
             
             <p>Happy file managing!<br>The Airstream Team</p>
@@ -222,20 +241,12 @@ class EmailService {
       </html>
     `;
 
-    try {
-      await this.resend.emails.send({
-        from: fromEmail,
-        to: user.email,
-        subject: 'Welcome to Airstream! 🎉',
-        html: htmlContent
-      });
-      
-      console.log(`Welcome email sent to ${user.email}`);
-      return true;
-    } catch (error) {
-      console.error('Error sending welcome email:', error);
-      return false;
-    }
+    return await this.sendEmail(
+      user.email,
+      'Welcome to Airstream! 🎉',
+      htmlContent,
+      'Airstream'
+    );
   }
 }
 

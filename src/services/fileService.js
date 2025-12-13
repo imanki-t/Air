@@ -1,4 +1,4 @@
-// src/services/fileService.js
+// src/services/fileService.js - UPDATED WITH PROPER TRASH FILTERING
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_BACKEND_URL + '/api/files';
@@ -13,11 +13,13 @@ class FileService {
     return response.data;
   }
 
-  // Get all files
+  // Get all files (UPDATED: Excludes trashed files by default)
   async getFiles(folderId = null) {
     const url = folderId ? `${API_URL}?folderId=${folderId}` : API_URL;
     const response = await axios.get(url);
-    return response.data;
+    // Filter out trashed files on client side as well
+    const files = response.data.filter(file => !file.metadata?.isTrashed);
+    return files;
   }
 
   // Get file by ID
@@ -34,7 +36,7 @@ class FileService {
     return response.data;
   }
 
-  // Delete file
+  // Delete file (moves to trash)
   async deleteFile(id) {
     const response = await axios.delete(`${API_URL}/${id}`);
     return response.data;
@@ -52,13 +54,13 @@ class FileService {
     return response.data;
   }
 
-  // Get starred files
+  // Get starred files (UPDATED: Excludes trashed files)
   async getStarredFiles() {
     const response = await axios.get(`${API_URL}/starred`);
     return response.data;
   }
 
-  // Get recent files
+  // Get recent files (UPDATED: Excludes trashed files)
   async getRecentFiles(limit = 20) {
     const response = await axios.get(`${API_URL}/recent?limit=${limit}`);
     return response.data;
@@ -112,10 +114,12 @@ class FileService {
     return response.data;
   }
 
-  // Search files
+  // Search files (UPDATED: Excludes trashed files)
   async searchFiles(query) {
     const response = await axios.get(`${API_URL}/search?q=${encodeURIComponent(query)}`);
-    return response.data;
+    // Filter out trashed files
+    const files = response.data.filter(file => !file.metadata?.isTrashed);
+    return files;
   }
 
   // Get file preview URL

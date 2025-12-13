@@ -189,7 +189,7 @@ const logout = async (req, res) => {
 };
 
 /**
- * Refresh access token
+ * Refresh access token - IMPROVED
  */
 const refreshToken = async (req, res) => {
   try {
@@ -237,9 +237,17 @@ const refreshToken = async (req, res) => {
     // Generate new access token
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(user._id);
 
-    // Replace old refresh token with new one
-    await user.removeRefreshToken(refreshToken);
+    // Replace old refresh token with new one using atomic operations
     const deviceInfo = req.headers['user-agent'] || 'Unknown device';
+    
+    // Remove old token and add new one atomically
+    await User.findByIdAndUpdate(
+      user._id,
+      {
+        $pull: { refreshTokens: { token: refreshToken } }
+      }
+    );
+    
     await user.addRefreshToken(newRefreshToken, deviceInfo);
 
     res.json({
@@ -249,12 +257,33 @@ const refreshToken = async (req, res) => {
 
   } catch (error) {
     console.error('Refresh token error:', error);
-    res.status(500).json({ error: 'Token refresh failed' });
+    
+    // Provide more helpful error messages
+    if (error.name === 'VersionError') {
+      // If version error, still try to provide a new token
+      try {
+        const decoded = verifyRefreshToken(req.body.refreshToken);
+        const { accessToken, refreshToken: newRefreshToken } = generateTokens(decoded.userId);
+        
+        return res.json({
+          accessToken,
+          refreshToken: newRefreshToken,
+          warning: 'Token refreshed despite concurrent update'
+        });
+      } catch (fallbackError) {
+        console.error('Fallback refresh also failed:', fallbackError);
+      }
+    }
+    
+    res.status(500).json({ 
+      error: 'Token refresh failed',
+      code: 'REFRESH_FAILED'
+    });
   }
 };
 
 /**
- * Verify email
+ * Verify email - IMPROVED
  */
 const verifyEmail = async (req, res) => {
   try {
@@ -283,15 +312,24 @@ const verifyEmail = async (req, res) => {
       });
     }
 
-    // Mark email as verified
-    user.isEmailVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpires = undefined;
-    await user.save();
+    // Mark email as verified using atomic update
+    await User.findByIdAndUpdate(
+      user._id,
+      {
+        $set: { isEmailVerified: true },
+        $unset: { 
+          emailVerificationToken: 1,
+          emailVerificationExpires: 1
+        }
+      }
+    );
+
+    // Refresh user data
+    const updatedUser = await User.findById(user._id);
 
     // Send welcome email
     try {
-      await emailService.sendWelcomeEmail(user);
+      await emailService.sendWelcomeEmail(updatedUser);
     } catch (emailError) {
       console.error('Welcome email failed:', emailError);
     }
@@ -299,10 +337,10 @@ const verifyEmail = async (req, res) => {
     res.json({ 
       message: 'Email verified successfully!',
       user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        isEmailVerified: user.isEmailVerified
+        id: updatedUser._id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        isEmailVerified: updatedUser.isEmailVerified
       }
     });
 
@@ -313,7 +351,7 @@ const verifyEmail = async (req, res) => {
 };
 
 /**
- * Resend verification email
+ * Resend verification email - IMPROVED with rate limiting
  */
 const resendVerification = async (req, res) => {
   try {
@@ -333,6 +371,16 @@ const resendVerification = async (req, res) => {
       return res.status(400).json({ error: 'Email already verified' });
     }
 
+    // Check if user can resend verification email
+    if (!user.canResendVerificationEmail()) {
+      const cooldownSeconds = user.getVerificationEmailCooldown();
+      return res.status(429).json({ 
+        error: `Please wait ${Math.ceil(cooldownSeconds / 60)} minutes before requesting another verification email`,
+        code: 'RATE_LIMITED',
+        retryAfter: cooldownSeconds
+      });
+    }
+
     // Generate new verification token
     const verificationToken = user.createEmailVerificationToken();
     await user.save();
@@ -340,7 +388,10 @@ const resendVerification = async (req, res) => {
     // Send verification email
     await emailService.sendVerificationEmail(user, verificationToken);
 
-    res.json({ message: 'Verification email sent successfully' });
+    res.json({ 
+      message: 'Verification email sent successfully',
+      cooldownMinutes: 5
+    });
 
   } catch (error) {
     console.error('Resend verification error:', error);

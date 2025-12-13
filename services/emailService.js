@@ -1,9 +1,8 @@
-// services/emailService.js - Gmail API Implementation
+// services/emailService.js - COMPLETE WITH ACCOUNT DELETION EMAIL
 const { google } = require('googleapis');
 
 class EmailService {
   constructor() {
-    // Check if Gmail credentials are configured
     if (!process.env.GMAIL_CLIENT_ID || !process.env.GMAIL_CLIENT_SECRET || !process.env.GMAIL_REFRESH_TOKEN) {
       console.warn('⚠️  Gmail API credentials not configured. Email functionality will be disabled.');
       this.gmail = null;
@@ -11,19 +10,16 @@ class EmailService {
     }
 
     try {
-      // Create OAuth2 client
       const oauth2Client = new google.auth.OAuth2(
         process.env.GMAIL_CLIENT_ID,
         process.env.GMAIL_CLIENT_SECRET,
-        'https://developers.google.com/oauthplayground' // Redirect URI
+        'https://developers.google.com/oauthplayground'
       );
 
-      // Set credentials
       oauth2Client.setCredentials({
         refresh_token: process.env.GMAIL_REFRESH_TOKEN
       });
 
-      // Initialize Gmail API
       this.gmail = google.gmail({ version: 'v1', auth: oauth2Client });
       this.fromEmail = process.env.GMAIL_FROM_EMAIL || process.env.SMTP_USER;
       
@@ -34,9 +30,6 @@ class EmailService {
     }
   }
 
-  /**
-   * Create email message in RFC 2822 format
-   */
   createMessage(to, subject, htmlContent, fromName = 'Airstream') {
     const from = fromName ? `${fromName} <${this.fromEmail}>` : this.fromEmail;
     
@@ -52,7 +45,6 @@ class EmailService {
 
     const message = messageParts.join('\n');
     
-    // Encode the message in base64url format
     const encodedMessage = Buffer.from(message)
       .toString('base64')
       .replace(/\+/g, '-')
@@ -62,9 +54,6 @@ class EmailService {
     return encodedMessage;
   }
 
-  /**
-   * Send email via Gmail API
-   */
   async sendEmail(to, subject, htmlContent, fromName = 'Airstream') {
     if (!this.gmail) {
       console.warn('Email service not available. Skipping email.');
@@ -92,16 +81,12 @@ class EmailService {
     }
   }
 
-  /**
-   * Send verification email - UPDATED WITH CORRECT URL
-   */
   async sendVerificationEmail(user, token) {
     if (!this.gmail) {
       console.warn('Email service not available. Skipping verification email.');
       return false;
     }
 
-    // IMPORTANT: Use /verify-email (not /auth/verify-email)
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
     
     const htmlContent = `
@@ -151,9 +136,6 @@ class EmailService {
     );
   }
 
-  /**
-   * Send password reset email
-   */
   async sendPasswordResetEmail(user, token) {
     if (!this.gmail) {
       console.warn('Email service not available. Skipping password reset email.');
@@ -216,9 +198,6 @@ class EmailService {
     );
   }
 
-  /**
-   * Send welcome email after verification
-   */
   async sendWelcomeEmail(user) {
     if (!this.gmail) {
       console.warn('Email service not available. Skipping welcome email.');
@@ -279,6 +258,80 @@ class EmailService {
     return await this.sendEmail(
       user.email,
       'Welcome to Airstream! 🎉',
+      htmlContent,
+      'Airstream'
+    );
+  }
+
+  // NEW: Send account deletion confirmation email
+  async sendAccountDeletionEmail(user, token) {
+    if (!this.gmail) {
+      console.warn('Email service not available. Skipping account deletion email.');
+      return false;
+    }
+
+    const deletionUrl = `${process.env.FRONTEND_URL}/confirm-account-deletion?token=${token}`;
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .button { display: inline-block; padding: 12px 30px; background: #dc2626; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .warning { background: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>⚠️ Account Deletion Request</h1>
+          </div>
+          <div class="content">
+            <h2>Hi ${user.username},</h2>
+            <p>We received a request to permanently delete your Airstream account.</p>
+            
+            <div class="warning">
+              <strong>⚠️ This action cannot be undone!</strong>
+              <p>If you proceed, the following will be permanently deleted:</p>
+              <ul>
+                <li>Your account and profile information</li>
+                <li>All uploaded files and folders</li>
+                <li>All shared links and file access</li>
+                <li>Your entire file storage</li>
+              </ul>
+            </div>
+
+            <p>If you're sure you want to delete your account, click the button below to confirm:</p>
+            
+            <div style="text-align: center;">
+              <a href="${deletionUrl}" class="button">Confirm Account Deletion</a>
+            </div>
+            
+            <p>Or copy and paste this link in your browser:</p>
+            <p style="word-break: break-all; color: #dc2626;">${deletionUrl}</p>
+            
+            <p><strong>This link will expire in 24 hours.</strong></p>
+            
+            <p>If you didn't request account deletion, please ignore this email and your account will remain active. We recommend changing your password if you didn't make this request.</p>
+            
+            <p>We're sorry to see you go.<br>The Airstream Team</p>
+          </div>
+          <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} Airstream. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return await this.sendEmail(
+      user.email,
+      'Confirm Account Deletion - Airstream',
       htmlContent,
       'Airstream'
     );

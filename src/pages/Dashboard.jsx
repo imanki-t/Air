@@ -7,8 +7,8 @@ import axios from 'axios';
 import Sidebar from '../components/dashboard/Sidebar';
 import FolderGrid from '../components/dashboard/FolderGrid';
 import FileListSection from '../components/dashboard/FileListSection';
-import CreateFolderModal from '../components/dashboard/CreateFolderModal';
-import UploadModal from '../components/dashboard/UploadModal';
+import { CreateFolderModal } from '../components/dashboard/CreateFolderModal';
+import { UploadModal } from '../components/dashboard/UploadModal';
 
 const Dashboard = () => {
   const navigate = useNavigate();

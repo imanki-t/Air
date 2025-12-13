@@ -3,21 +3,36 @@ const nodemailer = require('nodemailer');
 
 class EmailService {
   constructor() {
-    this.transporter = nodemailer.createTransporter({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: process.env.SMTP_PORT || 587,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
-    });
+    // Check if SMTP credentials are configured
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.warn('⚠️  SMTP credentials not configured. Email functionality will be disabled.');
+      this.transporter = null;
+      return;
+    }
+
+    try {
+      this.transporter = nodemailer.createTransporter({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT) || 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS
+        }
+      });
+      console.log('✅ Email service initialized');
+    } catch (error) {
+      console.error('❌ Failed to initialize email service:', error);
+      this.transporter = null;
+    }
   }
 
-  /**
-   * Send verification email
-   */
   async sendVerificationEmail(user, token) {
+    if (!this.transporter) {
+      console.warn('Email service not available. Skipping verification email.');
+      return false;
+    }
+
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
     
     const htmlContent = `
@@ -71,14 +86,16 @@ class EmailService {
       return true;
     } catch (error) {
       console.error('Error sending verification email:', error);
-      throw new Error('Failed to send verification email');
+      return false;
     }
   }
 
-  /**
-   * Send password reset email
-   */
   async sendPasswordResetEmail(user, token) {
+    if (!this.transporter) {
+      console.warn('Email service not available. Skipping password reset email.');
+      return false;
+    }
+
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
     
     const htmlContent = `
@@ -117,7 +134,6 @@ class EmailService {
                 <li>If you didn't request this reset, please ignore this email</li>
               </ul>
             </div>
-            <p>If you didn't request a password reset, your account is still secure and no changes have been made.</p>
             <p>Best regards,<br>The Airstream Team</p>
           </div>
           <div class="footer">
@@ -140,14 +156,16 @@ class EmailService {
       return true;
     } catch (error) {
       console.error('Error sending password reset email:', error);
-      throw new Error('Failed to send password reset email');
+      return false;
     }
   }
 
-  /**
-   * Send welcome email after verification
-   */
   async sendWelcomeEmail(user) {
+    if (!this.transporter) {
+      console.warn('Email service not available. Skipping welcome email.');
+      return false;
+    }
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -184,16 +202,11 @@ class EmailService {
               <strong>🔗 Share Files</strong><br>
               Generate secure links to share your files with others
             </div>
-            <div class="feature">
-              <strong>💾 Batch Operations</strong><br>
-              Download, share, or delete multiple files at once
-            </div>
             
             <div style="text-align: center;">
               <a href="${process.env.FRONTEND_URL}/dashboard" class="button">Go to Dashboard</a>
             </div>
             
-            <p>If you have any questions or need assistance, feel free to reach out to our support team.</p>
             <p>Happy file managing!<br>The Airstream Team</p>
           </div>
           <div class="footer">
@@ -216,7 +229,6 @@ class EmailService {
       return true;
     } catch (error) {
       console.error('Error sending welcome email:', error);
-      // Don't throw error for welcome email
       return false;
     }
   }

@@ -1,7 +1,8 @@
-// src/App.jsx - UPDATED WITH ACCOUNT DELETION ROUTE
+// src/App.jsx - UPDATED WITH TOAST COMPONENT
 import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import authService from './services/authService';
+import Toast from './components/Toast';
 
 // Pages
 import Home from './pages/Home';
@@ -23,11 +24,10 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Public Route Component - UPDATED: Allow authenticated users on home
+// Public Route Component
 const PublicRoute = ({ children, allowWhenAuthenticated = false }) => {
   const isAuthenticated = authService.isAuthenticated();
   
-  // Only redirect to workspace if not allowed when authenticated
   if (isAuthenticated && !allowWhenAuthenticated) {
     return <Navigate to="/workspace" replace />;
   }
@@ -36,33 +36,52 @@ const PublicRoute = ({ children, allowWhenAuthenticated = false }) => {
 };
 
 function App() {
-  // Apply theme on mount
+  // Apply theme on mount based on user preference
   useEffect(() => {
     const user = authService.getUser();
     const theme = user?.theme || 'system';
     
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else if (theme === 'light') {
-      document.documentElement.classList.remove('dark');
-    } else {
-      // System preference
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    const applyTheme = (selectedTheme) => {
+      if (selectedTheme === 'dark') {
         document.documentElement.classList.add('dark');
-      } else {
+      } else if (selectedTheme === 'light') {
         document.documentElement.classList.remove('dark');
+      } else {
+        // System preference
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
       }
+    };
+
+    applyTheme(theme);
+
+    // Listen for system theme changes if theme is set to 'system'
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = (e) => {
+        if (e.matches) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      };
+      
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
     }
   }, []);
 
   return (
     <div className="min-h-screen">
+      {/* Global Toast Notification Component */}
+      <Toast />
+      
       <Routes>
-        {/* Home Route - UPDATED: Allow authenticated users */}
-        <Route
-          path="/"
-          element={<Home />}
-        />
+        {/* Home Route - Allow authenticated users */}
+        <Route path="/" element={<Home />} />
 
         {/* Auth Routes */}
         <Route

@@ -93,7 +93,7 @@ class EmailService {
   }
 
   /**
-   * Send verification email
+   * Send verification email - UPDATED WITH CORRECT URL
    */
   async sendVerificationEmail(user, token) {
     if (!this.gmail) {
@@ -101,6 +101,7 @@ class EmailService {
       return false;
     }
 
+    // IMPORTANT: Use /verify-email (not /auth/verify-email)
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
     
     const htmlContent = `
@@ -262,7 +263,7 @@ class EmailService {
             </div>
             
             <div style="text-align: center;">
-              <a href="${process.env.FRONTEND_URL}/dashboard" class="button">Go to Dashboard</a>
+              <a href="${process.env.FRONTEND_URL}/workspace" class="button">Go to Dashboard</a>
             </div>
             
             <p>Happy file managing!<br>The Airstream Team</p>

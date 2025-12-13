@@ -1,4 +1,4 @@
-// src/services/authService.js
+// src/services/authService.js - UPDATED WITH ALL FEATURES
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_BACKEND_URL + '/api/auth';
@@ -9,7 +9,6 @@ class AuthService {
   }
 
   setupInterceptors() {
-    // Add token to requests
     axios.interceptors.request.use(
       (config) => {
         const token = this.getAccessToken();
@@ -21,7 +20,6 @@ class AuthService {
       (error) => Promise.reject(error)
     );
 
-    // Handle token refresh on 401
     axios.interceptors.response.use(
       (response) => response,
       async (error) => {
@@ -128,10 +126,18 @@ class AuthService {
     return response.data;
   }
 
-  async updateProfile(username) {
+  // UPDATED: Now accepts theme parameter
+  async updateProfile(username, theme) {
     const response = await axios.put(`${API_URL}/profile`, {
-      username
+      username,
+      theme
     });
+    
+    // Update local storage with new user data
+    if (response.data.user) {
+      this.setUser(response.data.user);
+    }
+    
     return response.data;
   }
 
@@ -140,6 +146,12 @@ class AuthService {
       currentPassword,
       newPassword
     });
+    return response.data;
+  }
+
+  // NEW: Request account deletion
+  async requestAccountDeletion() {
+    const response = await axios.post(`${API_URL}/request-account-deletion`);
     return response.data;
   }
 
@@ -176,12 +188,10 @@ class AuthService {
     localStorage.removeItem('user');
   }
 
-  // Check if user is logged in
   isAuthenticated() {
     return !!this.getAccessToken();
   }
 
-  // Check if email is verified
   isEmailVerified() {
     const user = this.getUser();
     return user?.isEmailVerified || false;

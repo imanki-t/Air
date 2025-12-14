@@ -1,4 +1,4 @@
-// src/pages/Dashboard.jsx - COMPLETE ENHANCED VERSION
+// src/pages/Dashboard.jsx - WITH THEME SUPPORT
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
@@ -11,7 +11,7 @@ import fileService from '../services/fileService';
 // Components
 import DashboardLayout from '../components/layout/DashboardLayout';
 import FileExplorer from '../components/dashboard/FileExplorer';
-import Toast, { showToast } from '../components/Toast';
+import Toast from '../components/Toast';
 
 // Modals
 import { CreateFolderModal } from '../components/dashboard/CreateFolderModal';
@@ -69,9 +69,13 @@ const Dashboard = () => {
         const profile = await authService.getProfile();
         if (profile?.user && !profile.user.isEmailVerified) {
           navigate('/auth/verify-email');
+        } else {
+          // Update user with latest data from server
+          setUser(profile.user);
+          authService.setUser(profile.user);
         }
       } catch (e) {
-        // Ignore
+        console.error('Profile fetch error:', e);
       }
     } catch (error) {
       console.error('Failed to load user:', error);
@@ -85,7 +89,6 @@ const Dashboard = () => {
       setAllFolders(Array.isArray(foldersData) ? foldersData : []);
     } catch (error) {
       console.error('Failed to load folders:', error);
-      showToast('Failed to load folders', 'error');
       setAllFolders([]);
     }
   };
@@ -97,7 +100,7 @@ const Dashboard = () => {
       const filesData = await fileService.getFiles(targetFolderId);
       setAllFiles(Array.isArray(filesData) ? filesData : []);
     } catch (error) {
-      showToast('Failed to load files', 'error');
+      console.error('Failed to load files:', error);
       setAllFiles([]);
     } finally {
       setLoading(false);
@@ -110,7 +113,7 @@ const Dashboard = () => {
       const filesData = await fileService.getRecentFiles(20);
       setAllFiles(Array.isArray(filesData) ? filesData : []);
     } catch (error) {
-      showToast('Failed to load recent files', 'error');
+      console.error('Failed to load recent files:', error);
       setAllFiles([]);
     } finally {
       setLoading(false);
@@ -123,7 +126,7 @@ const Dashboard = () => {
       const filesData = await fileService.getStarredFiles();
       setAllFiles(Array.isArray(filesData) ? filesData : []);
     } catch (error) {
-      showToast('Failed to load starred files', 'error');
+      console.error('Failed to load starred files:', error);
       setAllFiles([]);
     } finally {
       setLoading(false);
@@ -136,7 +139,7 @@ const Dashboard = () => {
       const filesData = await fileService.getTrashFiles();
       setAllFiles(Array.isArray(filesData) ? filesData : []);
     } catch (error) {
-      showToast('Failed to load trash', 'error');
+      console.error('Failed to load trash:', error);
       setAllFiles([]);
     } finally {
       setLoading(false);
@@ -164,16 +167,14 @@ const Dashboard = () => {
       await folderService.createFolder(folderData.name, selectedFolder?._id, folderData.color);
       await loadFolders();
       setShowCreateFolder(false);
-      showToast('Folder created successfully', 'success');
     } catch (error) {
-      showToast(error.response?.data?.error || 'Failed to create folder', 'error');
+      console.error('Create folder error:', error);
     }
   };
 
   const handleUploadComplete = () => {
     loadFiles(selectedFolder?._id);
     setShowUpload(false);
-    showToast('Files uploaded successfully', 'success');
   };
 
   const handleFileAction = async (file, action) => {
@@ -191,34 +192,33 @@ const Dashboard = () => {
         link.click();
         link.remove();
         window.URL.revokeObjectURL(url);
-        showToast('Download started', 'success');
       } catch (e) {
-        showToast('Download failed', 'error');
+        console.error('Download error:', e);
       }
     } else if (action === 'star') {
       try {
         await fileService.toggleStar(file._id);
-        showToast(
-          file.metadata?.isStarred ? 'Removed from starred' : 'Added to starred',
-          'success'
-        );
         loadFiles(selectedFolder?._id);
       } catch (error) {
-        showToast('Failed to update file', 'error');
+        console.error('Star error:', error);
       }
     } else if (action === 'delete') {
       try {
         await fileService.moveToTrash(file._id);
-        showToast('File moved to trash', 'success');
         loadFiles(selectedFolder?._id);
       } catch (error) {
-        showToast('Failed to delete file', 'error');
+        console.error('Delete error:', error);
       }
     } else if (action === 'preview') {
       if (file.contentType?.startsWith('image/')) {
         window.open(fileService.getPreviewUrl(file._id), '_blank');
       }
     }
+  };
+
+  const handleThemeChange = (newTheme) => {
+    // Update user state with new theme
+    setUser(prev => ({ ...prev, theme: newTheme }));
   };
 
   const visibleFolders = (allFolders || [])
@@ -271,19 +271,14 @@ const Dashboard = () => {
               )}
             </div>
 
-            {/* Action Buttons - Mobile Optimized */}
+            {/* Action Buttons */}
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setShowCreateFolder(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-surface-container-high hover:bg-surface-variant rounded-lg text-sm font-medium transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                 </svg>
                 <span className="hidden sm:inline">New Folder</span>
               </button>
@@ -336,7 +331,13 @@ const Dashboard = () => {
       </AnimatePresence>
 
       <AnimatePresence>
-        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+        {showSettings && (
+          <SettingsModal
+            user={user}
+            onClose={() => setShowSettings(false)}
+            onThemeChange={handleThemeChange}
+          />
+        )}
       </AnimatePresence>
 
       <AnimatePresence>

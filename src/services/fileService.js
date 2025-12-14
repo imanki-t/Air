@@ -1,158 +1,256 @@
-// src/services/fileService.js - UPDATED WITH PROPER TRASH FILTERING
+// src/services/fileService.js - FRONTEND SERVICE
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_BACKEND_URL + '/api/files';
+const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
-class FileService {
-  // Upload file
-  async uploadFile(formData, onProgress) {
-    const response = await axios.post(`${API_URL}/upload`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: onProgress
-    });
-    return response.data;
-  }
+// Create axios instance with auth token
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('accessToken');
+  return {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  };
+};
 
-  // Get all files (UPDATED: Excludes trashed files by default)
+const fileService = {
+  /**
+   * Get files (optionally filtered by folder)
+   */
   async getFiles(folderId = null) {
-    const url = folderId ? `${API_URL}?folderId=${folderId}` : API_URL;
-    const response = await axios.get(url);
-    // Filter out trashed files on client side as well
-    const files = response.data.filter(file => !file.metadata?.isTrashed);
-    return files;
-  }
+    try {
+      const params = folderId ? { folderId } : {};
+      const response = await axios.get(`${API_URL}/api/files`, {
+        ...getAuthHeaders(),
+        params
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get files error:', error);
+      throw error;
+    }
+  },
 
-  // Get file by ID
-  async getFile(id) {
-    const response = await axios.get(`${API_URL}/${id}`);
-    return response.data;
-  }
-
-  // Download file
-  async downloadFile(id) {
-    const response = await axios.get(`${API_URL}/download/${id}`, {
-      responseType: 'blob'
-    });
-    return response.data;
-  }
-
-  // Delete file (moves to trash)
-  async deleteFile(id) {
-    const response = await axios.delete(`${API_URL}/${id}`);
-    return response.data;
-  }
-
-  // Move file to folder
-  async moveFile(id, folderId) {
-    const response = await axios.put(`${API_URL}/${id}/move`, { folderId });
-    return response.data;
-  }
-
-  // Star/unstar file
-  async toggleStar(id) {
-    const response = await axios.put(`${API_URL}/${id}/star`);
-    return response.data;
-  }
-
-  // Get starred files (UPDATED: Excludes trashed files)
-  async getStarredFiles() {
-    const response = await axios.get(`${API_URL}/starred`);
-    return response.data;
-  }
-
-  // Get recent files (UPDATED: Excludes trashed files)
+  /**
+   * Get recent files
+   */
   async getRecentFiles(limit = 20) {
-    const response = await axios.get(`${API_URL}/recent?limit=${limit}`);
-    return response.data;
-  }
+    try {
+      const response = await axios.get(`${API_URL}/api/files/recent`, {
+        ...getAuthHeaders(),
+        params: { limit }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Get recent files error:', error);
+      throw error;
+    }
+  },
 
-  // Move to trash
-  async moveToTrash(id) {
-    const response = await axios.put(`${API_URL}/${id}/trash`);
-    return response.data;
-  }
+  /**
+   * Get starred files
+   */
+  async getStarredFiles() {
+    try {
+      const response = await axios.get(`${API_URL}/api/files/starred`, getAuthHeaders());
+      return response.data;
+    } catch (error) {
+      console.error('Get starred files error:', error);
+      throw error;
+    }
+  },
 
-  // Restore from trash
-  async restoreFromTrash(id) {
-    const response = await axios.put(`${API_URL}/${id}/restore`);
-    return response.data;
-  }
-
-  // Get trash files
+  /**
+   * Get trash files
+   */
   async getTrashFiles() {
-    const response = await axios.get(`${API_URL}/trash`);
-    return response.data;
-  }
+    try {
+      const response = await axios.get(`${API_URL}/api/files/trash`, getAuthHeaders());
+      return response.data;
+    } catch (error) {
+      console.error('Get trash files error:', error);
+      throw error;
+    }
+  },
 
-  // Permanently delete file
-  async permanentlyDelete(id) {
-    const response = await axios.delete(`${API_URL}/${id}/permanent`);
-    return response.data;
-  }
+  /**
+   * Toggle star status
+   */
+  async toggleStar(fileId) {
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/files/${fileId}/star`,
+        {},
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Toggle star error:', error);
+      throw error;
+    }
+  },
 
-  // Empty trash
-  async emptyTrash() {
-    const response = await axios.delete(`${API_URL}/trash/empty`);
-    return response.data;
-  }
+  /**
+   * Move file to trash
+   */
+  async moveToTrash(fileId) {
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/files/${fileId}/trash`,
+        {},
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Move to trash error:', error);
+      throw error;
+    }
+  },
 
-  // Generate share link with options
-  async generateShareLink(id, options = {}) {
-    const response = await axios.post(`${API_URL}/share/${id}`, options);
-    return response.data;
-  }
+  /**
+   * Restore file from trash
+   */
+  async restoreFromTrash(fileId) {
+    try {
+      const response = await axios.put(
+        `${API_URL}/api/files/${fileId}/restore`,
+        {},
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Restore from trash error:', error);
+      throw error;
+    }
+  },
 
-  // Get shared file
-  async getSharedFile(shareId) {
-    const response = await axios.get(`${API_URL}/share/${shareId}`);
-    return response.data;
-  }
+  /**
+   * Permanently delete file
+   */
+  async permanentlyDelete(fileId) {
+    try {
+      const response = await axios.delete(
+        `${API_URL}/api/files/${fileId}/permanent`,
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Permanent delete error:', error);
+      throw error;
+    }
+  },
 
-  // Revoke share link
-  async revokeShareLink(id) {
-    const response = await axios.delete(`${API_URL}/share/${id}`);
-    return response.data;
-  }
+  /**
+   * Download file
+   */
+  async downloadFile(fileId) {
+    try {
+      const response = await axios.get(
+        `${API_URL}/api/files/download/${fileId}`,
+        {
+          ...getAuthHeaders(),
+          responseType: 'blob'
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Download file error:', error);
+      throw error;
+    }
+  },
 
-  // Search files (UPDATED: Excludes trashed files)
-  async searchFiles(query) {
-    const response = await axios.get(`${API_URL}/search?q=${encodeURIComponent(query)}`);
-    // Filter out trashed files
-    const files = response.data.filter(file => !file.metadata?.isTrashed);
-    return files;
-  }
+  /**
+   * Get preview URL for file
+   */
+  getPreviewUrl(fileId) {
+    const token = localStorage.getItem('accessToken');
+    return `${API_URL}/api/files/preview/${fileId}?token=${token}`;
+  },
 
-  // Get file preview URL
-  getPreviewUrl(id) {
-    return `${API_URL}/preview/${id}`;
-  }
+  /**
+   * Generate share link
+   */
+  async generateShareLink(fileId, options = {}) {
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/files/share/${fileId}`,
+        options,
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Generate share link error:', error);
+      throw error;
+    }
+  },
 
-  // Batch operations
-  async batchDelete(ids) {
-    const response = await axios.post(`${API_URL}/batch/delete`, { ids });
-    return response.data;
-  }
+  /**
+   * Upload file
+   */
+  async uploadFile(file, folderId = null, onProgress = null) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (folderId) {
+        formData.append('folderId', folderId);
+      }
 
-  async batchMove(ids, folderId) {
-    const response = await axios.post(`${API_URL}/batch/move`, { ids, folderId });
-    return response.data;
-  }
+      const response = await axios.post(
+        `${API_URL}/api/files/upload`,
+        formData,
+        {
+          ...getAuthHeaders(),
+          headers: {
+            ...getAuthHeaders().headers,
+            'Content-Type': 'multipart/form-data'
+          },
+          onUploadProgress: (progressEvent) => {
+            if (onProgress && progressEvent.total) {
+              const percentCompleted = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              );
+              onProgress(percentCompleted);
+            }
+          }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Upload file error:', error);
+      throw error;
+    }
+  },
 
-  async batchStar(ids) {
-    const response = await axios.post(`${API_URL}/batch/star`, { ids });
-    return response.data;
-  }
+  /**
+   * Batch operations
+   */
+  async batchDelete(fileIds) {
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/files/batch/delete`,
+        { ids: fileIds },
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Batch delete error:', error);
+      throw error;
+    }
+  },
 
-  async batchTrash(ids) {
-    const response = await axios.post(`${API_URL}/batch/trash`, { ids });
-    return response.data;
+  async batchStar(fileIds) {
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/files/batch/star`,
+        { ids: fileIds },
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Batch star error:', error);
+      throw error;
+    }
   }
+};
 
-  // Get storage statistics
-  async getStorageStats() {
-    const response = await axios.get(`${API_URL}/storage/stats`);
-    return response.data;
-  }
-}
-
-export default new FileService();
+export default fileService;

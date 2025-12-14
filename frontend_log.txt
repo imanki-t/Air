@@ -1,0 +1,12 @@
+
+> Airstream@1.0.0 dev
+> vite
+
+
+  VITE v5.4.21  ready in 284 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+(!) Could not auto-determine entry point from rollupOptions or html files and there are no explicit optimizeDeps.include patterns. Skipping dependency pre-bundling.
+7:26:22 AM [vite] page reload index.html
+7:29:09 AM [vite] ✨ new dependencies optimized: react, react-dom/client, react-router-dom, react-hot-toast, react-icons/fa, axios

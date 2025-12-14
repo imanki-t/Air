@@ -304,8 +304,88 @@ router.delete('/:id', authenticate, async (req, res) => {
   }
 });
 
+// ==========================================
+// SHARE ROUTES
+// ==========================================
+
+// Get all shared links for current user
+router.get('/shared-links', authenticate, async (req, res) => {
+  try {
+    const files = await DriveMapping.find({
+      userId: req.userId,
+      'metadata.shareId': { $exists: true, $ne: null }
+    })
+    .sort({ 'metadata.shareExpires': 1 }) // Sort by expiration date
+    .lean();
+
+    // Filter out voided links and format response
+    const activeLinks = files.filter(file => 
+      !file.metadata.shareVoided &&
+      (!file.metadata.shareExpires || new Date(file.metadata.shareExpires) > new Date())
+    );
+
+    res.json(activeLinks);
+  } catch (error) {
+    console.error('Get shared links error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Generate share link
 router.post('/share/:id', authenticate, controller.generateShareLink);
+
+// Delete/revoke a share link
+router.delete('/share/:id', authenticate, async (req, res) => {
+  try {
+    const fileMapping = await DriveMapping.findOne({
+      _id: req.params.id,
+      userId: req.userId
+    });
+
+    if (!fileMapping) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Void the share link
+    await DriveMapping.updateOne(
+      { _id: req.params.id },
+      { 
+        $set: { 'metadata.shareVoided': true },
+        $unset: { 
+          'metadata.shareId': '',
+          'metadata.shareExpires': ''
+        }
+      }
+    );
+
+    // Try to revoke Google Drive permissions
+    try {
+      const permissions = await drive.permissions.list({
+        fileId: fileMapping.driveId,
+        fields: 'permissions(id, type)'
+      });
+
+      const anyonePermission = permissions.data.permissions.find(
+        p => p.type === 'anyone'
+      );
+
+      if (anyonePermission) {
+        await drive.permissions.delete({
+          fileId: fileMapping.driveId,
+          permissionId: anyonePermission.id
+        });
+      }
+    } catch (driveError) {
+      console.error('Drive permission revocation error:', driveError);
+      // Continue even if Drive permission deletion fails
+    }
+
+    res.json({ message: 'Share link deleted successfully' });
+  } catch (error) {
+    console.error('Delete share link error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Access shared file
 router.get('/share/:shareId', apiLimiter, controller.accessSharedFile);
@@ -323,7 +403,66 @@ router.post('/share-zip', authenticate, upload.single('zipFile'), (req, res, nex
 // Cleanup incomplete upload
 router.delete('/cleanup/:fileId', authenticate, controller.cleanupIncompleteUpload);
 
-// Manual cleanup route
+// Revoke all expired share links (can be called manually or via cron)
+router.post('/cleanup-expired-shares', authenticate, async (req, res) => {
+  try {
+    const now = new Date();
+    
+    const expiredFiles = await DriveMapping.find({
+      userId: req.userId,
+      'metadata.shareExpires': { $lt: now },
+      'metadata.shareId': { $exists: true }
+    });
+
+    let count = 0;
+    for (const file of expiredFiles) {
+      try {
+        // Void the share
+        await DriveMapping.updateOne(
+          { _id: file._id },
+          { 
+            $set: { 'metadata.shareVoided': true },
+            $unset: { 
+              'metadata.shareId': '',
+              'metadata.shareExpires': ''
+            }
+          }
+        );
+
+        // Try to revoke Drive permissions
+        const permissions = await drive.permissions.list({
+          fileId: file.driveId,
+          fields: 'permissions(id, type)'
+        });
+
+        const anyonePermission = permissions.data.permissions.find(
+          p => p.type === 'anyone'
+        );
+
+        if (anyonePermission) {
+          await drive.permissions.delete({
+            fileId: file.driveId,
+            permissionId: anyonePermission.id
+          });
+        }
+
+        count++;
+      } catch (error) {
+        console.error(`Error cleaning up share for ${file._id}:`, error);
+      }
+    }
+
+    res.json({ 
+      message: `Cleaned up ${count} expired share links`,
+      count 
+    });
+  } catch (error) {
+    console.error('Cleanup expired shares error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Manual cleanup route (General DB cleanup)
 router.post('/cleanup-expired-links', authenticate, async (req, res) => {
   try {
     const count = await controller.scheduleCleanup();

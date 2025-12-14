@@ -1,199 +1,90 @@
+// src/App.jsx - Main Application Component
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import UploadForm from './components/UploadForm';
-import FileList from './components/FileList';
-import AccessGate from './components/AccessGate';
-import Homepage from './components/Homepage';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-function App() {
-  const [error, setError] = useState(null);
-  const [files, setFiles] = useState([]);
-  const [darkMode, setDarkMode] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+// Page Components
+import Homepage from './pages/Homepage';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import Dashboard from './pages/Dashboard';
+import Profile from './pages/Profile';
+import EmailVerification from './pages/EmailVerification';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import ConfirmDeletion from './pages/ConfirmDeletion';
 
+// Context
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+
+// Layout
+import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
+
+function AppContent() {
+  const { user, loading, logout, checkAuth } = useAuth();
+  const { theme } = useTheme();
+  const navigate = useNavigate();
   const location = useLocation();
-  const hideHeader = location.pathname === '/' || location.pathname === '/login';
-  const showFooter = location.pathname === '/dashboard';
-
-  const handleAccessGranted = () => {
-      setIsLoggedIn(true);
-  };
-
-  const fetchFiles = async () => {
-    if (!isLoggedIn) {
-        console.log("Not logged in, skipping file fetch.");
-        setFiles([]);
-        setError(null);
-        return;
-    }
-    console.log("Fetching files...");
-    try {
-      const res = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/files`);
-      setFiles(res.data);
-      setError(null);
-      console.log("Files fetched successfully.");
-    } catch (err) {
-      console.error('Error fetching files:', err);
-      if (err.response && err.response.status === 401) {
-         console.log("Backend returned 401, marking as not logged in.");
-         setIsLoggedIn(false);
-         if (!error || !error.includes('Backend not configured') || !error.includes('Client error')) {
-            setError('Session expired or unauthorized. Please log in.');
-         }
-      } else {
-        setError('Failed to load files.');
-      }
-      setFiles([]);
-    }
-  };
 
   useEffect(() => {
-    const handleGlobalError = (message, source, lineno, colno, error) => {
-      console.error('Global error:', message, error);
-      if (!error || !error.response) {
-          if (!error || !error.message || !error.message.includes('Backend not configured')) {
-               setError(`Client error: ${message}`);
-          }
-      }
-      return true;
-    };
-
-    window.onerror = handleGlobalError;
-
-    if (!import.meta.env.VITE_BACKEND_URL) {
-      console.warn('Backend URL not configured. API calls will fail.');
-      setError('Backend not configured. Please set VITE_BACKEND_URL.');
-    }
-
-    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    setDarkMode(darkModeMediaQuery.matches);
-    const handleDarkModeChange = (e) => setDarkMode(e.matches);
-    darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
-
-    return () => {
-      window.onerror = null;
-      darkModeMediaQuery.removeEventListener('change', handleDarkModeChange);
-    };
+    checkAuth();
   }, []);
 
-   useEffect(() => {
-       console.log("isLoggedIn state changed:", isLoggedIn);
-       if (isLoggedIn) {
-           fetchFiles();
-       } else {
-           setFiles([]);
-           if (error && error.includes('Session expired')) {
-               setError(null);
-           }
-       }
-   }, [isLoggedIn]);
-
-  const renderHeader = () => (
-    <header
-      className={`p-6 shadow-md transition-all duration-300 ${
-        darkMode ? 'bg-gray-950 border-gray-700' : 'bg-white border-gray-200'
-      }`}
-    >
-      <div className="max-w-6xl mx-auto flex items-center justify-center">
-        <div className="text-center">
-          <h1 className={`text-4xl font-bold tracking-wide ${darkMode ? 'text-white' : 'text-gray-900'}`}>AIRSTREAM</h1>
-        </div>
-      </div>
-    </header>
-  );
-
-  const renderFooter = () => (
-    <footer
-      className={`p-4 text-center text-sm ${
-        darkMode ? 'text-gray-400' : 'text-gray-500'
-      }`}
-    >
-      © {new Date().getFullYear()} Airstream • All Rights Reserved
-    </footer>
-  );
-
-  // Error page with header and footer
-  if (error && (error.includes('Backend not configured') || error.includes('Client error'))) {
+  if (loading) {
     return (
-      <div className={`w-full min-h-screen flex flex-col transition-colors duration-300 ${darkMode ? 'bg-gray-950 text-white' : 'bg-white text-gray-900'}`}>
-        {renderHeader()}
-        
-        <div className="flex-grow flex items-center justify-center p-4">
-          <div className={`bg-opacity-90 p-6 rounded-lg max-w-lg text-center shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-            <h1 className="text-2xl font-semibold mb-4">Application Error</h1>
-            <p className="mb-6">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
-            >
-              Reload Page
-            </button>
-          </div>
+      <div className={`min-h-screen flex items-center justify-center ${
+        theme === 'dark' ? 'bg-gray-950' : 'bg-white'
+      }`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>
+            Loading...
+          </p>
         </div>
-        
-        {renderFooter()}
       </div>
     );
   }
 
   return (
-    <div className={`w-full min-h-screen flex flex-col transition-colors duration-300 ${darkMode ? 'bg-gray-950 text-white' : 'bg-white text-gray-900'}`}>
-      {!hideHeader && renderHeader()}
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/" element={<Homepage />} />
+      <Route 
+        path="/login" 
+        element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
+      />
+      <Route 
+        path="/signup" 
+        element={user ? <Navigate to="/dashboard" replace /> : <Signup />} 
+      />
+      <Route path="/verify-email" element={<EmailVerification />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/confirm-account-deletion" element={<ConfirmDeletion />} />
 
-      <main className="flex-grow w-full max-w-6xl mx-auto p-4 sm:p-6 flex flex-col relative overflow-hidden">
-        {location.pathname === '/dashboard' && (
-          <div
-            className={`absolute inset-0`}
-            style={{
-              backgroundImage: darkMode
-                ? `linear-gradient(to right, rgba(66, 135, 245, 0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(66, 135, 245, 0.2) 1px, transparent 1px)`
-                : `linear-gradient(to right, rgba(139, 0, 0, 0.3) 1px, transparent 1px), linear-gradient(to bottom, rgba(139, 0, 0, 0.3) 1px, transparent 1px)`,
-              backgroundSize: '30px 30px',
-              backgroundColor: darkMode ? '#0f172a' : '#ffffff',
-              zIndex: 0,
-            }}
-          ></div>
-        )}
+      {/* Protected Routes */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/profile" element={<Profile />} />
+        </Route>
+      </Route>
 
-        <Routes>
-          <Route path="/" element={<Homepage isLoggedIn={isLoggedIn} />} />
-          <Route
-            path="/login"
-            element={
-              isLoggedIn ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <AccessGate onAccessGranted={handleAccessGranted} darkMode={darkMode} />
-              )
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              isLoggedIn ? (
-                <div className="relative z-10 flex flex-col h-full">
-                  {error && error.includes('Failed to load files') && (
-                      <div className={`mb-4 p-3 rounded-md text-sm ${darkMode ? 'bg-red-900/50 text-red-300' : 'bg-red-100 text-red-700'}`}>
-                          {error}
-                      </div>
-                  )}
-                  <UploadForm refresh={fetchFiles} darkMode={darkMode} />
-                  <div className={`flex-grow ${files.length === 0 ? 'flex justify-center items-center' : ''}`}>
-                    <FileList files={files} refresh={fetchFiles} darkMode={darkMode} isLoading={false} />
-                  </div>
-                </div>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
+      {/* Catch all */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
 
-      {(showFooter || false) && renderFooter()}
-    </div>
+function App() {
+  return (
+    <AuthProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 

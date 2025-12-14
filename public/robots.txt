@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://airstream.onrender.com/sitemap.xml

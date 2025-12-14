@@ -2,12 +2,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// Services
 import authService from '../services/authService';
 import folderService from '../services/folderService';
 import fileService from '../services/fileService';
+
+// Hooks
+import { useFileManager } from '../hooks/useFileManager';
+
+// Components
 import DashboardLayout from '../components/layout/DashboardLayout';
-import FolderGrid from '../components/dashboard/FolderGrid';
-import FileListSection from '../components/dashboard/FileListSection';
+import FileExplorer from '../components/dashboard/FileExplorer';
+import M3Snackbar, { showSnackbar } from '../components/m3/M3Snackbar';
+
+// Modals
 import { CreateFolderModal } from '../components/dashboard/CreateFolderModal';
 import { UploadModal } from '../components/dashboard/UploadModal';
 import { ProfileModal } from '../components/dashboard/ProfileModal';
@@ -17,33 +26,34 @@ import { ShareModal } from '../components/dashboard/ShareModal';
 const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [folders, setFolders] = useState([]);
-  const [files, setFiles] = useState([]);
-  const [currentView, setCurrentView] = useState('my-files');
+
+  // Data State
+  const [allFolders, setAllFolders] = useState([]);
+  const [allFiles, setAllFiles] = useState([]);
+  const [currentView, setCurrentView] = useState('my-files'); // 'my-files', 'recent', 'starred', 'trash'
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [loading, setLoading] = useState(true);
-  
-  // Modal states
+
+  // Use the custom hook for file logic
+  const fileManager = useFileManager(allFiles, 'date', 'desc');
+
+  // Modal States
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
-  
-  // UI state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [storageStats, setStorageStats] = useState({ used: 0, total: 15 * 1024 * 1024 * 1024 }); // 15GB default
 
+  // Initial Load
   useEffect(() => {
     loadUserData();
     loadFolders();
     loadFiles();
-    loadStorageStats();
   }, []);
 
+  // View Switching Logic
   useEffect(() => {
-    // Load different content based on current view
     if (currentView === 'my-files') {
       loadFiles();
     } else if (currentView === 'recent') {
@@ -53,16 +63,21 @@ const Dashboard = () => {
     } else if (currentView === 'trash') {
       loadTrashFiles();
     }
+    // Reset selection when changing main views
+    if (currentView !== 'my-files') setSelectedFolder(null);
   }, [currentView]);
+
+  // --- Data Loading Functions ---
 
   const loadUserData = async () => {
     try {
       const userData = authService.getUser();
       setUser(userData);
-
-      const profile = await authService.getProfile();
-      if (!profile.user.isEmailVerified) {
-        navigate('/auth/verify-email');
+      try {
+          const profile = await authService.getProfile();
+          if (profile && profile.user && !profile.user.isEmailVerified) navigate('/auth/verify-email');
+      } catch (e) {
+          // Ignore
       }
     } catch (error) {
       console.error('Failed to load user:', error);
@@ -73,169 +88,135 @@ const Dashboard = () => {
   const loadFolders = async () => {
     try {
       const foldersData = await folderService.getFolders();
-      setFolders(foldersData);
+      setAllFolders(Array.isArray(foldersData) ? foldersData : []);
     } catch (error) {
       console.error('Failed to load folders:', error);
+      setAllFolders([]);
     }
   };
 
   const loadFiles = async (folderId = null) => {
+    setLoading(true);
     try {
-      const filesData = await fileService.getFiles(folderId);
-      setFiles(filesData);
+      const targetFolderId = folderId || (currentView === 'my-files' && selectedFolder?._id) || null;
+      const filesData = await fileService.getFiles(targetFolderId);
+      setAllFiles(Array.isArray(filesData) ? filesData : []);
     } catch (error) {
-      console.error('Failed to load files:', error);
+      showSnackbar('Failed to load files', 'Retry', () => loadFiles(folderId));
+      setAllFiles([]);
     } finally {
       setLoading(false);
     }
   };
 
   const loadRecentFiles = async () => {
+    setLoading(true);
     try {
       const filesData = await fileService.getRecentFiles(20);
-      setFiles(filesData);
+      setAllFiles(Array.isArray(filesData) ? filesData : []);
     } catch (error) {
-      console.error('Failed to load recent files:', error);
+       showSnackbar('Failed to load recent files');
+       setAllFiles([]);
     } finally {
       setLoading(false);
     }
   };
 
   const loadStarredFiles = async () => {
+    setLoading(true);
     try {
       const filesData = await fileService.getStarredFiles();
-      setFiles(filesData);
+      setAllFiles(Array.isArray(filesData) ? filesData : []);
     } catch (error) {
-      console.error('Failed to load starred files:', error);
+      showSnackbar('Failed to load starred files');
+      setAllFiles([]);
     } finally {
       setLoading(false);
     }
   };
 
   const loadTrashFiles = async () => {
+    setLoading(true);
     try {
       const filesData = await fileService.getTrashFiles();
-      setFiles(filesData);
+      setAllFiles(Array.isArray(filesData) ? filesData : []);
     } catch (error) {
-      console.error('Failed to load trash files:', error);
+      showSnackbar('Failed to load trash');
+      setAllFiles([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadStorageStats = async () => {
-    try {
-      const stats = await fileService.getStorageStats();
-      setStorageStats(stats);
-    } catch (error) {
-      console.error('Failed to load storage stats:', error);
-    }
-  };
+  // --- Handlers ---
 
   const handleLogout = async () => {
-    try {
-      await authService.logout();
-      navigate('/auth/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+    await authService.logout();
+    navigate('/auth/login');
   };
 
   const handleFolderClick = (folder) => {
     setSelectedFolder(folder);
-    setCurrentView('folder-view');
+    setCurrentView('my-files');
     loadFiles(folder._id);
   };
 
-  const handleBackToAllFolders = () => {
+  const handleBreadcrumbNavigate = () => {
     setSelectedFolder(null);
-    setCurrentView('my-files');
-    loadFiles();
+    loadFiles(null);
   };
 
   const handleCreateFolder = async (folderData) => {
     try {
-      await folderService.createFolder(
-        folderData.name,
-        selectedFolder?._id,
-        folderData.color
-      );
+      await folderService.createFolder(folderData.name, selectedFolder?._id, folderData.color);
       await loadFolders();
       setShowCreateFolder(false);
+      showSnackbar('Folder created');
     } catch (error) {
-      throw error;
+      showSnackbar('Failed to create folder');
     }
   };
 
   const handleUploadComplete = () => {
-    if (currentView === 'my-files' || currentView === 'folder-view') {
-      loadFiles(selectedFolder?._id);
-    }
-    loadStorageStats();
+    loadFiles(selectedFolder?._id);
     setShowUpload(false);
+    showSnackbar('Upload complete');
   };
 
-  const handleShare = (file) => {
-    setSelectedFile(file);
-    setShowShare(true);
-  };
-
-  const handleRefresh = () => {
-    if (currentView === 'recent') {
-      loadRecentFiles();
-    } else if (currentView === 'starred') {
-      loadStarredFiles();
-    } else if (currentView === 'trash') {
-      loadTrashFiles();
-    } else {
-      loadFiles(selectedFolder?._id);
+  const handleFileAction = async (file, action) => {
+    if (action === 'preview') {
+      if (file.contentType?.startsWith('image/')) {
+         window.open(fileService.getPreviewUrl(file._id), '_blank');
+      } else {
+         try {
+            const blob = await fileService.downloadFile(file._id);
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', file.filename);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            showSnackbar('Download started');
+         } catch (e) {
+            showSnackbar('Download failed');
+         }
+      }
+    } else if (action === 'menu') {
+       setSelectedFile(file);
+       setShowShare(true);
     }
-    loadStorageStats();
   };
 
-  const filteredFiles = files.filter(file =>
-    file.filename.toLowerCase().includes(searchQuery.toLowerCase())
+  // --- Render Helpers ---
+
+  const visibleFolders = (allFolders || []).filter(f => {
+    if (currentView !== 'my-files') return false;
+    if (selectedFolder) return f.parent === selectedFolder._id;
+    return !f.parent;
+  }).filter(f =>
+    f.name.toLowerCase().includes(fileManager.searchQuery.toLowerCase())
   );
-
-  const filteredFolders = folders.filter(folder =>
-    !folder.parent && folder.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Calculate storage percentage
-  const storagePercentage = (storageStats.used / storageStats.total) * 100;
-  const storageColor = storagePercentage >= 90 ? 'bg-red-600' : storagePercentage >= 70 ? 'bg-yellow-600' : 'bg-primary';
-
-  // Header search component
-  const HeaderSearch = (
-    <div className="relative w-full max-w-md hidden sm:block">
-      <svg
-        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-      <input
-        type="text"
-        placeholder="Search files..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full pl-9 pr-4 py-2 bg-secondary/50 border border-transparent focus:border-input focus:bg-background rounded-md text-sm transition-all focus:ring-2 focus:ring-ring"
-      />
-    </div>
-  );
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">Loading workspace...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <DashboardLayout
@@ -243,277 +224,74 @@ const Dashboard = () => {
       onLogout={handleLogout}
       currentView={currentView}
       setCurrentView={setCurrentView}
-      headerActions={HeaderSearch}
-      storageStats={storageStats}
-      storagePercentage={storagePercentage}
-      storageColor={storageColor}
       onProfileClick={() => setShowProfile(true)}
       onSettingsClick={() => setShowSettings(true)}
+      onUploadClick={() => setShowUpload(true)}
+      searchQuery={fileManager.searchQuery}
+      setSearchQuery={fileManager.setSearchQuery}
     >
-      <div className="space-y-8">
-        {/* Action Bar (Mobile Search + Buttons) */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="sm:hidden">
-            <input
-              type="text"
-              placeholder="Search files..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-4 pr-4 py-2 bg-secondary/50 border border-transparent focus:border-input focus:bg-background rounded-md text-sm transition-all focus:ring-2 focus:ring-ring"
-            />
-          </div>
+      <M3Snackbar />
 
-          <div className="flex gap-3">
-            {currentView !== 'trash' && (
-              <button
-                onClick={() => setShowUpload(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm font-medium shadow-sm transition-all hover:shadow-md"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Upload
-              </button>
-            )}
-            {(currentView === 'my-files' || currentView === 'folder-view') && (
+      <div className="space-y-4">
+        {/* Header / Breadcrumbs / View Toggle */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
+           <div className="flex items-center gap-2 text-xl text-on-surface">
+              {currentView === 'my-files' ? (
+                selectedFolder ? (
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleBreadcrumbNavigate} className="hover:underline text-on-surface-variant">My Files</button>
+                    <span className="text-on-surface-variant">/</span>
+                    <span className="font-semibold">{selectedFolder.name}</span>
+                  </div>
+                ) : 'My Files'
+              ) : (
+                currentView.charAt(0).toUpperCase() + currentView.slice(1)
+              )}
+           </div>
+
+           <div className="flex items-center gap-2 self-end md:self-auto">
+              <div className="bg-surface-container-high rounded-lg p-1 flex">
+                 <button
+                   onClick={() => fileManager.setViewType('list')}
+                   className={`p-2 rounded-md ${fileManager.viewType === 'list' ? 'bg-surface shadow-sm text-on-surface' : 'text-on-surface-variant hover:text-on-surface'}`}
+                 >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                 </button>
+                 <button
+                   onClick={() => fileManager.setViewType('grid')}
+                   className={`p-2 rounded-md ${fileManager.viewType === 'grid' ? 'bg-surface shadow-sm text-on-surface' : 'text-on-surface-variant hover:text-on-surface'}`}
+                 >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                 </button>
+              </div>
               <button
                 onClick={() => setShowCreateFolder(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-background border border-border hover:bg-secondary text-foreground rounded-md text-sm font-medium transition-colors"
+                className="hidden md:flex items-center gap-2 px-4 py-2 bg-surface-container-high hover:bg-surface-variant rounded-lg text-sm font-medium transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                New Folder
+                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
+                 New Folder
               </button>
-            )}
-            {currentView === 'trash' && files.length > 0 && (
-              <button
-                onClick={async () => {
-                  if (window.confirm('Empty trash? This will permanently delete all files.')) {
-                    await fileService.emptyTrash();
-                    handleRefresh();
-                  }
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-md text-sm font-medium transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Empty Trash
-              </button>
-            )}
-          </div>
+           </div>
         </div>
 
-        {/* Content Views */}
-        <AnimatePresence mode="wait">
-          {currentView === 'my-files' && !selectedFolder && (
-            <motion.div
-              key="my-files"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-8"
-            >
-              {/* Folders */}
-              {filteredFolders.length > 0 && (
-                <section>
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    Folders
-                  </h2>
-                  <FolderGrid
-                    folders={filteredFolders}
-                    onFolderClick={handleFolderClick}
-                    onRefresh={loadFolders}
-                  />
-                </section>
-              )}
-
-              {/* Files */}
-              {filteredFiles.length > 0 && (
-                <section>
-                  <FileListSection
-                    files={filteredFiles}
-                    title="Recent Files"
-                    onRefresh={handleRefresh}
-                    onShare={handleShare}
-                    viewType="my-files"
-                  />
-                </section>
-              )}
-
-              {/* Empty State */}
-              {filteredFolders.length === 0 && filteredFiles.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <div className="w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center mb-4 text-muted-foreground">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-medium text-foreground mb-2">No files yet</h3>
-                  <p className="text-muted-foreground mb-6 max-w-sm">
-                    Upload your first file or create a folder to get started with your workspace.
-                  </p>
-                  <button
-                    onClick={() => setShowUpload(true)}
-                    className="px-6 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
-                  >
-                    Upload File
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {currentView === 'folder-view' && selectedFolder && (
-            <motion.div
-              key="folder-view"
-              initial={{ opacity: 0, x: 10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              transition={{ duration: 0.2 }}
-            >
-              {/* Breadcrumb */}
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-                <button
-                  onClick={handleBackToAllFolders}
-                  className="hover:text-foreground transition-colors flex items-center gap-1"
-                >
-                  My Workspace
-                </button>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-                <span className="text-foreground font-medium">{selectedFolder.name}</span>
-              </div>
-
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-foreground">{selectedFolder.name}</h1>
-                <p className="text-sm text-muted-foreground mt-1">{filteredFiles.length} files</p>
-              </div>
-
-              {filteredFiles.length > 0 ? (
-                <FileListSection
-                  files={filteredFiles}
-                  title={`Files in ${selectedFolder.name}`}
-                  onRefresh={() => loadFiles(selectedFolder._id)}
-                  onShare={handleShare}
-                  viewType="folder"
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <p className="text-muted-foreground">This folder is empty.</p>
-                  <button
-                    onClick={() => setShowUpload(true)}
-                    className="mt-4 px-4 py-2 text-sm text-primary hover:underline"
-                  >
-                    Upload a file here
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {currentView === 'recent' && (
-            <motion.div
-              key="recent"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              <div>
-                <h1 className="text-2xl font-bold text-foreground mb-1">Recent Files</h1>
-                <p className="text-sm text-muted-foreground">Your recently accessed files</p>
-              </div>
-              {filteredFiles.length > 0 ? (
-                <FileListSection
-                  files={filteredFiles}
-                  title=""
-                  onRefresh={handleRefresh}
-                  onShare={handleShare}
-                  viewType="recent"
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <p className="text-muted-foreground">No recent files</p>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {currentView === 'starred' && (
-            <motion.div
-              key="starred"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              <div>
-                <h1 className="text-2xl font-bold text-foreground mb-1">Starred Files</h1>
-                <p className="text-sm text-muted-foreground">Files you've marked as important</p>
-              </div>
-              {filteredFiles.length > 0 ? (
-                <FileListSection
-                  files={filteredFiles}
-                  title=""
-                  onRefresh={handleRefresh}
-                  onShare={handleShare}
-                  viewType="starred"
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <div className="w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center mb-4 text-muted-foreground">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-medium text-foreground mb-2">No starred files</h3>
-                  <p className="text-muted-foreground">Star important files to find them here</p>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {currentView === 'trash' && (
-            <motion.div
-              key="trash"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              <div>
-                <h1 className="text-2xl font-bold text-foreground mb-1">Trash</h1>
-                <p className="text-sm text-muted-foreground">Files will be automatically deleted after 30 days</p>
-              </div>
-              {filteredFiles.length > 0 ? (
-                <FileListSection
-                  files={filteredFiles}
-                  title=""
-                  onRefresh={handleRefresh}
-                  onShare={handleShare}
-                  viewType="trash"
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <div className="w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center mb-4 text-muted-foreground">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-medium text-foreground mb-2">Trash is empty</h3>
-                  <p className="text-muted-foreground">Deleted files will appear here</p>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* File Explorer Content */}
+        {loading ? (
+           <div className="flex justify-center py-20">
+              <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+           </div>
+        ) : (
+           <FileExplorer
+              files={fileManager.files}
+              folders={visibleFolders}
+              viewType={fileManager.viewType}
+              onFolderClick={handleFolderClick}
+              onFileClick={(f) => handleFileAction(f, 'preview')}
+              onFileAction={handleFileAction}
+              isLoading={loading}
+           />
+        )}
       </div>
 
-      {/* Modals */}
       <AnimatePresence>
         {showCreateFolder && (
           <CreateFolderModal

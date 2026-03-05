@@ -35,6 +35,12 @@ const AccessGate = ({ onAccessGranted, darkMode: parentDarkMode }) => {
   const [signingIn, setSigningIn] = useState(false);
   const [darkMode, setDarkMode] = useState(parentDarkMode ?? false);
   const [rememberMe, setRememberMe] = useState(false);
+  const rememberMeRef = useRef(false); // ref so GIS callback always reads live value
+
+  // Keep ref in sync whenever rememberMe changes
+  useEffect(() => {
+    rememberMeRef.current = rememberMe;
+  }, [rememberMe]);
   const [currentPhase, setCurrentPhase] = useState(0);
   const [phaseVisible, setPhaseVisible] = useState(false);
   const [phaseOpacity, setPhaseOpacity] = useState(0);
@@ -226,7 +232,7 @@ const AccessGate = ({ onAccessGranted, darkMode: parentDarkMode }) => {
         `${BACKEND_URL}/api/auth/google`,
         {
           credential: googleResponse.credential,
-          rememberMe,
+          rememberMe: rememberMeRef.current, // use ref — state would be stale inside GIS callback
           recaptchaToken,
         },
         { withCredentials: true }

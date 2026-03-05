@@ -5,7 +5,6 @@ const crypto = require('crypto');
 const getFileCategory = require('../utils/fileType');
 const { initDriveClient, initDriveFolder } = require('../config/drive');
 const {
-  getDriveIdMapping,
   getFileMapping,
   storeDriveMapping,
   bufferToStream,
@@ -65,7 +64,7 @@ const checkOwnership = (mapping, reqUserId) => {
 const getUserStorageUsed = async (userId) => {
   const result = await db.collection('drive_mappings').aggregate([
     { $match: { userId, 'metadata.isSharedZip': { $ne: true } } },
-    { $group: { _id: null, total: { $sum: { $ifNull: ['$metadata.size', 0] } } } },
+    { $group: { _id: null, total: { $sum: { $toInt: { $ifNull: ['$metadata.size', 0] } } } } },
   ]).toArray();
   return result[0]?.total || 0;
 };
@@ -125,13 +124,14 @@ const uploadFile = async (req, res) => {
     const mongoId = new ObjectId();
 
     // Store mapping WITH userId for per-user isolation
+    // size must be stored as a number so MongoDB $sum aggregation works correctly
     await storeDriveMapping(
       mongoId,
       driveRes.data.id,
       {
         ...metadata,
         contentType: mimetype,
-        size: driveRes.data.size,
+        size: parseInt(driveRes.data.size || 0, 10),
         uploadDate: new Date(driveRes.data.createdTime),
       },
       { userId } // top-level userId field for ownership queries
@@ -497,7 +497,7 @@ const uploadAndShareZip = async (req, res) => {
     await storeDriveMapping(
       mongoId,
       driveRes.data.id,
-      { ...metadata, contentType: mimetype, size: driveRes.data.size, uploadDate },
+      { ...metadata, contentType: mimetype, size: parseInt(driveRes.data.size || 0, 10), uploadDate },
       { userId }
     );
 

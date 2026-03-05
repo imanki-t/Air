@@ -1,17 +1,10 @@
 // services/fileService.js
-const { ObjectId } = require('mongodb');
+const { ObjectId, GridFSBucket } = require('mongodb');
 const mongoose = require('mongoose');
 const crypto = require('crypto');
-const {
-  PutObjectCommand,
-  GetObjectCommand,
-  DeleteObjectCommand,
-} = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const { Upload } = require('@aws-sdk/lib-storage');
+const { Readable } = require('stream');
 
 const getFileCategory = require('../utils/fileType');
-const { initR2Client } = require('../config/r2');
 const {
   getFileMapping,
   storeDriveMapping,
@@ -19,14 +12,21 @@ const {
 } = require('../utils/driveUtils');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Initialize R2 client
+// GridFS bucket — lazily initialised after mongoose connects
 // ─────────────────────────────────────────────────────────────────────────────
-const r2 = initR2Client();
-const BUCKET = process.env.R2_BUCKET_NAME;
+let bucket;
 
-if (!BUCKET) {
-  console.error('R2_BUCKET_NAME is not set in .env');
-}
+const getBucket = () => {
+  if (!bucket) {
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error('MongoDB is not connected yet.');
+    }
+    bucket = new GridFSBucket(mongoose.connection.db, {
+      bucketName: 'uploads', // creates uploads.files + uploads.chunks collections
+    });
+  }
+  return bucket;
+};
 
 const db = mongoose.connection;
 
@@ -73,20 +73,39 @@ const getUserStorageUsed = async (userId) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: convert a Node.js stream to a Buffer
+// Helper: convert buffer or stream → Buffer
 // ─────────────────────────────────────────────────────────────────────────────
 const toBuffer = async (streamOrBuffer) => {
   if (Buffer.isBuffer(streamOrBuffer)) return streamOrBuffer;
   return new Promise((resolve, reject) => {
     const chunks = [];
-    streamOrBuffer.on('data', (chunk) => chunks.push(chunk));
+    streamOrBuffer.on('data', (c) => chunks.push(c));
     streamOrBuffer.on('end', () => resolve(Buffer.concat(chunks)));
     streamOrBuffer.on('error', reject);
   });
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Upload file to R2
+// Helper: write a buffer into GridFS, returns the GridFS file _id (ObjectId)
+// ─────────────────────────────────────────────────────────────────────────────
+const writeToGridFS = (fileBuffer, filename, contentType, metadata = {}) => {
+  return new Promise((resolve, reject) => {
+    const gfsBucket = getBucket();
+    const uploadStream = gfsBucket.openUploadStream(filename, {
+      contentType,
+      metadata,
+    });
+
+    const readable = Readable.from(fileBuffer);
+    readable.pipe(uploadStream);
+
+    uploadStream.on('finish', () => resolve(uploadStream.id)); // ObjectId
+    uploadStream.on('error', reject);
+  });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Upload file
 // ─────────────────────────────────────────────────────────────────────────────
 const uploadFile = async (req, res) => {
   try {
@@ -105,37 +124,20 @@ const uploadFile = async (req, res) => {
     }
 
     const type = getFileCategory(mimetype);
-
-    // Unique R2 object key — prefixed with mongo ID so names never collide
-    const mongoId = new ObjectId();
-    const r2Key = `files/${mongoId.toString()}/${originalname}`;
-
-    // multer memoryStorage gives us req.file.buffer directly
     const fileBuffer = buffer || (await toBuffer(stream));
     const fileSize = fileBuffer.length;
-
-    // Use the Upload helper which handles multipart for large files automatically
-    const upload = new Upload({
-      client: r2,
-      params: {
-        Bucket: BUCKET,
-        Key: r2Key,
-        Body: fileBuffer,
-        ContentType: mimetype,
-        ContentDisposition: `inline; filename="${encodeURIComponent(originalname)}"`,
-        Metadata: {
-          originalname: encodeURIComponent(originalname),
-          type,
-          userId: userId || '',
-          uploadedAt: new Date().toISOString(),
-        },
-      },
-    });
-
-    await upload.done();
-
     const uploadDate = new Date();
 
+    // Write file bytes into GridFS
+    const gridFSId = await writeToGridFS(fileBuffer, originalname, mimetype, {
+      userId,
+      type,
+      uploadedAt: uploadDate,
+    });
+
+    // Store the mapping in drive_mappings.
+    // driveId now holds the GridFS file ObjectId (as a string).
+    const mongoId = new ObjectId();
     const metadata = {
       filename: originalname,
       type,
@@ -143,11 +145,10 @@ const uploadFile = async (req, res) => {
       size: fileSize,
       uploadDate,
       uploadedAt: uploadDate,
-      r2Key,
+      gridFSId: gridFSId.toString(),
     };
 
-    // Re-use the same drive_mappings collection — driveId column now stores the R2 key
-    await storeDriveMapping(mongoId, r2Key, metadata, { userId });
+    await storeDriveMapping(mongoId, gridFSId.toString(), metadata, { userId });
 
     res.status(201).json({
       _id: mongoId,
@@ -157,7 +158,6 @@ const uploadFile = async (req, res) => {
       filename: originalname,
       contentType: mimetype,
       metadata,
-      r2Key,
     });
   } catch (error) {
     console.error('Upload error:', error);
@@ -189,7 +189,6 @@ const getFiles = async (req, res) => {
       filename: file.metadata?.filename,
       contentType: file.metadata?.contentType,
       metadata: file.metadata,
-      r2Key: file.driveId,
     }));
 
     res.json(formattedFiles);
@@ -213,10 +212,11 @@ const deleteFile = async (req, res) => {
       return res.status(403).json({ error: 'Access denied. You do not own this file.' });
     }
 
-    const r2Key = mapping.driveId;
+    // Delete the actual bytes from GridFS
+    const gridFSId = new ObjectId(mapping.driveId);
+    await getBucket().delete(gridFSId);
 
-    await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: r2Key }));
-
+    // Delete the mapping from MongoDB
     const objectId = safeObjectId(fileId);
     const deleteQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
     await db.collection('drive_mappings').deleteOne(deleteQuery);
@@ -232,7 +232,7 @@ const deleteFile = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Download file — streams from R2 through the backend to the client
+// Download file — streams from GridFS directly to the client
 // ─────────────────────────────────────────────────────────────────────────────
 const downloadFile = async (req, res) => {
   try {
@@ -245,20 +245,22 @@ const downloadFile = async (req, res) => {
       return res.status(403).json({ error: 'Access denied. You do not own this file.' });
     }
 
-    const r2Key = mapping.driveId;
+    const gridFSId = new ObjectId(mapping.driveId);
     const filename = mapping.metadata?.filename || 'download';
     const contentType = mapping.metadata?.contentType || 'application/octet-stream';
     const fileSize = mapping.metadata?.size;
-
-    const command = new GetObjectCommand({ Bucket: BUCKET, Key: r2Key });
-    const r2Response = await r2.send(command);
 
     const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
     res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
     res.setHeader('Content-Type', contentType);
     if (fileSize) res.setHeader('Content-Length', fileSize);
 
-    r2Response.Body.pipe(res);
+    const downloadStream = getBucket().openDownloadStream(gridFSId);
+    downloadStream.on('error', (err) => {
+      console.error('GridFS download stream error:', err);
+      if (!res.headersSent) res.status(404).json({ error: 'File not found in storage.' });
+    });
+    downloadStream.pipe(res);
   } catch (error) {
     console.error('Download error:', error);
     res.status(500).json({ error: error.message });
@@ -279,18 +281,18 @@ const previewFile = async (req, res) => {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
-    const r2Key = mapping.driveId;
+    const gridFSId = new ObjectId(mapping.driveId);
     const filename = mapping.metadata?.filename || 'file';
     const contentType = mapping.metadata?.contentType || 'application/octet-stream';
 
-    const etag = `"${Buffer.from(r2Key + filename).toString('base64')}"`;
+    const etag = `"${Buffer.from(gridFSId.toString() + filename).toString('base64')}"`;
     res.setHeader('ETag', etag);
 
     if (req.headers['if-none-match'] === etag) {
       return res.status(304).end();
     }
 
-    const cacheMaxAge = 86400;
+    const cacheMaxAge = 86400; // 24 hours
     res.setHeader('Cache-Control', `public, max-age=${cacheMaxAge}`);
     res.setHeader('Expires', new Date(Date.now() + cacheMaxAge * 1000).toUTCString());
     res.setHeader('Content-Type', contentType);
@@ -300,9 +302,12 @@ const previewFile = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
 
-    const command = new GetObjectCommand({ Bucket: BUCKET, Key: r2Key });
-    const r2Response = await r2.send(command);
-    r2Response.Body.pipe(res);
+    const downloadStream = getBucket().openDownloadStream(gridFSId);
+    downloadStream.on('error', (err) => {
+      console.error('GridFS preview stream error:', err);
+      if (!res.headersSent) res.status(404).json({ error: 'File not found in storage.' });
+    });
+    downloadStream.pipe(res);
   } catch (error) {
     console.error('Preview error:', error);
     res.status(500).json({ error: error.message });
@@ -311,9 +316,6 @@ const previewFile = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Generate share link
-// Creates a 30-day R2 presigned URL and stores a short shareId in MongoDB.
-// The public /s/:shareId route redirects to the presigned URL — so the
-// file downloads straight from Cloudflare's edge, zero bandwidth on your server.
 // ─────────────────────────────────────────────────────────────────────────────
 const generateShareLink = async (req, res) => {
   try {
@@ -326,20 +328,9 @@ const generateShareLink = async (req, res) => {
       return res.status(403).json({ error: 'Access denied. You do not own this file.' });
     }
 
-    const r2Key = mapping.driveId;
     const shareId = generateShortShareId();
-    const expiresInSeconds = 30 * 24 * 60 * 60; // 30 days
-    const expirationDate = new Date(Date.now() + expiresInSeconds * 1000);
-
-    const command = new GetObjectCommand({
-      Bucket: BUCKET,
-      Key: r2Key,
-      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(mapping.metadata?.filename || 'download')}"`,
-    });
-
-    const presignedUrl = await getSignedUrl(r2, command, {
-      expiresIn: expiresInSeconds,
-    });
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + 30);
 
     const objectId = safeObjectId(fileId);
     const query = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
@@ -349,7 +340,6 @@ const generateShareLink = async (req, res) => {
         'metadata.shareId': shareId,
         'metadata.shareExpires': expirationDate,
         'metadata.shareVoided': false,
-        'metadata.presignedUrl': presignedUrl,
       },
     });
 
@@ -362,7 +352,7 @@ const generateShareLink = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Access a shared file — redirects to the R2 presigned URL
+// Access a shared file — streams from GridFS (no auth required)
 // ─────────────────────────────────────────────────────────────────────────────
 const accessSharedFile = async (req, res) => {
   try {
@@ -376,7 +366,7 @@ const accessSharedFile = async (req, res) => {
       return res.status(404).json({ error: 'Shared file not found or link has expired.' });
     }
 
-    const { shareExpires, shareVoided, presignedUrl } = fileMapping.metadata;
+    const { shareExpires, shareVoided } = fileMapping.metadata;
 
     if (shareVoided) {
       return res.status(410).json({ error: 'This share link has been revoked.' });
@@ -384,12 +374,23 @@ const accessSharedFile = async (req, res) => {
     if (shareExpires && new Date(shareExpires) < new Date()) {
       return res.status(410).json({ error: 'This share link has expired.' });
     }
-    if (!presignedUrl) {
-      return res.status(500).json({ error: 'Share URL missing. Please regenerate the link.' });
-    }
 
-    // 302 redirect — browser downloads directly from Cloudflare edge
-    res.redirect(302, presignedUrl);
+    const gridFSId = new ObjectId(fileMapping.driveId);
+    const filename = fileMapping.metadata?.filename || 'download';
+    const contentType = fileMapping.metadata?.contentType || 'application/octet-stream';
+    const fileSize = fileMapping.metadata?.size;
+
+    const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
+    res.setHeader('Content-Type', contentType);
+    if (fileSize) res.setHeader('Content-Length', fileSize);
+
+    const downloadStream = getBucket().openDownloadStream(gridFSId);
+    downloadStream.on('error', (err) => {
+      console.error('GridFS share stream error:', err);
+      if (!res.headersSent) res.status(404).json({ error: 'File not found in storage.' });
+    });
+    downloadStream.pipe(res);
   } catch (error) {
     console.error('Access shared file error:', error);
     res.status(500).json({ error: error.message });
@@ -425,12 +426,12 @@ const cleanupIncompleteUpload = async (req, res) => {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
-    const r2Key = fileMapping.driveId;
-
+    // Delete from GridFS — ignore errors if the file was never fully written
     try {
-      await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: r2Key }));
-    } catch (r2Err) {
-      if (r2Err.name !== 'NoSuchKey') throw r2Err;
+      const gridFSId = new ObjectId(fileMapping.driveId);
+      await getBucket().delete(gridFSId);
+    } catch (gfsErr) {
+      console.warn('GridFS cleanup warning (non-fatal):', gfsErr.message);
     }
 
     await db.collection('drive_mappings').deleteOne({ _id: fileMapping._id });
@@ -452,31 +453,17 @@ const uploadAndShareZip = async (req, res) => {
     const mimetype = 'application/zip';
     const uploadDate = new Date();
 
-    const mongoId = new ObjectId();
-    const r2Key = `zips/${mongoId.toString()}/${filename}`;
-
     const fileBuffer = buffer || (await toBuffer(stream));
     const fileSize = fileBuffer.length;
 
-    const upload = new Upload({
-      client: r2,
-      params: {
-        Bucket: BUCKET,
-        Key: r2Key,
-        Body: fileBuffer,
-        ContentType: mimetype,
-        Metadata: {
-          originalname: encodeURIComponent(filename),
-          type: 'document',
-          userId: userId || '',
-          isSharedZip: 'true',
-          uploadedAt: uploadDate.toISOString(),
-        },
-      },
+    const gridFSId = await writeToGridFS(fileBuffer, filename, mimetype, {
+      userId,
+      type: 'document',
+      isSharedZip: true,
+      uploadedAt: uploadDate,
     });
 
-    await upload.done();
-
+    const mongoId = new ObjectId();
     const metadata = {
       filename,
       type: 'document',
@@ -485,24 +472,14 @@ const uploadAndShareZip = async (req, res) => {
       uploadDate,
       uploadedAt: uploadDate,
       isSharedZip: true,
-      r2Key,
+      gridFSId: gridFSId.toString(),
     };
 
-    await storeDriveMapping(mongoId, r2Key, metadata, { userId });
+    await storeDriveMapping(mongoId, gridFSId.toString(), metadata, { userId });
 
     const shareId = generateShortShareId();
-    const expiresInSeconds = 30 * 24 * 60 * 60;
-    const expirationDate = new Date(Date.now() + expiresInSeconds * 1000);
-
-    const command = new GetObjectCommand({
-      Bucket: BUCKET,
-      Key: r2Key,
-      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(filename)}"`,
-    });
-
-    const presignedUrl = await getSignedUrl(r2, command, {
-      expiresIn: expiresInSeconds,
-    });
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + 30);
 
     await db.collection('drive_mappings').updateOne(
       { _id: mongoId },
@@ -511,7 +488,6 @@ const uploadAndShareZip = async (req, res) => {
           'metadata.shareId': shareId,
           'metadata.shareExpires': expirationDate,
           'metadata.shareVoided': false,
-          'metadata.presignedUrl': presignedUrl,
         },
       }
     );
@@ -526,8 +502,6 @@ const uploadAndShareZip = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cleanup expired / voided share links
-// Presigned URLs expire on Cloudflare's side automatically — we just clean
-// the metadata fields in MongoDB.
 // ─────────────────────────────────────────────────────────────────────────────
 const cleanupExpiredLinks = async () => {
   try {
@@ -546,7 +520,6 @@ const cleanupExpiredLinks = async () => {
           'metadata.shareId': '',
           'metadata.shareExpires': '',
           'metadata.shareVoided': '',
-          'metadata.presignedUrl': '',
         },
       }
     );

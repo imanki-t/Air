@@ -10,7 +10,6 @@
     "dotenv": "",
     "express": "",
     "mongoose": "",
-    "mongodb": "",
     "socket.io": "",
     "multer": "",
     "uuid": "",

@@ -6,25 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f172a" />
     <title>Airstream</title>
-
-    <!--
-      Google Identity Services – loaded early so GIS is ready
-      when the login component mounts.
-      The component also loads this dynamically as a fallback.
-    -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-    <!--
-      Google reCAPTCHA v3 – hidden badge mode.
-      Replace RECAPTCHA_SITE_KEY_PLACEHOLDER with your actual site key
-      (or inject it via your build/deploy pipeline).
-      When VITE_RECAPTCHA_SITE_KEY is set the component will call
-      grecaptcha.execute() automatically on sign-in.
-    -->
-    <!-- reCAPTCHA script is injected dynamically by AccessGate when VITE_RECAPTCHA_SITE_KEY is set -->
-
     <style>
-      /* Hide the reCAPTCHA badge – legal: we display the Privacy/Terms links in the UI */
       .grecaptcha-badge {
         visibility: hidden !important;
         opacity: 0 !important;

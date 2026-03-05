@@ -25,11 +25,13 @@ const getDb = () => mongoose.connection;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: build secure cookie options
+// SameSite: 'none' + Secure: true is required for cross-origin cookie auth
+// (e.g. frontend on Vercel, backend on Render)
 // ─────────────────────────────────────────────────────────────────────────────
 const cookieOptions = (rememberMe = false) => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict',
+  secure: true,       // must be true when sameSite is 'none'
+  sameSite: 'none',   // allows cross-origin cookies to be sent
   path: '/',
   ...(rememberMe && { maxAge: 30 * 24 * 60 * 60 * 1000 }), // 30 days in ms
 });
@@ -191,8 +193,8 @@ router.get('/me', async (req, res) => {
 router.post('/logout', (req, res) => {
   res.clearCookie('airstream_session', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: true,
+    sameSite: 'none',
     path: '/',
   });
   return res.json({ success: true });

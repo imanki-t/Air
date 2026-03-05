@@ -4,19 +4,21 @@ const mongoose = require('mongoose');
 const crypto = require('crypto');
 const getFileCategory = require('../utils/fileType');
 const { initDriveClient, initDriveFolder } = require('../config/drive');
-const { 
-  getDriveIdMapping, 
-  storeDriveMapping, 
-  bufferToStream, 
+const {
+  getDriveIdMapping,
+  getFileMapping,
+  storeDriveMapping,
+  bufferToStream,
   streamToBuffer,
-  safeObjectId
+  safeObjectId,
 } = require('../utils/driveUtils');
 
-// Initialize Google Drive client
-const { drive, auth } = initDriveClient();
+// ─────────────────────────────────────────────────────────────────────────────
+// Initialize Google Drive client & folder
+// ─────────────────────────────────────────────────────────────────────────────
+const { drive } = initDriveClient();
 let driveFolderId;
 
-// Get the root folder ID
 (async () => {
   try {
     driveFolderId = await initDriveFolder(drive);
@@ -28,29 +30,70 @@ let driveFolderId;
 
 const db = mongoose.connection;
 
-// Generate a short share ID (6 characters)
+const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Generate a short share ID (6 chars)
+// ─────────────────────────────────────────────────────────────────────────────
 const generateShortShareId = () => {
-  // Generate a random buffer and convert to a base64 string
-  const buffer = crypto.randomBytes(4); // 4 bytes = 32 bits
-  // Convert to base64 (which is ~4/3 the size, so ~5.33 chars)
-  // and take the first 6 characters
-  return buffer.toString('base64')
-    .replace(/\+/g, '0')  // Replace + with 0
-    .replace(/\//g, '1')  // Replace / with 1
-    .replace(/=/g, '')    // Remove padding
-    .substring(0, 6);     // Take only first 6 chars
+  return crypto
+    .randomBytes(4)
+    .toString('base64')
+    .replace(/\+/g, '0')
+    .replace(/\//g, '1')
+    .replace(/=/g, '')
+    .substring(0, 6);
 };
 
-// --- Upload file to Google Drive ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: verify ownership of a file mapping.
+// Legacy files (no userId) are accessible to any authenticated user.
+// Returns { allowed, mapping } 
+// ─────────────────────────────────────────────────────────────────────────────
+const checkOwnership = (mapping, reqUserId) => {
+  if (!mapping) return { allowed: false, mapping: null };
+  // If the file has a userId set, it must match the requesting user
+  if (mapping.userId && mapping.userId !== reqUserId) {
+    return { allowed: false, mapping };
+  }
+  return { allowed: true, mapping };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: get total storage used by a user
+// ─────────────────────────────────────────────────────────────────────────────
+const getUserStorageUsed = async (userId) => {
+  const result = await db.collection('drive_mappings').aggregate([
+    { $match: { userId, 'metadata.isSharedZip': { $ne: true } } },
+    { $group: { _id: null, total: { $sum: { $ifNull: ['$metadata.size', 0] } } } },
+  ]).toArray();
+  return result[0]?.total || 0;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Upload file to Google Drive
+// ─────────────────────────────────────────────────────────────────────────────
 const uploadFile = async (req, res) => {
   try {
     if (!driveFolderId) {
       driveFolderId = await initDriveFolder(drive);
     }
 
+    const userId = req.user?.userId;
     const { originalname, mimetype, stream } = req.file;
     const resumableUploadId = req.body.resumableUploadId;
     const resumableProgress = req.body.resumableProgress;
+
+    // ── 5 GB storage check ──────────────────────────────────────────────────
+    if (userId) {
+      const fileSize = req.file.size || req.file.buffer?.length || 0;
+      const currentUsage = await getUserStorageUsed(userId);
+      if (currentUsage + fileSize > STORAGE_LIMIT_BYTES) {
+        return res.status(413).json({
+          error: 'Storage limit exceeded. You have reached your 5 GB limit.',
+        });
+      }
+    }
 
     const type = getFileCategory(mimetype);
     const metadata = {
@@ -64,7 +107,6 @@ const uploadFile = async (req, res) => {
       metadata.resumableProgress = resumableProgress;
     }
 
-    // Create a file in Google Drive
     const driveFileMetadata = {
       name: originalname,
       parents: [driveFolderId],
@@ -73,28 +115,28 @@ const uploadFile = async (req, res) => {
     };
 
     const buffer = await streamToBuffer(stream);
-    
+
     const driveRes = await drive.files.create({
       resource: driveFileMetadata,
-      media: {
-        mimeType: mimetype,
-        body: bufferToStream(buffer)
-      },
+      media: { mimeType: mimetype, body: bufferToStream(buffer) },
       fields: 'id, name, webContentLink, webViewLink, createdTime, mimeType, size',
     });
 
-    // Generate MongoDB ObjectId for compatibility with existing code
     const mongoId = new ObjectId();
-    
-    // Store mapping between MongoDB ObjectId and Google Drive file ID
-    await storeDriveMapping(mongoId, driveRes.data.id, {
-      ...metadata,
-      contentType: mimetype,
-      size: driveRes.data.size,
-      uploadDate: new Date(driveRes.data.createdTime)
-    });
 
-    // Format response similar to GridFS for frontend compatibility
+    // Store mapping WITH userId for per-user isolation
+    await storeDriveMapping(
+      mongoId,
+      driveRes.data.id,
+      {
+        ...metadata,
+        contentType: mimetype,
+        size: driveRes.data.size,
+        uploadDate: new Date(driveRes.data.createdTime),
+      },
+      { userId } // top-level userId field for ownership queries
+    );
+
     const responseObj = {
       _id: mongoId,
       length: parseInt(driveRes.data.size || 0),
@@ -102,10 +144,10 @@ const uploadFile = async (req, res) => {
       uploadDate: new Date(driveRes.data.createdTime),
       filename: driveRes.data.name,
       contentType: driveRes.data.mimeType,
-      metadata: metadata,
+      metadata,
       driveId: driveRes.data.id,
       webContentLink: driveRes.data.webContentLink,
-      webViewLink: driveRes.data.webViewLink
+      webViewLink: driveRes.data.webViewLink,
     };
 
     res.status(201).json(responseObj);
@@ -115,25 +157,30 @@ const uploadFile = async (req, res) => {
   }
 };
 
-// --- Get all files ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Get all files for the current user
+// ─────────────────────────────────────────────────────────────────────────────
 const getFiles = async (req, res) => {
   try {
-    // Retrieve all file mappings from MongoDB
+    const userId = req.user?.userId;
+
+    // Only return files belonging to this user (legacy files with no userId are excluded for security)
+    const query = userId ? { userId, 'metadata.isSharedZip': { $ne: true } } : {};
+
     const files = await db.collection('drive_mappings')
-      .find({})
+      .find(query)
       .sort({ createdAt: -1 })
       .toArray();
 
-    // Format response to match GridFS structure
-    const formattedFiles = files.map(file => ({
+    const formattedFiles = files.map((file) => ({
       _id: file._id,
-      length: file.metadata.size,
+      length: file.metadata?.size ? parseInt(file.metadata.size) : 0,
       chunkSize: 261120,
-      uploadDate: file.metadata.uploadDate,
-      filename: file.metadata.filename,
-      contentType: file.metadata.contentType,
+      uploadDate: file.metadata?.uploadDate || file.createdAt,
+      filename: file.metadata?.filename,
+      contentType: file.metadata?.contentType,
       metadata: file.metadata,
-      driveId: file.driveId
+      driveId: file.driveId,
     }));
 
     res.json(formattedFiles);
@@ -143,24 +190,32 @@ const getFiles = async (req, res) => {
   }
 };
 
-// --- Delete a file ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Delete a file (ownership check)
+// ─────────────────────────────────────────────────────────────────────────────
 const deleteFile = async (req, res) => {
   try {
     const fileId = req.params.id;
-    const driveId = await getDriveIdMapping(fileId);
+    const userId = req.user?.userId;
 
-    // Delete file from Google Drive
-    await drive.files.delete({
-      fileId: driveId
-    });
+    // Get full mapping to check ownership
+    const mapping = await getFileMapping(fileId);
+    const { allowed } = checkOwnership(mapping, userId);
+    if (!allowed) {
+      return res.status(403).json({ error: 'Access denied. You do not own this file.' });
+    }
 
-    // Delete mapping from MongoDB using safe ObjectId conversion
+    const driveId = mapping.driveId;
+
+    // Delete from Google Drive
+    await drive.files.delete({ fileId: driveId });
+
+    // Delete mapping from MongoDB
     const objectId = safeObjectId(fileId);
     const deleteQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
-    
     await db.collection('drive_mappings').deleteOne(deleteQuery);
 
-    // Emit socket event to all clients
+    // Broadcast to all connected clients of this user
     const io = req.app.get('io');
     if (io) {
       io.emit('refreshFileList');
@@ -173,30 +228,37 @@ const deleteFile = async (req, res) => {
   }
 };
 
-// --- Download file ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Download file (ownership check)
+// ─────────────────────────────────────────────────────────────────────────────
 const downloadFile = async (req, res) => {
   try {
     const fileId = req.params.id;
-    const driveId = await getDriveIdMapping(fileId);
+    const userId = req.user?.userId;
 
-    // Get file metadata from Google Drive
+    const mapping = await getFileMapping(fileId);
+    const { allowed } = checkOwnership(mapping, userId);
+    if (!allowed) {
+      return res.status(403).json({ error: 'Access denied. You do not own this file.' });
+    }
+
+    const driveId = mapping.driveId;
     const fileMetadata = await drive.files.get({
       fileId: driveId,
-      fields: 'name, mimeType'
+      fields: 'name, mimeType, size',
     });
 
-    // Safely encode the filename to avoid invalid characters in HTTP headers
     const safeFilename = encodeURIComponent(fileMetadata.data.name).replace(/['()]/g, escape);
-    
-    // Set content disposition header for download with properly encoded filename
     res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
     res.setHeader('Content-Type', fileMetadata.data.mimeType);
+    if (fileMetadata.data.size) {
+      res.setHeader('Content-Length', fileMetadata.data.size);
+    }
 
-    // Stream file from Google Drive
-    const driveResponse = await drive.files.get({
-      fileId: driveId,
-      alt: 'media'
-    }, { responseType: 'stream' });
+    const driveResponse = await drive.files.get(
+      { fileId: driveId, alt: 'media' },
+      { responseType: 'stream' }
+    );
 
     driveResponse.data.pipe(res);
   } catch (error) {
@@ -205,51 +267,47 @@ const downloadFile = async (req, res) => {
   }
 };
 
-// --- NEW: Preview/Thumbnail file with caching ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Preview/Thumbnail (ownership check, 24h caching)
+// ─────────────────────────────────────────────────────────────────────────────
 const previewFile = async (req, res) => {
   try {
     const fileId = req.params.id;
-    const driveId = await getDriveIdMapping(fileId);
+    const userId = req.user?.userId;
 
-    // Get file metadata from Google Drive
-    const fileMetadata = await drive.files.get({
-      fileId: driveId,
-      fields: 'name, mimeType, modifiedTime'
-    });
-
-    // Set caching headers for 24 hours (86400 seconds)
-    const cacheMaxAge = 86400; // 24 hours in seconds
-    res.setHeader('Cache-Control', `public, max-age=${cacheMaxAge}`);
-    res.setHeader('Expires', new Date(Date.now() + cacheMaxAge * 1000).toUTCString());
-    
-    // Set ETag for cache validation using file modification time and name
-    const etag = `"${Buffer.from(fileMetadata.data.modifiedTime + fileMetadata.data.name).toString('base64')}"`;
-    res.setHeader('ETag', etag);
-    
-    // Check if client has cached version
-    const clientETag = req.headers['if-none-match'];
-    if (clientETag === etag) {
-      return res.status(304).end(); // Not Modified
+    const mapping = await getFileMapping(fileId);
+    const { allowed } = checkOwnership(mapping, userId);
+    if (!allowed) {
+      return res.status(403).json({ error: 'Access denied.' });
     }
 
-    // Set content type for inline display (preview)
+    const driveId = mapping.driveId;
+    const fileMetadata = await drive.files.get({
+      fileId: driveId,
+      fields: 'name, mimeType, modifiedTime',
+    });
+
+    const cacheMaxAge = 86400;
+    res.setHeader('Cache-Control', `public, max-age=${cacheMaxAge}`);
+    res.setHeader('Expires', new Date(Date.now() + cacheMaxAge * 1000).toUTCString());
+
+    const etag = `"${Buffer.from(fileMetadata.data.modifiedTime + fileMetadata.data.name).toString('base64')}"`;
+    res.setHeader('ETag', etag);
+
+    if (req.headers['if-none-match'] === etag) {
+      return res.status(304).end();
+    }
+
     res.setHeader('Content-Type', fileMetadata.data.mimeType);
-    
-    // Set content disposition to inline for preview (not download)
     const safeFilename = encodeURIComponent(fileMetadata.data.name).replace(/['()]/g, escape);
     res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
-    
-    // Add CORS headers for cross-origin requests if needed
     res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    // Stream file from Google Drive
-    const driveResponse = await drive.files.get({
-      fileId: driveId,
-      alt: 'media'
-    }, { responseType: 'stream' });
-
+    const driveResponse = await drive.files.get(
+      { fileId: driveId, alt: 'media' },
+      { responseType: 'stream' }
+    );
     driveResponse.data.pipe(res);
   } catch (error) {
     console.error('Preview error:', error);
@@ -257,289 +315,170 @@ const previewFile = async (req, res) => {
   }
 };
 
-// --- Helper function to cleanup expired or voided share links ---
-const cleanupExpiredLinks = async () => {
-  try {
-    const now = new Date();
-    
-    // Ensure the MongoDB connection is established
-    if (!db || !db.collection) {
-      console.log('MongoDB connection not ready yet. Skipping cleanup.');
-      return 0;
-    }
-    
-    // Find all links that are expired (more than 30 days old) or voided
-    // Using async/await pattern with cursor to ensure compatibility
-    const collection = db.collection('drive_mappings');
-    const cursor = collection.find({
-      $or: [
-        { 'metadata.shareExpires': { $lt: now } },
-        { 'metadata.shareVoided': true }
-      ]
-    });
-    
-    // Convert cursor to array safely
-    const expiredOrVoidedLinks = await cursor.toArray().catch(err => {
-      console.error('Error converting cursor to array:', err);
-      return [];
-    });
-    
-    // Remove the share information from these files
-    for (const link of expiredOrVoidedLinks) {
-      await collection.updateOne(
-        { _id: link._id },
-        { 
-          $unset: { 
-            'metadata.shareId': "",
-            'metadata.shareExpires': "",
-            'metadata.shareVoided': ""
-          }
-        }
-      );
-      
-      console.log(`Cleaned up expired/voided share link for file: ${link._id}`);
-    }
-    
-    return expiredOrVoidedLinks.length;
-  } catch (error) {
-    console.error('Error cleaning up expired links:', error);
-    return 0;
-  }
-};
-
-// --- Generate shareable link ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Generate share link (ownership check)
+// ─────────────────────────────────────────────────────────────────────────────
 const generateShareLink = async (req, res) => {
   try {
     const fileId = req.params.id;
-    const driveId = await getDriveIdMapping(fileId);
+    const userId = req.user?.userId;
 
-    // Generate a short (6 character) unique ID for the share link
+    const mapping = await getFileMapping(fileId);
+    const { allowed } = checkOwnership(mapping, userId);
+    if (!allowed) {
+      return res.status(403).json({ error: 'Access denied. You do not own this file.' });
+    }
+
+    const driveId = mapping.driveId;
     const shareId = generateShortShareId();
-
-    // Update the file permissions in Google Drive
-    await drive.permissions.create({
-      fileId: driveId,
-      requestBody: {
-        role: 'reader',
-        type: 'anyone'
-      }
-    });
-
-    // Get the web link from Google Drive
-    const file = await drive.files.get({
-      fileId: driveId,
-      fields: 'webContentLink, webViewLink'
-    });
-
-    // Use safeObjectId to handle potential invalid ObjectIds
-    const objectId = safeObjectId(fileId);
-    const updateQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
-
-    // Calculate expiration date (30 days from now)
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + 30);
 
-    // Find existing share IDs for this file and mark them as voided
-    const existingFile = await db.collection('drive_mappings').findOne(updateQuery);
-    if (existingFile && existingFile.metadata && existingFile.metadata.shareId) {
-      // Mark the previous share ID as voided
-      await db.collection('drive_mappings').updateOne(
-        updateQuery,
-        { $set: { 'metadata.shareVoided': true } }
-      );
-      
-      // Clean up the voided link immediately
-      await cleanupExpiredLinks();
-    }
-
-    // Store the new share ID and expiration date in MongoDB
-    await db.collection('drive_mappings').updateOne(
-      updateQuery,
-      { 
-        $set: { 
-          'metadata.shareId': shareId,
-          'metadata.shareExpires': expirationDate,
-          'metadata.shareVoided': false
-        } 
-      }
-    );
-
-    // Create a shorter share URL using simplified path
-    const shareURL = `${process.env.BACKEND_URL}/s/${shareId}`;
-    
-    res.json({ 
-      url: shareURL,
-      expires: expirationDate
+    await drive.permissions.create({
+      fileId: driveId,
+      requestBody: { role: 'reader', type: 'anyone' },
     });
+
+    const objectId = safeObjectId(fileId);
+    const query = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
+
+    await db.collection('drive_mappings').updateOne(query, {
+      $set: {
+        'metadata.shareId': shareId,
+        'metadata.shareExpires': expirationDate,
+        'metadata.shareVoided': false,
+      },
+    });
+
+    const shareURL = `${process.env.BACKEND_URL}/s/${shareId}`;
+    res.json({ url: shareURL, expires: expirationDate });
   } catch (error) {
-    console.error('Share error:', error);
+    console.error('Share link error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// --- Access shared file via link ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Access a shared file (public, rate-limited – no ownership check)
+// ─────────────────────────────────────────────────────────────────────────────
 const accessSharedFile = async (req, res) => {
   try {
     const shareId = req.params.shareId;
-    
-    // First, clean up any expired links
-    await cleanupExpiredLinks();
-    
-    // Find the file with the given share ID that is not expired or voided
-    const now = new Date();
+
     const fileMapping = await db.collection('drive_mappings').findOne({
       'metadata.shareId': shareId,
-      'metadata.shareExpires': { $gt: now },
-      'metadata.shareVoided': { $ne: true }
     });
 
     if (!fileMapping) {
-      return res.status(404).json({ error: 'Link not found or has expired' });
+      return res.status(404).json({ error: 'Shared file not found or link has expired.' });
+    }
+
+    const { shareExpires, shareVoided } = fileMapping.metadata;
+    if (shareVoided) {
+      return res.status(410).json({ error: 'This share link has been revoked.' });
+    }
+    if (shareExpires && new Date(shareExpires) < new Date()) {
+      return res.status(410).json({ error: 'This share link has expired.' });
     }
 
     const driveId = fileMapping.driveId;
-
-    // Get file metadata from Google Drive
     const fileMetadata = await drive.files.get({
       fileId: driveId,
-      fields: 'name, mimeType'
+      fields: 'name, mimeType, size',
     });
 
-    // Safely encode the filename to avoid invalid characters in HTTP headers
     const safeFilename = encodeURIComponent(fileMetadata.data.name).replace(/['()]/g, escape);
-    
-    // Set content disposition header for download with properly encoded filename
     res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
     res.setHeader('Content-Type', fileMetadata.data.mimeType);
+    if (fileMetadata.data.size) {
+      res.setHeader('Content-Length', fileMetadata.data.size);
+    }
 
-    // Stream file from Google Drive
-    const driveResponse = await drive.files.get({
-      fileId: driveId,
-      alt: 'media'
-    }, { responseType: 'stream' });
-
+    const driveResponse = await drive.files.get(
+      { fileId: driveId, alt: 'media' },
+      { responseType: 'stream' }
+    );
     driveResponse.data.pipe(res);
   } catch (error) {
-    console.error('Share access error:', error);
+    console.error('Access shared file error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// --- Cleanup incomplete upload ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Cleanup incomplete upload artefacts (ownership check)
+// ─────────────────────────────────────────────────────────────────────────────
 const cleanupIncompleteUpload = async (req, res) => {
   try {
     const fileId = req.params.fileId;
-    console.log(`Cleanup request received for file ID: ${fileId}`);
-    
-    if (!fileId || fileId === 'undefined') {
-      return res.status(400).json({ message: 'Invalid file ID' });
-    }
-    
-    // First check if we're dealing with a MongoDB ObjectId or a filename
+    const userId = req.user?.userId;
+
+    if (!fileId) return res.status(400).json({ message: 'Invalid file ID' });
+
     let query;
     let mongoId = null;
-    
+
     try {
-      // Check if it's a valid MongoDB ObjectId format
       if (ObjectId.isValid(fileId) && String(new ObjectId(fileId)) === fileId) {
-        // It's a valid ObjectId with correct format
         mongoId = new ObjectId(fileId);
         query = { _id: mongoId };
-        console.log(`Valid ObjectId format: ${fileId}`);
       } else {
-        // Not a valid ObjectId format, treat as filename
-        console.log(`Not a valid ObjectId format: ${fileId}, will check if it's a filename`);
         query = { 'metadata.filename': fileId };
       }
-    } catch (objectIdError) {
-      // Fallback to using filename in case of any error
-      console.log(`Error with ObjectId: ${objectIdError.message}, will check if it's a filename`);
+    } catch {
       query = { 'metadata.filename': fileId };
     }
-    
-    // Check if the file exists in our mapping using the determined query
+
     const fileMapping = await db.collection('drive_mappings').findOne(query);
-    
-    if (!fileMapping) {
-      console.log(`No file mapping found for: ${fileId}`);
-      // If no mapping exists, we don't need to do any cleanup on Drive
-      return res.json({ message: 'No file found to clean up' });
+    if (!fileMapping) return res.json({ message: 'No file found to clean up' });
+
+    // Ownership check
+    const { allowed } = checkOwnership(fileMapping, userId);
+    if (!allowed) {
+      return res.status(403).json({ error: 'Access denied.' });
     }
-    
+
     const driveId = fileMapping.driveId;
-    mongoId = fileMapping._id; // Ensure we have the MongoDB ObjectId
-    
-    console.log(`Found mapping: MongoDB ID ${mongoId}, Drive ID ${driveId}`);
-    
-    // First check if the file exists on Google Drive
+    mongoId = fileMapping._id;
+
+    // Check if the file still exists in Drive before deleting
     try {
-      await drive.files.get({
-        fileId: driveId,
-        fields: 'id'
-      });
-      
-      // If we get here, the file exists, so delete it from Drive
-      await drive.files.delete({
-        fileId: driveId
-      });
-      
-      console.log(`Deleted incomplete file with Drive ID: ${driveId}`);
-    } catch (driveError) {
-      // If the file doesn't exist on Drive, just log it
-      if (driveError.code === 404) {
-        console.log(`File with Drive ID ${driveId} already doesn't exist on Google Drive`);
-      } else {
-        // Some other Google Drive error
-        console.error(`Error accessing Drive file ${driveId}:`, driveError);
-      }
-      // Continue with cleanup regardless of Drive errors
+      await drive.files.get({ fileId: driveId, fields: 'id' });
+      await drive.files.delete({ fileId: driveId });
+    } catch (driveErr) {
+      if (driveErr.code !== 404) throw driveErr;
     }
-    
-    // Delete mapping from MongoDB
+
     await db.collection('drive_mappings').deleteOne({ _id: mongoId });
-    
-    console.log(`Deleted incomplete file mapping with MongoDB ID: ${mongoId}`);
-    
-    // Notify clients about the change
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('refreshFileList');
-    }
-    
-    res.json({ message: 'Incomplete upload cleaned up successfully' });
+    res.json({ message: 'Incomplete upload cleaned up' });
   } catch (error) {
     console.error('Cleanup error:', error);
-    // Even if there's an error, return a success response to keep frontend happy
-    // Just log the error on the server side
-    res.status(200).json({ message: 'Cleanup process completed' });
+    res.status(500).json({ error: error.message });
   }
 };
 
-// --- Upload and share ZIP ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Upload & share a ZIP (batch share – requires auth)
+// ─────────────────────────────────────────────────────────────────────────────
 const uploadAndShareZip = async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No zip file uploaded.' });
-    }
-
     if (!driveFolderId) {
       driveFolderId = await initDriveFolder(drive);
     }
 
+    const userId = req.user?.userId;
     const { originalname, stream } = req.file;
     const filename = originalname || `shared_archive_${Date.now()}.zip`;
     const mimetype = 'application/zip';
-    const type = 'document';
     const uploadDate = new Date();
 
     const metadata = {
       filename,
-      type,
+      type: 'document',
       isSharedZip: true,
       uploadedAt: uploadDate,
     };
 
-    // Create a zip file in Google Drive
     const driveFileMetadata = {
       name: filename,
       parents: [driveFolderId],
@@ -548,78 +487,93 @@ const uploadAndShareZip = async (req, res) => {
     };
 
     const buffer = await streamToBuffer(stream);
-    
     const driveRes = await drive.files.create({
       resource: driveFileMetadata,
-      media: {
-        mimeType: mimetype,
-        body: bufferToStream(buffer)
-      },
+      media: { mimeType: mimetype, body: bufferToStream(buffer) },
       fields: 'id, name, webContentLink, webViewLink, createdTime, mimeType, size',
     });
 
-    // Generate MongoDB ObjectId for compatibility with existing code
     const mongoId = new ObjectId();
-    
-    // Store mapping between MongoDB ObjectId and Google Drive file ID
-    await storeDriveMapping(mongoId, driveRes.data.id, {
-      ...metadata,
-      contentType: mimetype,
-      size: driveRes.data.size,
-      uploadDate: uploadDate
-    });
+    await storeDriveMapping(
+      mongoId,
+      driveRes.data.id,
+      { ...metadata, contentType: mimetype, size: driveRes.data.size, uploadDate },
+      { userId }
+    );
 
-    // Generate a unique short share ID
     const shareId = generateShortShareId();
-
-    // Calculate expiration date (30 days from now)
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + 30);
 
-    // Update the file permissions in Google Drive
     await drive.permissions.create({
       fileId: driveRes.data.id,
-      requestBody: {
-        role: 'reader',
-        type: 'anyone'
-      }
+      requestBody: { role: 'reader', type: 'anyone' },
     });
 
-    // Store the share ID and expiration date in MongoDB
     await db.collection('drive_mappings').updateOne(
       { _id: mongoId },
-      { 
-        $set: { 
+      {
+        $set: {
           'metadata.shareId': shareId,
           'metadata.shareExpires': expirationDate,
-          'metadata.shareVoided': false
-        } 
+          'metadata.shareVoided': false,
+        },
       }
     );
 
-    // Create a shorter share URL using simplified path
     const shareURL = `${process.env.BACKEND_URL}/s/${shareId}`;
-    
-    res.status(201).json({ 
-      url: shareURL,
-      expires: expirationDate
-    });
+    res.status(201).json({ url: shareURL, expires: expirationDate });
   } catch (error) {
     console.error('Error uploading and sharing zip:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
-// Expose the cleanupExpiredLinks function publicly
+// ─────────────────────────────────────────────────────────────────────────────
+// Cleanup expired / voided share links
+// ─────────────────────────────────────────────────────────────────────────────
+const cleanupExpiredLinks = async () => {
+  try {
+    const now = new Date();
+    if (!db || !db.collection) return 0;
+
+    const expiredMappings = await db.collection('drive_mappings').find({
+      $or: [
+        { 'metadata.shareExpires': { $lt: now } },
+        { 'metadata.shareVoided': true },
+      ],
+    }).toArray();
+
+    let cleanedCount = 0;
+    for (const mapping of expiredMappings) {
+      try {
+        await drive.permissions.delete({
+          fileId: mapping.driveId,
+          permissionId: 'anyoneWithLink',
+        });
+      } catch { /* ignore permission errors */ }
+
+      await db.collection('drive_mappings').updateOne(
+        { _id: mapping._id },
+        {
+          $unset: { 'metadata.shareId': '', 'metadata.shareExpires': '', 'metadata.shareVoided': '' },
+        }
+      );
+      cleanedCount++;
+    }
+    return cleanedCount;
+  } catch (error) {
+    console.error('Cleanup expired links error:', error);
+    return 0;
+  }
+};
+
 const scheduleCleanup = async () => {
   try {
-    // Ensure database is connected before attempting cleanup
     if (!mongoose.connection.readyState || mongoose.connection.readyState !== 1) {
       console.log('MongoDB connection not ready. Delaying cleanup...');
       return 0;
     }
-    
-    // Clean up expired links
     return await cleanupExpiredLinks();
   } catch (error) {
     console.error('Schedule cleanup error:', error);
@@ -632,10 +586,10 @@ module.exports = {
   getFiles,
   deleteFile,
   downloadFile,
-  previewFile, // NEW: Export the preview function
+  previewFile,
   generateShareLink,
   accessSharedFile,
   cleanupIncompleteUpload,
   uploadAndShareZip,
-  scheduleCleanup // Export the cleanup scheduler function
+  scheduleCleanup,
 };

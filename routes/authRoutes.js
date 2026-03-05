@@ -46,7 +46,7 @@ router.post('/google', authLimiter, async (req, res) => {
     }
 
     // ── reCAPTCHA v3 verification (if configured) ────────────────────────────
-    if (process.env.RECAPTCHA_SECRET_KEY && recaptchaToken) {
+    if (process.env.RECAPTCHA_SECRET_KEY && recaptchaToken && recaptchaToken.length > 20) {
       try {
         const rcRes = await axios.post(
           'https://www.google.com/recaptcha/api/siteverify',

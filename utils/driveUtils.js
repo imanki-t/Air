@@ -4,39 +4,30 @@ const { ObjectId } = require('mongodb');
 const mongoose = require('mongoose');
 const StreamBuffers = require('stream-buffers');
 
-// Map MongoDB ObjectId to Google Drive file ID
+// ─────────────────────────────────────────────────────────────────────────────
+// Map MongoDB ObjectId → Google Drive file ID
+// ─────────────────────────────────────────────────────────────────────────────
 const getDriveIdMapping = async (fileId) => {
   const db = mongoose.connection;
   try {
-    // Check if it's a valid ObjectId first
     let query;
-    
+
     if (ObjectId.isValid(fileId) && String(new ObjectId(fileId)) === fileId) {
-      // Valid ObjectId format
       query = { _id: new ObjectId(fileId) };
     } else {
-      // Try to find by filename
       query = { 'metadata.filename': fileId };
     }
-    
+
     const file = await db.collection('drive_mappings').findOne(query);
-    
+
     if (!file) {
-      // Try one more approach - if it's a string representation of ObjectId
-      // but doesn't pass the equality check
       if (ObjectId.isValid(fileId)) {
-        const alternativeFile = await db.collection('drive_mappings').findOne({ 
-          _id: new ObjectId(fileId)
-        });
-        
-        if (alternativeFile) {
-          return alternativeFile.driveId;
-        }
+        const alt = await db.collection('drive_mappings').findOne({ _id: new ObjectId(fileId) });
+        if (alt) return alt.driveId;
       }
-      
       throw new Error(`File mapping not found for: ${fileId}`);
     }
-    
+
     return file.driveId;
   } catch (error) {
     console.error(`Error getting Drive ID mapping for ${fileId}:`, error);
@@ -44,58 +35,80 @@ const getDriveIdMapping = async (fileId) => {
   }
 };
 
-// Store mapping between MongoDB ObjectId and Google Drive file ID
-const storeDriveMapping = async (mongoId, driveId, metadata) => {
+// ─────────────────────────────────────────────────────────────────────────────
+// Get full file mapping document (includes userId for ownership checks)
+// ─────────────────────────────────────────────────────────────────────────────
+const getFileMapping = async (fileId) => {
   const db = mongoose.connection;
   try {
-    // Ensure mongoId is a valid ObjectId
+    let query;
+
+    if (ObjectId.isValid(fileId) && String(new ObjectId(fileId)) === fileId) {
+      query = { _id: new ObjectId(fileId) };
+    } else {
+      query = { 'metadata.filename': fileId };
+    }
+
+    const file = await db.collection('drive_mappings').findOne(query);
+    if (!file && ObjectId.isValid(fileId)) {
+      return db.collection('drive_mappings').findOne({ _id: new ObjectId(fileId) });
+    }
+    return file;
+  } catch (error) {
+    console.error(`Error getting file mapping for ${fileId}:`, error);
+    throw error;
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Store mapping between MongoDB ObjectId and Google Drive file ID
+// Accepts optional extraFields (e.g. { userId }) to store at top level
+// ─────────────────────────────────────────────────────────────────────────────
+const storeDriveMapping = async (mongoId, driveId, metadata, extraFields = {}) => {
+  const db = mongoose.connection;
+  try {
     let validMongoId = mongoId;
-    
+
     if (!(mongoId instanceof ObjectId)) {
       if (ObjectId.isValid(mongoId)) {
         validMongoId = new ObjectId(mongoId);
       } else {
-        // Generate a new ObjectId if the provided one isn't valid
         validMongoId = new ObjectId();
         console.warn(`Invalid ObjectId provided (${mongoId}), generated new one: ${validMongoId}`);
       }
     }
-    
+
     await db.collection('drive_mappings').insertOne({
       _id: validMongoId,
-      driveId: driveId,
-      metadata: metadata,
-      createdAt: new Date()
+      driveId,
+      metadata,
+      createdAt: new Date(),
+      ...extraFields, // spread userId and any other top-level fields
     });
-    
-    return validMongoId; // Return the (potentially new) ObjectId
+
+    return validMongoId;
   } catch (error) {
     console.error('Error storing Drive ID mapping:', error);
     throw error;
   }
 };
 
-// Convert buffer to readable stream
-const bufferToStream = (buffer) => {
-  return Readable.from(buffer);
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// Buffer ↔ Stream helpers
+// ─────────────────────────────────────────────────────────────────────────────
+const bufferToStream = (buffer) => Readable.from(buffer);
 
-// Convert stream to buffer
-const streamToBuffer = async (stream) => {
-  return new Promise((resolve, reject) => {
+const streamToBuffer = async (stream) =>
+  new Promise((resolve, reject) => {
     const writeStream = new StreamBuffers.WritableStreamBuffer();
-    
     stream.pipe(writeStream);
-    
     stream.on('error', reject);
-    
-    writeStream.on('finish', () => {
-      resolve(writeStream.getContents());
-    });
+    writeStream.on('finish', () => resolve(writeStream.getContents()));
   });
-};
 
-// Helper function to safely check and convert to ObjectId
+// ─────────────────────────────────────────────────────────────────────────────
+// Safely convert a string to ObjectId (returns null if invalid)
+// ─────────────────────────────────────────────────────────────────────────────
 const safeObjectId = (id) => {
   try {
     if (ObjectId.isValid(id) && String(new ObjectId(id)) === id) {
@@ -103,15 +116,15 @@ const safeObjectId = (id) => {
     }
     return null;
   } catch (error) {
-    console.error(`Error converting to ObjectId: ${id}`, error);
     return null;
   }
 };
 
 module.exports = {
   getDriveIdMapping,
+  getFileMapping,
   storeDriveMapping,
   bufferToStream,
   streamToBuffer,
-  safeObjectId
+  safeObjectId,
 };

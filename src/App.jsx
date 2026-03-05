@@ -88,9 +88,14 @@ function App() {
       setError(null);
     } catch (err) {
       if (err.response?.status === 401) {
-        setIsLoggedIn(false);
-        setUser(null);
+        // Don't immediately boot the user — the session cookie may not have
+        // propagated yet right after a fresh Google sign-in (cross-origin timing).
+        // Give it a short grace period before treating the 401 as a real logout.
         setError('Session expired. Please sign in again.');
+        setTimeout(() => {
+          setIsLoggedIn(false);
+          setUser(null);
+        }, 2000);
       } else {
         setError('Failed to load files.');
       }

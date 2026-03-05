@@ -256,7 +256,7 @@ router.get('/stats', async (req, res) => {
         $group: {
           _id: null,
           fileCount: { $sum: 1 },
-          storageUsed: { $sum: { $ifNull: ['$metadata.size', 0] } },
+          storageUsed: { $sum: { $toInt: { $ifNull: ['$metadata.size', 0] } } },
         },
       },
     ]).toArray();

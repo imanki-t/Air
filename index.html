@@ -2,35 +2,38 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/airstream.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
     <title>Airstream</title>
-    <meta name="google-site-verification" content="I8SmHhWjW2ONm49eTCxsLGElSvZ_6bh_H4L-arz7IJ0" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
-    <link rel="shortcut icon" href="/favicon.ico" />
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "Airstream",
-      "url": "https://airstream.onrender.com",
-      "description": "Airstream!",
-      "author": {
-        "@type": "Person",
-        "name": "Airstream"
-      },
-      "keywords": "airstream",
-      "inLanguage": "en"
-    }
-    </script>
+
+    <!--
+      Google Identity Services – loaded early so GIS is ready
+      when the login component mounts.
+      The component also loads this dynamically as a fallback.
+    -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <!--
+      Google reCAPTCHA v3 – hidden badge mode.
+      Replace RECAPTCHA_SITE_KEY_PLACEHOLDER with your actual site key
+      (or inject it via your build/deploy pipeline).
+      When VITE_RECAPTCHA_SITE_KEY is set the component will call
+      grecaptcha.execute() automatically on sign-in.
+    -->
+    <!-- reCAPTCHA script is injected dynamically by AccessGate when VITE_RECAPTCHA_SITE_KEY is set -->
+
+    <style>
+      /* Hide the reCAPTCHA badge – legal: we display the Privacy/Terms links in the UI */
+      .grecaptcha-badge {
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+    </style>
   </head>
-  <body class="bg-cat bg-cover bg-no-repeat bg-center text-white font-vintage min-h-screen overflow-x-hidden">
-    <div id="root" class="flex flex-col items-center justify-start w-full max-w-screen"></div>
+  <body>
+    <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

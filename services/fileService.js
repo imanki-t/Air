@@ -2,30 +2,31 @@
 const { ObjectId } = require('mongodb');
 const mongoose = require('mongoose');
 const crypto = require('crypto');
+const {
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const { Upload } = require('@aws-sdk/lib-storage');
+
 const getFileCategory = require('../utils/fileType');
-const { initDriveClient, initDriveFolder } = require('../config/drive');
+const { initR2Client } = require('../config/r2');
 const {
   getFileMapping,
   storeDriveMapping,
-  bufferToStream,
-  streamToBuffer,
   safeObjectId,
 } = require('../utils/driveUtils');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Initialize Google Drive client & folder
+// Initialize R2 client
 // ─────────────────────────────────────────────────────────────────────────────
-const { drive } = initDriveClient();
-let driveFolderId;
+const r2 = initR2Client();
+const BUCKET = process.env.R2_BUCKET_NAME;
 
-(async () => {
-  try {
-    driveFolderId = await initDriveFolder(drive);
-    console.log('Google Drive folder initialized:', driveFolderId);
-  } catch (error) {
-    console.error('Failed to initialize Google Drive folder:', error);
-  }
-})();
+if (!BUCKET) {
+  console.error('R2_BUCKET_NAME is not set in .env');
+}
 
 const db = mongoose.connection;
 
@@ -45,13 +46,10 @@ const generateShortShareId = () => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: verify ownership of a file mapping.
-// Legacy files (no userId) are accessible to any authenticated user.
-// Returns { allowed, mapping } 
+// Helper: verify ownership of a file mapping
 // ─────────────────────────────────────────────────────────────────────────────
 const checkOwnership = (mapping, reqUserId) => {
   if (!mapping) return { allowed: false, mapping: null };
-  // If the file has a userId set, it must match the requesting user
   if (mapping.userId && mapping.userId !== reqUserId) {
     return { allowed: false, mapping };
   }
@@ -64,28 +62,40 @@ const checkOwnership = (mapping, reqUserId) => {
 const getUserStorageUsed = async (userId) => {
   const result = await db.collection('drive_mappings').aggregate([
     { $match: { userId, 'metadata.isSharedZip': { $ne: true } } },
-    { $group: { _id: null, total: { $sum: { $toInt: { $ifNull: ['$metadata.size', 0] } } } } },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: { $toInt: { $ifNull: ['$metadata.size', 0] } } },
+      },
+    },
   ]).toArray();
   return result[0]?.total || 0;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Upload file to Google Drive
+// Helper: convert a Node.js stream to a Buffer
+// ─────────────────────────────────────────────────────────────────────────────
+const toBuffer = async (streamOrBuffer) => {
+  if (Buffer.isBuffer(streamOrBuffer)) return streamOrBuffer;
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    streamOrBuffer.on('data', (chunk) => chunks.push(chunk));
+    streamOrBuffer.on('end', () => resolve(Buffer.concat(chunks)));
+    streamOrBuffer.on('error', reject);
+  });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Upload file to R2
 // ─────────────────────────────────────────────────────────────────────────────
 const uploadFile = async (req, res) => {
   try {
-    if (!driveFolderId) {
-      driveFolderId = await initDriveFolder(drive);
-    }
-
     const userId = req.user?.userId;
-    const { originalname, mimetype, stream } = req.file;
-    const resumableUploadId = req.body.resumableUploadId;
-    const resumableProgress = req.body.resumableProgress;
+    const { originalname, mimetype, buffer, stream, size } = req.file;
 
     // ── 5 GB storage check ──────────────────────────────────────────────────
     if (userId) {
-      const fileSize = req.file.size || req.file.buffer?.length || 0;
+      const fileSize = size || buffer?.length || 0;
       const currentUsage = await getUserStorageUsed(userId);
       if (currentUsage + fileSize > STORAGE_LIMIT_BYTES) {
         return res.status(413).json({
@@ -95,62 +105,60 @@ const uploadFile = async (req, res) => {
     }
 
     const type = getFileCategory(mimetype);
+
+    // Unique R2 object key — prefixed with mongo ID so names never collide
+    const mongoId = new ObjectId();
+    const r2Key = `files/${mongoId.toString()}/${originalname}`;
+
+    // multer memoryStorage gives us req.file.buffer directly
+    const fileBuffer = buffer || (await toBuffer(stream));
+    const fileSize = fileBuffer.length;
+
+    // Use the Upload helper which handles multipart for large files automatically
+    const upload = new Upload({
+      client: r2,
+      params: {
+        Bucket: BUCKET,
+        Key: r2Key,
+        Body: fileBuffer,
+        ContentType: mimetype,
+        ContentDisposition: `inline; filename="${encodeURIComponent(originalname)}"`,
+        Metadata: {
+          originalname: encodeURIComponent(originalname),
+          type,
+          userId: userId || '',
+          uploadedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    await upload.done();
+
+    const uploadDate = new Date();
+
     const metadata = {
       filename: originalname,
       type,
-      uploadedAt: new Date(),
+      contentType: mimetype,
+      size: fileSize,
+      uploadDate,
+      uploadedAt: uploadDate,
+      r2Key,
     };
 
-    if (resumableUploadId) {
-      metadata.resumableUploadId = resumableUploadId;
-      metadata.resumableProgress = resumableProgress;
-    }
+    // Re-use the same drive_mappings collection — driveId column now stores the R2 key
+    await storeDriveMapping(mongoId, r2Key, metadata, { userId });
 
-    const driveFileMetadata = {
-      name: originalname,
-      parents: [driveFolderId],
-      description: JSON.stringify(metadata),
-      mimeType: mimetype,
-    };
-
-    const buffer = await streamToBuffer(stream);
-
-    const driveRes = await drive.files.create({
-      resource: driveFileMetadata,
-      media: { mimeType: mimetype, body: bufferToStream(buffer) },
-      fields: 'id, name, webContentLink, webViewLink, createdTime, mimeType, size',
-    });
-
-    const mongoId = new ObjectId();
-
-    // Store mapping WITH userId for per-user isolation
-    // size must be stored as a number so MongoDB $sum aggregation works correctly
-    await storeDriveMapping(
-      mongoId,
-      driveRes.data.id,
-      {
-        ...metadata,
-        contentType: mimetype,
-        size: parseInt(driveRes.data.size || 0, 10),
-        uploadDate: new Date(driveRes.data.createdTime),
-      },
-      { userId } // top-level userId field for ownership queries
-    );
-
-    const responseObj = {
+    res.status(201).json({
       _id: mongoId,
-      length: parseInt(driveRes.data.size || 0),
+      length: fileSize,
       chunkSize: 261120,
-      uploadDate: new Date(driveRes.data.createdTime),
-      filename: driveRes.data.name,
-      contentType: driveRes.data.mimeType,
+      uploadDate,
+      filename: originalname,
+      contentType: mimetype,
       metadata,
-      driveId: driveRes.data.id,
-      webContentLink: driveRes.data.webContentLink,
-      webViewLink: driveRes.data.webViewLink,
-    };
-
-    res.status(201).json(responseObj);
+      r2Key,
+    });
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ error: error.message });
@@ -164,8 +172,9 @@ const getFiles = async (req, res) => {
   try {
     const userId = req.user?.userId;
 
-    // Only return files belonging to this user (legacy files with no userId are excluded for security)
-    const query = userId ? { userId, 'metadata.isSharedZip': { $ne: true } } : {};
+    const query = userId
+      ? { userId, 'metadata.isSharedZip': { $ne: true } }
+      : {};
 
     const files = await db.collection('drive_mappings')
       .find(query)
@@ -180,7 +189,7 @@ const getFiles = async (req, res) => {
       filename: file.metadata?.filename,
       contentType: file.metadata?.contentType,
       metadata: file.metadata,
-      driveId: file.driveId,
+      r2Key: file.driveId,
     }));
 
     res.json(formattedFiles);
@@ -198,28 +207,22 @@ const deleteFile = async (req, res) => {
     const fileId = req.params.id;
     const userId = req.user?.userId;
 
-    // Get full mapping to check ownership
     const mapping = await getFileMapping(fileId);
     const { allowed } = checkOwnership(mapping, userId);
     if (!allowed) {
       return res.status(403).json({ error: 'Access denied. You do not own this file.' });
     }
 
-    const driveId = mapping.driveId;
+    const r2Key = mapping.driveId;
 
-    // Delete from Google Drive
-    await drive.files.delete({ fileId: driveId });
+    await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: r2Key }));
 
-    // Delete mapping from MongoDB
     const objectId = safeObjectId(fileId);
     const deleteQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
     await db.collection('drive_mappings').deleteOne(deleteQuery);
 
-    // Broadcast to all connected clients of this user
     const io = req.app.get('io');
-    if (io) {
-      io.emit('refreshFileList');
-    }
+    if (io) io.emit('refreshFileList');
 
     res.json({ message: 'File deleted' });
   } catch (error) {
@@ -229,7 +232,7 @@ const deleteFile = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Download file (ownership check)
+// Download file — streams from R2 through the backend to the client
 // ─────────────────────────────────────────────────────────────────────────────
 const downloadFile = async (req, res) => {
   try {
@@ -242,25 +245,20 @@ const downloadFile = async (req, res) => {
       return res.status(403).json({ error: 'Access denied. You do not own this file.' });
     }
 
-    const driveId = mapping.driveId;
-    const fileMetadata = await drive.files.get({
-      fileId: driveId,
-      fields: 'name, mimeType, size',
-    });
+    const r2Key = mapping.driveId;
+    const filename = mapping.metadata?.filename || 'download';
+    const contentType = mapping.metadata?.contentType || 'application/octet-stream';
+    const fileSize = mapping.metadata?.size;
 
-    const safeFilename = encodeURIComponent(fileMetadata.data.name).replace(/['()]/g, escape);
+    const command = new GetObjectCommand({ Bucket: BUCKET, Key: r2Key });
+    const r2Response = await r2.send(command);
+
+    const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
     res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
-    res.setHeader('Content-Type', fileMetadata.data.mimeType);
-    if (fileMetadata.data.size) {
-      res.setHeader('Content-Length', fileMetadata.data.size);
-    }
+    res.setHeader('Content-Type', contentType);
+    if (fileSize) res.setHeader('Content-Length', fileSize);
 
-    const driveResponse = await drive.files.get(
-      { fileId: driveId, alt: 'media' },
-      { responseType: 'stream' }
-    );
-
-    driveResponse.data.pipe(res);
+    r2Response.Body.pipe(res);
   } catch (error) {
     console.error('Download error:', error);
     res.status(500).json({ error: error.message });
@@ -268,7 +266,7 @@ const downloadFile = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Preview/Thumbnail (ownership check, 24h caching)
+// Preview / Thumbnail — inline with 24h caching
 // ─────────────────────────────────────────────────────────────────────────────
 const previewFile = async (req, res) => {
   try {
@@ -281,34 +279,30 @@ const previewFile = async (req, res) => {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
-    const driveId = mapping.driveId;
-    const fileMetadata = await drive.files.get({
-      fileId: driveId,
-      fields: 'name, mimeType, modifiedTime',
-    });
+    const r2Key = mapping.driveId;
+    const filename = mapping.metadata?.filename || 'file';
+    const contentType = mapping.metadata?.contentType || 'application/octet-stream';
 
-    const cacheMaxAge = 86400;
-    res.setHeader('Cache-Control', `public, max-age=${cacheMaxAge}`);
-    res.setHeader('Expires', new Date(Date.now() + cacheMaxAge * 1000).toUTCString());
-
-    const etag = `"${Buffer.from(fileMetadata.data.modifiedTime + fileMetadata.data.name).toString('base64')}"`;
+    const etag = `"${Buffer.from(r2Key + filename).toString('base64')}"`;
     res.setHeader('ETag', etag);
 
     if (req.headers['if-none-match'] === etag) {
       return res.status(304).end();
     }
 
-    res.setHeader('Content-Type', fileMetadata.data.mimeType);
-    const safeFilename = encodeURIComponent(fileMetadata.data.name).replace(/['()]/g, escape);
+    const cacheMaxAge = 86400;
+    res.setHeader('Cache-Control', `public, max-age=${cacheMaxAge}`);
+    res.setHeader('Expires', new Date(Date.now() + cacheMaxAge * 1000).toUTCString());
+    res.setHeader('Content-Type', contentType);
+
+    const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
     res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
     res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
 
-    const driveResponse = await drive.files.get(
-      { fileId: driveId, alt: 'media' },
-      { responseType: 'stream' }
-    );
-    driveResponse.data.pipe(res);
+    const command = new GetObjectCommand({ Bucket: BUCKET, Key: r2Key });
+    const r2Response = await r2.send(command);
+    r2Response.Body.pipe(res);
   } catch (error) {
     console.error('Preview error:', error);
     res.status(500).json({ error: error.message });
@@ -316,7 +310,10 @@ const previewFile = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Generate share link (ownership check)
+// Generate share link
+// Creates a 30-day R2 presigned URL and stores a short shareId in MongoDB.
+// The public /s/:shareId route redirects to the presigned URL — so the
+// file downloads straight from Cloudflare's edge, zero bandwidth on your server.
 // ─────────────────────────────────────────────────────────────────────────────
 const generateShareLink = async (req, res) => {
   try {
@@ -329,14 +326,19 @@ const generateShareLink = async (req, res) => {
       return res.status(403).json({ error: 'Access denied. You do not own this file.' });
     }
 
-    const driveId = mapping.driveId;
+    const r2Key = mapping.driveId;
     const shareId = generateShortShareId();
-    const expirationDate = new Date();
-    expirationDate.setDate(expirationDate.getDate() + 30);
+    const expiresInSeconds = 30 * 24 * 60 * 60; // 30 days
+    const expirationDate = new Date(Date.now() + expiresInSeconds * 1000);
 
-    await drive.permissions.create({
-      fileId: driveId,
-      requestBody: { role: 'reader', type: 'anyone' },
+    const command = new GetObjectCommand({
+      Bucket: BUCKET,
+      Key: r2Key,
+      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(mapping.metadata?.filename || 'download')}"`,
+    });
+
+    const presignedUrl = await getSignedUrl(r2, command, {
+      expiresIn: expiresInSeconds,
     });
 
     const objectId = safeObjectId(fileId);
@@ -347,6 +349,7 @@ const generateShareLink = async (req, res) => {
         'metadata.shareId': shareId,
         'metadata.shareExpires': expirationDate,
         'metadata.shareVoided': false,
+        'metadata.presignedUrl': presignedUrl,
       },
     });
 
@@ -359,7 +362,7 @@ const generateShareLink = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Access a shared file (public, rate-limited – no ownership check)
+// Access a shared file — redirects to the R2 presigned URL
 // ─────────────────────────────────────────────────────────────────────────────
 const accessSharedFile = async (req, res) => {
   try {
@@ -373,32 +376,20 @@ const accessSharedFile = async (req, res) => {
       return res.status(404).json({ error: 'Shared file not found or link has expired.' });
     }
 
-    const { shareExpires, shareVoided } = fileMapping.metadata;
+    const { shareExpires, shareVoided, presignedUrl } = fileMapping.metadata;
+
     if (shareVoided) {
       return res.status(410).json({ error: 'This share link has been revoked.' });
     }
     if (shareExpires && new Date(shareExpires) < new Date()) {
       return res.status(410).json({ error: 'This share link has expired.' });
     }
-
-    const driveId = fileMapping.driveId;
-    const fileMetadata = await drive.files.get({
-      fileId: driveId,
-      fields: 'name, mimeType, size',
-    });
-
-    const safeFilename = encodeURIComponent(fileMetadata.data.name).replace(/['()]/g, escape);
-    res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
-    res.setHeader('Content-Type', fileMetadata.data.mimeType);
-    if (fileMetadata.data.size) {
-      res.setHeader('Content-Length', fileMetadata.data.size);
+    if (!presignedUrl) {
+      return res.status(500).json({ error: 'Share URL missing. Please regenerate the link.' });
     }
 
-    const driveResponse = await drive.files.get(
-      { fileId: driveId, alt: 'media' },
-      { responseType: 'stream' }
-    );
-    driveResponse.data.pipe(res);
+    // 302 redirect — browser downloads directly from Cloudflare edge
+    res.redirect(302, presignedUrl);
   } catch (error) {
     console.error('Access shared file error:', error);
     res.status(500).json({ error: error.message });
@@ -406,7 +397,7 @@ const accessSharedFile = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cleanup incomplete upload artefacts (ownership check)
+// Cleanup incomplete upload artefacts
 // ─────────────────────────────────────────────────────────────────────────────
 const cleanupIncompleteUpload = async (req, res) => {
   try {
@@ -416,12 +407,9 @@ const cleanupIncompleteUpload = async (req, res) => {
     if (!fileId) return res.status(400).json({ message: 'Invalid file ID' });
 
     let query;
-    let mongoId = null;
-
     try {
       if (ObjectId.isValid(fileId) && String(new ObjectId(fileId)) === fileId) {
-        mongoId = new ObjectId(fileId);
-        query = { _id: mongoId };
+        query = { _id: new ObjectId(fileId) };
       } else {
         query = { 'metadata.filename': fileId };
       }
@@ -432,24 +420,20 @@ const cleanupIncompleteUpload = async (req, res) => {
     const fileMapping = await db.collection('drive_mappings').findOne(query);
     if (!fileMapping) return res.json({ message: 'No file found to clean up' });
 
-    // Ownership check
     const { allowed } = checkOwnership(fileMapping, userId);
     if (!allowed) {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
-    const driveId = fileMapping.driveId;
-    mongoId = fileMapping._id;
+    const r2Key = fileMapping.driveId;
 
-    // Check if the file still exists in Drive before deleting
     try {
-      await drive.files.get({ fileId: driveId, fields: 'id' });
-      await drive.files.delete({ fileId: driveId });
-    } catch (driveErr) {
-      if (driveErr.code !== 404) throw driveErr;
+      await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: r2Key }));
+    } catch (r2Err) {
+      if (r2Err.name !== 'NoSuchKey') throw r2Err;
     }
 
-    await db.collection('drive_mappings').deleteOne({ _id: mongoId });
+    await db.collection('drive_mappings').deleteOne({ _id: fileMapping._id });
     res.json({ message: 'Incomplete upload cleaned up' });
   } catch (error) {
     console.error('Cleanup error:', error);
@@ -458,56 +442,66 @@ const cleanupIncompleteUpload = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Upload & share a ZIP (batch share – requires auth)
+// Upload & share a ZIP (batch share)
 // ─────────────────────────────────────────────────────────────────────────────
 const uploadAndShareZip = async (req, res) => {
   try {
-    if (!driveFolderId) {
-      driveFolderId = await initDriveFolder(drive);
-    }
-
     const userId = req.user?.userId;
-    const { originalname, stream } = req.file;
+    const { originalname, buffer, stream } = req.file;
     const filename = originalname || `shared_archive_${Date.now()}.zip`;
     const mimetype = 'application/zip';
     const uploadDate = new Date();
 
+    const mongoId = new ObjectId();
+    const r2Key = `zips/${mongoId.toString()}/${filename}`;
+
+    const fileBuffer = buffer || (await toBuffer(stream));
+    const fileSize = fileBuffer.length;
+
+    const upload = new Upload({
+      client: r2,
+      params: {
+        Bucket: BUCKET,
+        Key: r2Key,
+        Body: fileBuffer,
+        ContentType: mimetype,
+        Metadata: {
+          originalname: encodeURIComponent(filename),
+          type: 'document',
+          userId: userId || '',
+          isSharedZip: 'true',
+          uploadedAt: uploadDate.toISOString(),
+        },
+      },
+    });
+
+    await upload.done();
+
     const metadata = {
       filename,
       type: 'document',
-      isSharedZip: true,
+      contentType: mimetype,
+      size: fileSize,
+      uploadDate,
       uploadedAt: uploadDate,
+      isSharedZip: true,
+      r2Key,
     };
 
-    const driveFileMetadata = {
-      name: filename,
-      parents: [driveFolderId],
-      description: JSON.stringify(metadata),
-      mimeType: mimetype,
-    };
-
-    const buffer = await streamToBuffer(stream);
-    const driveRes = await drive.files.create({
-      resource: driveFileMetadata,
-      media: { mimeType: mimetype, body: bufferToStream(buffer) },
-      fields: 'id, name, webContentLink, webViewLink, createdTime, mimeType, size',
-    });
-
-    const mongoId = new ObjectId();
-    await storeDriveMapping(
-      mongoId,
-      driveRes.data.id,
-      { ...metadata, contentType: mimetype, size: parseInt(driveRes.data.size || 0, 10), uploadDate },
-      { userId }
-    );
+    await storeDriveMapping(mongoId, r2Key, metadata, { userId });
 
     const shareId = generateShortShareId();
-    const expirationDate = new Date();
-    expirationDate.setDate(expirationDate.getDate() + 30);
+    const expiresInSeconds = 30 * 24 * 60 * 60;
+    const expirationDate = new Date(Date.now() + expiresInSeconds * 1000);
 
-    await drive.permissions.create({
-      fileId: driveRes.data.id,
-      requestBody: { role: 'reader', type: 'anyone' },
+    const command = new GetObjectCommand({
+      Bucket: BUCKET,
+      Key: r2Key,
+      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(filename)}"`,
+    });
+
+    const presignedUrl = await getSignedUrl(r2, command, {
+      expiresIn: expiresInSeconds,
     });
 
     await db.collection('drive_mappings').updateOne(
@@ -517,6 +511,7 @@ const uploadAndShareZip = async (req, res) => {
           'metadata.shareId': shareId,
           'metadata.shareExpires': expirationDate,
           'metadata.shareVoided': false,
+          'metadata.presignedUrl': presignedUrl,
         },
       }
     );
@@ -531,37 +526,32 @@ const uploadAndShareZip = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cleanup expired / voided share links
+// Presigned URLs expire on Cloudflare's side automatically — we just clean
+// the metadata fields in MongoDB.
 // ─────────────────────────────────────────────────────────────────────────────
 const cleanupExpiredLinks = async () => {
   try {
     const now = new Date();
     if (!db || !db.collection) return 0;
 
-    const expiredMappings = await db.collection('drive_mappings').find({
-      $or: [
-        { 'metadata.shareExpires': { $lt: now } },
-        { 'metadata.shareVoided': true },
-      ],
-    }).toArray();
+    const result = await db.collection('drive_mappings').updateMany(
+      {
+        $or: [
+          { 'metadata.shareExpires': { $lt: now } },
+          { 'metadata.shareVoided': true },
+        ],
+      },
+      {
+        $unset: {
+          'metadata.shareId': '',
+          'metadata.shareExpires': '',
+          'metadata.shareVoided': '',
+          'metadata.presignedUrl': '',
+        },
+      }
+    );
 
-    let cleanedCount = 0;
-    for (const mapping of expiredMappings) {
-      try {
-        await drive.permissions.delete({
-          fileId: mapping.driveId,
-          permissionId: 'anyoneWithLink',
-        });
-      } catch { /* ignore permission errors */ }
-
-      await db.collection('drive_mappings').updateOne(
-        { _id: mapping._id },
-        {
-          $unset: { 'metadata.shareId': '', 'metadata.shareExpires': '', 'metadata.shareVoided': '' },
-        }
-      );
-      cleanedCount++;
-    }
-    return cleanedCount;
+    return result.modifiedCount || 0;
   } catch (error) {
     console.error('Cleanup expired links error:', error);
     return 0;

@@ -1,11 +1,16 @@
 // utils/driveUtils.js
-const { ObjectId } = require('mongodb');
+// IMPORTANT: We import ObjectId from mongoose.mongo (not from the 'mongodb'
+// package directly) so that all BSON types come from the single copy of bson
+// that mongoose bundles. Mixing 'mongodb' + 'mongoose' causes BSON version conflicts.
 const mongoose = require('mongoose');
+
+const getObjectId = () => mongoose.mongo.ObjectId;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Get full file mapping document from drive_mappings collection
 // ─────────────────────────────────────────────────────────────────────────────
 const getFileMapping = async (fileId) => {
+  const ObjectId = getObjectId();
   const db = mongoose.connection;
   try {
     let query;
@@ -32,10 +37,11 @@ const getFileMapping = async (fileId) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Store a new mapping document in drive_mappings.
-// The "driveId" field now holds a GridFS ObjectId string.
+// driveId now holds a GridFS ObjectId string.
 // extraFields (e.g. { userId }) are spread at the top level.
 // ─────────────────────────────────────────────────────────────────────────────
 const storeDriveMapping = async (mongoId, driveId, metadata, extraFields = {}) => {
+  const ObjectId = getObjectId();
   const db = mongoose.connection;
   try {
     let validMongoId = mongoId;
@@ -51,7 +57,7 @@ const storeDriveMapping = async (mongoId, driveId, metadata, extraFields = {}) =
 
     await db.collection('drive_mappings').insertOne({
       _id: validMongoId,
-      driveId,          // stores the GridFS file ObjectId as a string
+      driveId,
       metadata,
       createdAt: new Date(),
       ...extraFields,
@@ -68,6 +74,7 @@ const storeDriveMapping = async (mongoId, driveId, metadata, extraFields = {}) =
 // Safely convert a string to ObjectId — returns null if invalid
 // ─────────────────────────────────────────────────────────────────────────────
 const safeObjectId = (id) => {
+  const ObjectId = getObjectId();
   try {
     if (ObjectId.isValid(id) && String(new ObjectId(id)) === id) {
       return new ObjectId(id);

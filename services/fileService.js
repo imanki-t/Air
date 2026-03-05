@@ -1,5 +1,6 @@
 // services/fileService.js
-const { ObjectId, GridFSBucket } = require('mongodb');
+// IMPORTANT: ObjectId and GridFSBucket are taken from mongoose.mongo — NOT from
+// the 'mongodb' package — so all BSON types share a single bson version.
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 const { Readable } = require('stream');
@@ -12,6 +13,12 @@ const {
 } = require('../utils/driveUtils');
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helpers to grab the correct BSON classes from mongoose's bundled driver
+// ─────────────────────────────────────────────────────────────────────────────
+const getObjectId = () => mongoose.mongo.ObjectId;
+const getGridFSBucket = () => mongoose.mongo.GridFSBucket;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GridFS bucket — lazily initialised after mongoose connects
 // ─────────────────────────────────────────────────────────────────────────────
 let bucket;
@@ -21,8 +28,9 @@ const getBucket = () => {
     if (mongoose.connection.readyState !== 1) {
       throw new Error('MongoDB is not connected yet.');
     }
+    const GridFSBucket = getGridFSBucket();
     bucket = new GridFSBucket(mongoose.connection.db, {
-      bucketName: 'uploads', // creates uploads.files + uploads.chunks collections
+      bucketName: 'uploads',
     });
   }
   return bucket;
@@ -86,12 +94,11 @@ const toBuffer = async (streamOrBuffer) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: write a buffer into GridFS, returns the GridFS file _id (ObjectId)
+// Helper: write a buffer into GridFS — returns the GridFS file ObjectId
 // ─────────────────────────────────────────────────────────────────────────────
 const writeToGridFS = (fileBuffer, filename, contentType, metadata = {}) => {
   return new Promise((resolve, reject) => {
-    const gfsBucket = getBucket();
-    const uploadStream = gfsBucket.openUploadStream(filename, {
+    const uploadStream = getBucket().openUploadStream(filename, {
       contentType,
       metadata,
     });
@@ -99,7 +106,7 @@ const writeToGridFS = (fileBuffer, filename, contentType, metadata = {}) => {
     const readable = Readable.from(fileBuffer);
     readable.pipe(uploadStream);
 
-    uploadStream.on('finish', () => resolve(uploadStream.id)); // ObjectId
+    uploadStream.on('finish', () => resolve(uploadStream.id));
     uploadStream.on('error', reject);
   });
 };
@@ -109,6 +116,7 @@ const writeToGridFS = (fileBuffer, filename, contentType, metadata = {}) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const uploadFile = async (req, res) => {
   try {
+    const ObjectId = getObjectId();
     const userId = req.user?.userId;
     const { originalname, mimetype, buffer, stream, size } = req.file;
 
@@ -128,15 +136,12 @@ const uploadFile = async (req, res) => {
     const fileSize = fileBuffer.length;
     const uploadDate = new Date();
 
-    // Write file bytes into GridFS
     const gridFSId = await writeToGridFS(fileBuffer, originalname, mimetype, {
       userId,
       type,
       uploadedAt: uploadDate,
     });
 
-    // Store the mapping in drive_mappings.
-    // driveId now holds the GridFS file ObjectId (as a string).
     const mongoId = new ObjectId();
     const metadata = {
       filename: originalname,
@@ -203,6 +208,7 @@ const getFiles = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const deleteFile = async (req, res) => {
   try {
+    const ObjectId = getObjectId();
     const fileId = req.params.id;
     const userId = req.user?.userId;
 
@@ -212,11 +218,9 @@ const deleteFile = async (req, res) => {
       return res.status(403).json({ error: 'Access denied. You do not own this file.' });
     }
 
-    // Delete the actual bytes from GridFS
     const gridFSId = new ObjectId(mapping.driveId);
     await getBucket().delete(gridFSId);
 
-    // Delete the mapping from MongoDB
     const objectId = safeObjectId(fileId);
     const deleteQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
     await db.collection('drive_mappings').deleteOne(deleteQuery);
@@ -232,10 +236,11 @@ const deleteFile = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Download file — streams from GridFS directly to the client
+// Download file — streams from GridFS to the client
 // ─────────────────────────────────────────────────────────────────────────────
 const downloadFile = async (req, res) => {
   try {
+    const ObjectId = getObjectId();
     const fileId = req.params.id;
     const userId = req.user?.userId;
 
@@ -272,6 +277,7 @@ const downloadFile = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const previewFile = async (req, res) => {
   try {
+    const ObjectId = getObjectId();
     const fileId = req.params.id;
     const userId = req.user?.userId;
 
@@ -292,7 +298,7 @@ const previewFile = async (req, res) => {
       return res.status(304).end();
     }
 
-    const cacheMaxAge = 86400; // 24 hours
+    const cacheMaxAge = 86400;
     res.setHeader('Cache-Control', `public, max-age=${cacheMaxAge}`);
     res.setHeader('Expires', new Date(Date.now() + cacheMaxAge * 1000).toUTCString());
     res.setHeader('Content-Type', contentType);
@@ -356,6 +362,7 @@ const generateShareLink = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const accessSharedFile = async (req, res) => {
   try {
+    const ObjectId = getObjectId();
     const shareId = req.params.shareId;
 
     const fileMapping = await db.collection('drive_mappings').findOne({
@@ -402,6 +409,7 @@ const accessSharedFile = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const cleanupIncompleteUpload = async (req, res) => {
   try {
+    const ObjectId = getObjectId();
     const fileId = req.params.fileId;
     const userId = req.user?.userId;
 
@@ -426,7 +434,6 @@ const cleanupIncompleteUpload = async (req, res) => {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
-    // Delete from GridFS — ignore errors if the file was never fully written
     try {
       const gridFSId = new ObjectId(fileMapping.driveId);
       await getBucket().delete(gridFSId);
@@ -447,6 +454,7 @@ const cleanupIncompleteUpload = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const uploadAndShareZip = async (req, res) => {
   try {
+    const ObjectId = getObjectId();
     const userId = req.user?.userId;
     const { originalname, buffer, stream } = req.file;
     const filename = originalname || `shared_archive_${Date.now()}.zip`;

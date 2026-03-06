@@ -23,9 +23,8 @@ const Icon = {
   ),
   Import: ({ className }) => (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" y1="3" x2="12" y2="15" />
+      <line x1="12" y1="19" x2="12" y2="5" />
+      <polyline points="5 12 12 5 19 12" />
     </svg>
   ),
   Trash: ({ className }) => (
@@ -352,10 +351,16 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
               {user?.name?.[0]?.toUpperCase() || 'U'}
             </div>
           )}
+          <svg
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''} ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </button>
 
         {open && (
-          <div className={`absolute right-0 mt-2 w-72 rounded-2xl border shadow-xl overflow-hidden z-50 ${
+          <div className={`absolute right-0 mt-2 w-72 max-w-[calc(100vw-1rem)] rounded-2xl border shadow-xl overflow-hidden z-50 ${
             darkMode ? 'bg-gray-900 border-gray-700/80 shadow-black/40' : 'bg-white border-gray-200 shadow-gray-200/80'
           }`}>
 

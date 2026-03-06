@@ -306,13 +306,13 @@ const AccessGate = ({ onAccessGranted, darkMode: parentDarkMode }) => {
       <header className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
           <div
-            className={`w-9 h-9 flex items-center justify-center rounded-lg shadow-lg ${
+            className={`w-12 h-12 flex items-center justify-center rounded-lg shadow-lg ${
               darkMode
                 ? 'bg-gradient-to-br from-blue-500 to-blue-600'
                 : 'bg-gradient-to-br from-red-500 to-red-600'
             }`}
           >
-            <img src="/airstream.png" className="h-5 w-5" alt="Airstream" onError={(e) => { e.target.style.display = 'none'; }} />
+            <img src="/airstream.png" className="h-8 w-8" alt="Airstream" onError={(e) => { e.target.style.display = 'none'; }} />
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
             <span
@@ -467,7 +467,6 @@ const AccessGate = ({ onAccessGranted, darkMode: parentDarkMode }) => {
                             ? 'border-gray-600 group-hover:border-gray-500'
                             : 'border-gray-300 group-hover:border-gray-400'
                         }`}
-                        onClick={() => setRememberMe((v) => !v)}
                       >
                         {rememberMe && (
                           <svg className="absolute inset-0 w-3 h-3 m-auto text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor">

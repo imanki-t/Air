@@ -387,11 +387,19 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Full-screen panel */}
-      <div className={cn('relative z-10 flex flex-col h-full w-full', darkMode ? 'bg-gray-900 text-gray-200' : 'bg-white text-gray-800')}>
+      {/* Full-screen panel — grid background matching App.jsx */}
+      <div
+        className={cn('relative z-10 flex flex-col h-full w-full', darkMode ? 'text-gray-200' : 'text-gray-800')}
+        style={{
+          backgroundImage: darkMode
+            ? `linear-gradient(to right, rgba(66,135,245,0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(66,135,245,0.2) 1px, transparent 1px)`
+            : `linear-gradient(to right, rgba(139,0,0,0.3) 1px, transparent 1px), linear-gradient(to bottom, rgba(139,0,0,0.3) 1px, transparent 1px)`,
+          backgroundSize: '30px 30px',
+          backgroundColor: darkMode ? '#0f172a' : '#ffffff',
+        }}>
 
         {/* Top bar */}
-        <div className={cn('flex items-center gap-3 px-4 py-3 border-b flex-shrink-0 shadow-sm', darkMode ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white')}>
+        <div className={cn('flex items-center gap-3 px-4 py-3 border-b flex-shrink-0 shadow-sm backdrop-blur-md', darkMode ? 'border-gray-700 bg-gray-900/90' : 'border-gray-200 bg-white/90')}>
           <FolderSVG color={folder.color} className="w-7 h-7 flex-shrink-0" />
           <div className="min-w-0 flex-grow">
             <h2 className={cn('font-semibold text-base truncate leading-tight', darkMode ? 'text-white' : 'text-gray-900')}>{folder.name}</h2>
@@ -406,32 +414,39 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
         <div className="flex-1 overflow-y-auto">
           <div className="p-4 w-full mx-auto max-w-7xl">
 
-            {/* Header */}
-            <div className="text-center mb-6">
-              <h2 className={cn('text-2xl font-semibold mb-2', darkMode ? 'text-white' : 'text-gray-900')}>{folder.name}</h2>
-              <span className={cn('text-sm px-3 py-1 rounded-full inline-block', darkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600')}>
-                {visible.length} item{visible.length !== 1 ? 's' : ''}{filter !== 'all' ? ` (${filter})` : ''}
-              </span>
-            </div>
+            {/* Dashboard-style card wrapping all content */}
+            <div className={cn('rounded-xl border shadow-lg overflow-hidden', darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200')}>
 
-            {/* Controls Row */}
-            <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-6 items-center justify-between flex-wrap">
-              {/* Search */}
-              <div className="relative flex-grow w-full md:w-auto md:flex-grow-[2]">
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                  <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-5 w-5', darkMode ? 'text-gray-400' : 'text-gray-500')} viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                  </svg>
+              {/* Card header */}
+              <div className={cn('flex items-center justify-between px-5 py-4 border-b', darkMode ? 'border-gray-700' : 'border-gray-200')}>
+                <div className="flex items-center gap-2">
+                  <FolderSVG color={folder.color} className="w-5 h-5 flex-shrink-0" />
+                  <h2 className={cn('font-semibold text-base', darkMode ? 'text-white' : 'text-gray-900')}>{folder.name}</h2>
+                  <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', darkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500')}>
+                    {visible.length} item{visible.length !== 1 ? 's' : ''}{filter !== 'all' ? ` (${filter})` : ''}
+                  </span>
                 </div>
-                <input type="text" placeholder="Search files…" value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
-                  className={cn('w-full pl-10 pr-4 py-2 rounded-lg border text-sm transition-colors duration-200',
-                    darkMode ? 'bg-gray-800 text-white border-gray-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500'
-                      : 'bg-gray-50 text-gray-900 border-gray-300 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 placeholder-gray-400')}
-                  aria-label="Search files" />
               </div>
 
-              {/* Action buttons */}
-              <div className="flex gap-2 items-center flex-wrap justify-center md:justify-end flex-grow md:flex-grow-0">
+              {/* Controls row */}
+              <div className={cn('px-5 py-3 border-b', darkMode ? 'border-gray-700' : 'border-gray-200')}>
+                <div className="flex flex-col md:flex-row gap-3 items-center justify-between flex-wrap">
+                  {/* Search */}
+                  <div className="relative flex-grow w-full md:w-auto md:flex-grow-[2]">
+                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-5 w-5', darkMode ? 'text-gray-400' : 'text-gray-500')} viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <input type="text" placeholder="" value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
+                      className={cn('w-full pl-10 pr-4 py-2 rounded-lg border text-sm transition-colors duration-200',
+                        darkMode ? 'bg-gray-800 text-white border-gray-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500'
+                          : 'bg-gray-50 text-gray-900 border-gray-300 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 placeholder-gray-400')}
+                      aria-label="Search files" />
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-2 items-center flex-wrap justify-center md:justify-end flex-shrink-0">
 
                 {/* Pagination Toggle */}
                 <button onClick={() => setIsPaginationEnabled((p) => !p)}
@@ -505,11 +520,12 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
                   </button>
                 </div>
-              </div>
-            </div>
+                  </div>{/* end action buttons */}
+                </div>{/* end flex row */}
+              </div>{/* end controls row */}
 
-            {/* Divider */}
-            {!selectionMode && <div className={cn('mb-5 border-t', darkMode ? 'border-gray-700' : 'border-gray-200')} />}
+              {/* Card body — batch bar + files + pagination */}
+              <div className="px-5 py-4">
 
             {/* Batch bar */}
             {selectionMode && (
@@ -637,6 +653,9 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
                 </button>
               </div>
             )}
+
+              </div>{/* end card body */}
+            </div>{/* end dashboard card */}
 
           </div>
         </div>
@@ -840,6 +859,7 @@ const DeleteConfirmModal = ({ folder, darkMode, onConfirm, onClose }) => {
 const FolderList = ({ darkMode, files = [], folders = [], onFoldersChanged, refresh }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
+  const [isVisible, setIsVisible] = useState(true);
   const [visibleCount, setVisibleCount] = useState(4);
   const [gridCols, setGridCols]   = useState('grid-cols-2');
 
@@ -889,6 +909,8 @@ const FolderList = ({ darkMode, files = [], folders = [], onFoldersChanged, refr
     if (viewTarget) { const u = folders.find((f) => String(f._id) === String(viewTarget._id)); if (u) setViewTarget(u); }
   }, [folders]);
 
+  if (!isVisible) return null;
+
   return (
     <div className={cn('transition-colors duration-300 rounded-lg p-4 shadow-lg w-full mx-auto max-w-7xl my-4 border', darkMode ? 'bg-gray-900 text-gray-200 border-gray-700' : 'bg-white text-gray-800 border-gray-200')}>
 
@@ -899,9 +921,16 @@ const FolderList = ({ darkMode, files = [], folders = [], onFoldersChanged, refr
           <h2 className={cn('text-lg font-semibold', darkMode ? 'text-white' : 'text-gray-900')}>Folders</h2>
           <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', darkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500')}>{folders.length}</span>
         </div>
-        <button type="button" onClick={() => setCreateModal(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors">
-          <PlusIcon /><span className="hidden sm:inline">New Folder</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setCreateModal(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors">
+            <PlusIcon /><span className="hidden sm:inline">New Folder</span>
+          </button>
+          <button type="button" onClick={() => setIsVisible(false)}
+            className={cn('p-1.5 rounded-lg transition-colors', darkMode ? 'text-gray-400 hover:bg-gray-700 hover:text-white' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700')}
+            title="Hide folders">
+            <CloseIcon className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Empty state */}

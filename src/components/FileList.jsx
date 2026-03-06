@@ -913,9 +913,6 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
         </div>
       )}
 
-      {/* Divider between controls/batch-bar and files */}
-      <div className={cn('mb-5 border-t', darkMode ? 'border-gray-700' : 'border-gray-200')} />
-
       {/* Files Display Area with min-height */}
       <div className="min-h-[250px]">
         {isLoading ? (

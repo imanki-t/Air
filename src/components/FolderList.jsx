@@ -793,7 +793,7 @@ const ViewAllFoldersModal = ({ darkMode, folders, onClose, onView, onEdit, onDel
                 <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
               </svg>
             </div>
-            <input type="text" placeholder="Search folders…" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus
+            <input type="text" placeholder="" value={search} onChange={(e) => setSearch(e.target.value)}
               className={cn('w-full pl-9 pr-3 py-2 rounded-lg border text-sm outline-none transition-colors', darkMode ? 'bg-gray-800 text-white border-gray-700 placeholder-gray-500 focus:ring-1 focus:ring-blue-500' : 'bg-gray-50 text-gray-900 border-gray-200 placeholder-gray-400 focus:ring-1 focus:ring-blue-500')} />
           </div>
         </div>

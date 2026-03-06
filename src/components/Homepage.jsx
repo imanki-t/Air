@@ -4,7 +4,7 @@ const Homepage = ({ isLoggedIn }) => {
   const [darkMode, setDarkMode] = useState(false);
 
   const handleDashboardClick = () => {
-    window.location.href = isLoggedIn ? '/dashboard' : '/login';
+    window.location.href = isLoggedIn ? '/dashboard' : '/signup';
   };
 
 useEffect(() => {

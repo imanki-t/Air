@@ -199,7 +199,7 @@ function App() {
           </div>
           <div className="flex items-center gap-2">
             {isLoggedIn && (
-              <ProfileMenu user={user} darkMode={darkMode} onLogout={handleLogout} onDarkModeToggle={handleDarkModeToggle} />
+              <ProfileMenu user={user} darkMode={darkMode} onLogout={handleLogout} onDarkModeToggle={handleDarkModeToggle} onFilesRefresh={fetchFiles} />
             )}
           </div>
         </header>

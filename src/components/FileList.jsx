@@ -53,7 +53,7 @@ const FolderOutlineIcon = () => (
 );
 
 // ─── NEW: BatchFolderPicker — inline panel replacing action buttons ──────────
-const BatchFolderPicker = ({ folders, darkMode, onSelect, onClose, loading }) => {
+const BatchFolderPicker = ({ folders, darkMode, onSelect, loading }) => {
   const [search, setSearch] = useState('');
 
   const filtered = search.trim()
@@ -66,51 +66,35 @@ const BatchFolderPicker = ({ folders, darkMode, onSelect, onClose, loading }) =>
       role="listbox"
       aria-label="Select a folder"
     >
-      {/* Header: search + close */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-grow">
-          <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-            <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-3.5 w-3.5', darkMode ? 'text-gray-400' : 'text-gray-400')} viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <input
-            type="text"
-            placeholder=""
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            autoFocus
-            className={cn(
-              'w-full pl-8 pr-3 py-1.5 rounded-md border text-xs outline-none',
-              darkMode
-                ? 'bg-gray-700 text-white border-gray-600 focus:ring-1 focus:ring-indigo-500'
-                : 'bg-white text-gray-900 border-gray-300 focus:ring-1 focus:ring-indigo-500'
-            )}
-          />
-        </div>
-        <button
-          onClick={onClose}
-          className={cn(
-            'flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-md transition-colors',
-            darkMode ? 'text-gray-400 hover:bg-gray-700 hover:text-white' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'
-          )}
-          aria-label="Close folder picker"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+      {/* Search bar — full width, white/bright outline */}
+      <div className="relative w-full">
+        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-white opacity-70" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
           </svg>
-        </button>
+        </div>
+        <input
+          type="text"
+          placeholder=""
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          autoFocus
+          className={cn(
+            'w-full pl-8 pr-3 py-1.5 rounded-md text-xs outline-none border-2',
+            darkMode
+              ? 'bg-gray-700 text-white border-white focus:border-white placeholder-gray-400'
+              : 'bg-white text-gray-900 border-white focus:border-white placeholder-gray-400 shadow-sm'
+          )}
+        />
       </div>
 
       {/* Folder list — horizontal scrollable row */}
-      <div className={cn(
-        'mt-2 flex flex-row gap-1.5 overflow-x-auto pb-1 sort-scrollbar',
-      )}>
+      <div className="mt-2 flex flex-row gap-1.5 overflow-x-auto pb-1 sort-scrollbar">
         {loading ? (
           <span className={cn('text-xs py-1 px-2', darkMode ? 'text-gray-500' : 'text-gray-400')}>Loading...</span>
         ) : filtered.length === 0 ? (
           <span className={cn('text-xs py-1 px-2', darkMode ? 'text-gray-500' : 'text-gray-400')}>
-            {search ? `No match` : 'No folders yet'}
+            {search ? 'No match' : 'No folders yet'}
           </span>
         ) : (
           filtered.map(folder => (
@@ -127,7 +111,7 @@ const BatchFolderPicker = ({ folders, darkMode, onSelect, onClose, loading }) =>
             >
               <FolderSmallIcon color={folder.color} />
               <span className="truncate max-w-[100px]">{folder.name}</span>
-              <span className={cn('text-xs opacity-60')}>{folder.fileIds?.length || 0}</span>
+              <span className="text-xs opacity-60">{folder.fileIds?.length || 0}</span>
             </button>
           ))
         )}
@@ -178,7 +162,6 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
   // ─── NEW: Folder picker state ─────────────────────────────────────────────
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [folderMoveLoading, setFolderMoveLoading] = useState(false);
-  const [folderMoveSuccess, setFolderMoveSuccess] = useState('');
   const folderPickerRef = useRef(null);
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -291,14 +274,6 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
       pageInputRef.current.select();
     }
   }, [isEditingPage]);
-
-  // Auto-clear folder move success message
-  useEffect(() => {
-    if (folderMoveSuccess) {
-      const t = setTimeout(() => setFolderMoveSuccess(''), 2500);
-      return () => clearTimeout(t);
-    }
-  }, [folderMoveSuccess]);
 
   // --- Filtering Logic ---
   const visible = files.filter(file => {
@@ -574,10 +549,8 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
         fileIds: fileIdStrings,
       });
       if (onFoldersChanged) await onFoldersChanged();
-      setFolderMoveSuccess(`${selectedFiles.length} file${selectedFiles.length !== 1 ? 's' : ''} added to "${folder.name}"`);
     } catch (err) {
       console.error('Error adding files to folder:', err);
-      setFolderMoveSuccess('Failed to add files to folder.');
     } finally {
       setFolderMoveLoading(false);
     }
@@ -717,7 +690,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
               title="Sort & Filter"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M7 12h10M11 17h2" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l4-4 4 4M16 15l-4 4-4-4" />
               </svg>
             </button>
 
@@ -815,146 +788,133 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
         </div>
       </div>
 
-      {/* Batch Selection Bar */}
+      {/* Controls / batch-bar separator — only shown when NOT in selection mode (batch bar has its own divider) */}
+      {!selectionMode && (
+        <div className={cn('mb-5 border-t', darkMode ? 'border-gray-700' : 'border-gray-200')} />
+      )}
+
+
       {selectionMode && (
         <div className={cn(
-          'mb-6 p-3 rounded-lg border transition-all duration-300 ease-in-out',
+          'mb-4 p-3 rounded-lg border transition-all duration-300 ease-in-out',
           darkMode ? 'bg-gray-800 border-gray-700' : 'bg-blue-50 border-blue-200'
         )}>
-          <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4 flex-wrap">
-            {/* Select/Deselect All Button */}
-            <div className="w-full md:w-auto">
-              <button
-                onClick={toggleSelectAll}
-                className={cn(
-                  'w-full md:w-auto py-2 px-4 rounded-md text-sm font-medium text-center transition-colors duration-200 border',
-                  (isPaginationEnabled ? paginatedFiles.every(file => selectedFiles.includes(file._id)) && paginatedFiles.length > 0 : displayFiles.every(file => selectedFiles.includes(file._id)) && displayFiles.length > 0)
-                    ? `border-red-400 ${darkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-white hover:bg-red-50'}`
-                    : `border-blue-400 ${darkMode ? 'text-blue-300 bg-gray-700 hover:bg-gray-600' : 'text-blue-600 bg-white hover:bg-blue-50'}`
-                )}
-              >
-                {(isPaginationEnabled ? paginatedFiles.every(file => selectedFiles.includes(file._id)) && paginatedFiles.length > 0 : displayFiles.every(file => selectedFiles.includes(file._id)) && displayFiles.length > 0) ? 'Deselect All' : 'Select All'}
-              </button>
+          {showFolderPicker ? (
+            /* ─── Folder picker takes the whole bar ─── */
+            <div className="w-full" ref={folderPickerRef}>
+              <BatchFolderPicker
+                folders={folders}
+                darkMode={darkMode}
+                onSelect={handleAddToFolder}
+                loading={false}
+              />
             </div>
+          ) : (
+            <div className="flex flex-col md:flex-row items-center gap-3 md:gap-4 flex-wrap">
+              {/* Select/Deselect All Button */}
+              <div className="w-full md:w-auto">
+                <button
+                  onClick={toggleSelectAll}
+                  className={cn(
+                    'w-full md:w-auto py-2 px-4 rounded-md text-sm font-medium text-center transition-colors duration-200 border',
+                    (isPaginationEnabled ? paginatedFiles.every(file => selectedFiles.includes(file._id)) && paginatedFiles.length > 0 : displayFiles.every(file => selectedFiles.includes(file._id)) && displayFiles.length > 0)
+                      ? `border-red-400 ${darkMode ? 'text-red-400 bg-gray-700 hover:bg-gray-600' : 'text-red-600 bg-white hover:bg-red-50'}`
+                      : `border-blue-400 ${darkMode ? 'text-blue-300 bg-gray-700 hover:bg-gray-600' : 'text-blue-600 bg-white hover:bg-blue-50'}`
+                  )}
+                >
+                  {(isPaginationEnabled ? paginatedFiles.every(file => selectedFiles.includes(file._id)) && paginatedFiles.length > 0 : displayFiles.every(file => selectedFiles.includes(file._id)) && displayFiles.length > 0) ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
 
-            {/* Selected Count Indicator */}
-            <div className={cn('text-sm flex-grow text-center md:text-left order-last md:order-none w-full md:w-auto pt-2 md:pt-0', darkMode ? 'text-gray-400' : 'text-gray-600')}>
-              {selectedFiles.length > 0 && isPaginationEnabled
-                ? `${selectedFiles.length} of ${visible.length} total items selected till this page.`
-                : `${selectedFiles.length} of ${isPaginationEnabled ? paginatedFiles.length : displayFiles.length} selected.`
-              }
-              {/* ─── NEW: Folder move success message ─────────────────────── */}
-              {folderMoveSuccess && (
-                <span className={cn(
-                  'ml-2 inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full',
-                  folderMoveSuccess.startsWith('Failed')
-                    ? (darkMode ? 'bg-red-900/40 text-red-400' : 'bg-red-100 text-red-600')
-                    : (darkMode ? 'bg-green-900/40 text-green-400' : 'bg-green-100 text-green-600')
-                )}>
-                  {folderMoveSuccess.startsWith('Failed') ? '✗' : '✓'} {folderMoveSuccess}
-                </span>
-              )}
-              {/* ──────────────────────────────────────────────────────────── */}
+              {/* Selected Count Indicator */}
+              <div className={cn('text-sm flex-grow text-center md:text-left order-last md:order-none w-full md:w-auto pt-2 md:pt-0', darkMode ? 'text-gray-400' : 'text-gray-600')}>
+                {selectedFiles.length > 0 && isPaginationEnabled
+                  ? `${selectedFiles.length} of ${visible.length} total items selected till this page.`
+                  : `${selectedFiles.length} of ${isPaginationEnabled ? paginatedFiles.length : displayFiles.length} selected.`
+                }
+              </div>
+
+              {/* Batch Action Buttons */}
+              <div className="w-full md:w-auto flex flex-wrap justify-center md:justify-end gap-2">
+                {/* Download */}
+                <button
+                  onClick={batchDownload}
+                  disabled={selectedFiles.length === 0 || batchOperationLoading}
+                  className={cn(
+                    'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
+                    selectedFiles.length === 0 || batchOperationLoading
+                      ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                      : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
+                  )}
+                  title={selectedFiles.length > 0 ? `Download ${selectedFiles.length} items` : "Select files to download"}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                  <span className="hidden sm:inline">Download</span> ({selectedFiles.length})
+                </button>
+
+                {/* Share */}
+                <button
+                  onClick={batchShare}
+                  disabled={selectedFiles.length === 0 || batchOperationLoading}
+                  className={cn(
+                    'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
+                    selectedFiles.length === 0 || batchOperationLoading
+                      ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                      : (darkMode ? 'bg-green-700 hover:bg-green-600 text-white' : 'bg-green-600 hover:bg-green-700 text-white')
+                  )}
+                  title={selectedFiles.length > 0 ? `Share ${selectedFiles.length} items` : "Select files to share"}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                  <span className="hidden sm:inline">Share</span> ({selectedFiles.length})
+                </button>
+
+                {/* Add to Folder */}
+                <button
+                  onClick={() => setShowFolderPicker(true)}
+                  disabled={selectedFiles.length === 0 || batchOperationLoading || folderMoveLoading}
+                  className={cn(
+                    'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
+                    selectedFiles.length === 0 || batchOperationLoading || folderMoveLoading
+                      ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                      : (darkMode ? 'bg-indigo-700 hover:bg-indigo-600 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white')
+                  )}
+                  title={selectedFiles.length > 0 ? `Add ${selectedFiles.length} items to a folder` : "Select files to add to folder"}
+                >
+                  {folderMoveLoading ? (
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <FolderOutlineIcon />
+                  )}
+                  <span className="hidden sm:inline">{folderMoveLoading ? 'Adding...' : 'Add to Folder'}</span>
+                  <span className="sm:hidden">({selectedFiles.length})</span>
+                </button>
+
+                {/* Delete */}
+                <button
+                  onClick={() => setShowDeleteConfirmModal(true)}
+                  disabled={selectedFiles.length === 0 || batchOperationLoading}
+                  className={cn(
+                    'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
+                    selectedFiles.length === 0 || batchOperationLoading
+                      ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
+                      : (darkMode ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-red-600 hover:bg-red-700 text-white')
+                  )}
+                  title={selectedFiles.length > 0 ? `Delete ${selectedFiles.length} items` : "Select files to delete"}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  <span className="hidden sm:inline">Delete</span> ({selectedFiles.length})
+                </button>
+              </div>
             </div>
-
-            {/* Batch Action Buttons — hidden when folder picker is open */}
-            <div className="w-full md:w-auto flex flex-wrap justify-center md:justify-end gap-2">
-              {showFolderPicker ? (
-                /* ─── Inline Folder Picker (replaces buttons) ─── */
-                <div className="w-full" ref={folderPickerRef}>
-                  <BatchFolderPicker
-                    folders={folders}
-                    darkMode={darkMode}
-                    onSelect={handleAddToFolder}
-                    onClose={() => setShowFolderPicker(false)}
-                    loading={false}
-                  />
-                </div>
-              ) : (
-                <>
-              {/* Download */}
-              <button
-                onClick={batchDownload}
-                disabled={selectedFiles.length === 0 || batchOperationLoading}
-                className={cn(
-                  'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
-                  selectedFiles.length === 0 || batchOperationLoading
-                    ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
-                    : (darkMode ? 'bg-blue-700 hover:bg-blue-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white')
-                )}
-                title={selectedFiles.length > 0 ? `Download ${selectedFiles.length} items` : "Select files to download"}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                <span className="hidden sm:inline">Download</span> ({selectedFiles.length})
-              </button>
-
-              {/* Share */}
-              <button
-                onClick={batchShare}
-                disabled={selectedFiles.length === 0 || batchOperationLoading}
-                className={cn(
-                  'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
-                  selectedFiles.length === 0 || batchOperationLoading
-                    ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
-                    : (darkMode ? 'bg-green-700 hover:bg-green-600 text-white' : 'bg-green-600 hover:bg-green-700 text-white')
-                )}
-                title={selectedFiles.length > 0 ? `Share ${selectedFiles.length} items` : "Select files to share"}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
-                <span className="hidden sm:inline">Share</span> ({selectedFiles.length})
-              </button>
-
-              {/* ─── Add to Folder button ─────────────────────────────────── */}
-              <button
-                onClick={() => setShowFolderPicker(true)}
-                disabled={selectedFiles.length === 0 || batchOperationLoading || folderMoveLoading}
-                className={cn(
-                  'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
-                  selectedFiles.length === 0 || batchOperationLoading || folderMoveLoading
-                    ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
-                    : (darkMode ? 'bg-indigo-700 hover:bg-indigo-600 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white')
-                )}
-                title={selectedFiles.length > 0 ? `Add ${selectedFiles.length} items to a folder` : "Select files to add to folder"}
-              >
-                {folderMoveLoading ? (
-                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                ) : (
-                  <FolderOutlineIcon />
-                )}
-                <span className="hidden sm:inline">
-                  {folderMoveLoading ? 'Adding...' : 'Add to Folder'}
-                </span>
-                <span className="sm:hidden">({selectedFiles.length})</span>
-              </button>
-              {/* ──────────────────────────────────────────────────────────── */}
-
-              {/* Delete */}
-              <button
-                onClick={() => setShowDeleteConfirmModal(true)}
-                disabled={selectedFiles.length === 0 || batchOperationLoading}
-                className={cn(
-                  'flex-1 md:flex-initial px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center justify-center gap-1',
-                  selectedFiles.length === 0 || batchOperationLoading
-                    ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed')
-                    : (darkMode ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-red-600 hover:bg-red-700 text-white')
-                )}
-                title={selectedFiles.length > 0 ? `Delete ${selectedFiles.length} items` : "Select files to delete"}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                <span className="hidden sm:inline">Delete</span> ({selectedFiles.length})
-              </button>
-                </>
-              )}
-            </div>
-          </div>
+          )}
         </div>
       )}
 
-      {/* Files Display Area with min-height */}
-      <div className="min-h-[250px]">
+      {/* Divider between controls/batch-bar and files */}
+      <div className={cn('mb-5 border-t', darkMode ? 'border-gray-700' : 'border-gray-200')} />
         {isLoading ? (
           <div className={cn(
             'grid gap-4',

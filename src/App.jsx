@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import UploadForm from './components/UploadForm';
 import FileList from './components/FileList';
+import FolderList from './components/FolderList';
 import SignUp from './components/SignUp';
 import Homepage from './components/Homepage';
 import ProfileMenu from './components/ProfileMenu';
@@ -16,6 +17,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 function App() {
   const [error, setError] = useState(null);
   const [files, setFiles] = useState([]);
+  const [folders, setFolders] = useState([]);
   const [darkMode, setDarkMode] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
@@ -41,225 +43,188 @@ function App() {
         setIsLoggedIn(true);
         // Apply saved dark mode preference
         setDarkMode(userData.darkMode ?? false);
-      } catch {
-        // No valid session – fall through to login
+      } catch (err) {
         setIsLoggedIn(false);
         setUser(null);
-        // Fallback to system dark mode
-        setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
       } finally {
         setAuthChecked(true);
       }
     };
 
     checkSession();
-
-    // Listen for system dark-mode changes only when not logged in
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleMqChange = (e) => {
-      if (!isLoggedIn) setDarkMode(e.matches);
-    };
-    mq.addEventListener('change', handleMqChange);
-
-    return () => mq.removeEventListener('change', handleMqChange);
-  }, []); // eslint-disable-line
-
-  // ─── Global JS error handler ─────────────────────────────────────────────
-  useEffect(() => {
-    const handleGlobalError = (message, _src, _line, _col, err) => {
-      if (!err?.response && !message?.includes('Backend not configured')) {
-        setError(`Client error: ${message}`);
-      }
-      return true;
-    };
-    window.onerror = handleGlobalError;
-    return () => { window.onerror = null; };
   }, []);
 
-  // ─── Fetch files whenever login state changes ────────────────────────────
+  // ─── Fetch files ─────────────────────────────────────────────────────────────
   const fetchFiles = useCallback(async () => {
-    if (!isLoggedIn) {
-      setFiles([]);
-      return;
-    }
+    if (!BACKEND_URL) return;
     try {
       const res = await axios.get(`${BACKEND_URL}/api/files`);
-      setFiles(res.data);
+      setFiles(res.data || []);
       setError(null);
     } catch (err) {
-      if (err.response?.status === 401) {
-        // Don't immediately boot the user — the session cookie may not have
-        // propagated yet right after a fresh Google sign-in (cross-origin timing).
-        // Give it a short grace period before treating the 401 as a real logout.
-        setError('Session expired. Please sign in again.');
-        setTimeout(() => {
-          setIsLoggedIn(false);
-          setUser(null);
-        }, 2000);
-      } else {
-        setError('Failed to load files.');
-      }
-      setFiles([]);
+      console.error('Failed to load files:', err);
+      setError('Failed to load files. Please try again.');
+    }
+  }, []);
+
+  // ─── Fetch folders ────────────────────────────────────────────────────────────
+  const fetchFolders = useCallback(async () => {
+    if (!BACKEND_URL || !isLoggedIn) return;
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/folders`);
+      setFolders(res.data || []);
+    } catch (err) {
+      console.error('Failed to load folders:', err);
     }
   }, [isLoggedIn]);
 
+  // ─── Load files + folders when authenticated ─────────────────────────────────
   useEffect(() => {
     if (isLoggedIn) {
       fetchFiles();
-    } else {
-      setFiles([]);
+      fetchFolders();
     }
-  }, [isLoggedIn, fetchFiles]);
+  }, [isLoggedIn, fetchFiles, fetchFolders]);
 
-  // ─── Handlers ────────────────────────────────────────────────────────────
-  const handleAccessGranted = (userData) => {
+  // ─── Auth handlers ────────────────────────────────────────────────────────────
+  const handleAccessGranted = useCallback((userData) => {
     setUser(userData);
     setIsLoggedIn(true);
-    setDarkMode(userData?.darkMode ?? false);
-  };
+    setDarkMode(userData.darkMode ?? false);
+  }, []);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(async () => {
+    try {
+      await axios.post(`${BACKEND_URL}/api/auth/logout`);
+    } catch (_) {}
     setIsLoggedIn(false);
     setUser(null);
     setFiles([]);
-    setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
-  };
+    setFolders([]);
+  }, []);
 
-  const handleDarkModeToggle = (newMode) => {
-    setDarkMode(newMode);
-  };
+  const handleDarkModeToggle = useCallback(async () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    try {
+      await axios.patch(`${BACKEND_URL}/api/auth/preferences`, { darkMode: next });
+    } catch (_) {}
+  }, [darkMode]);
 
-  // ─── Header ──────────────────────────────────────────────────────────────
-  const renderHeader = () => (
-    <header
-      className={`sticky top-0 z-40 shadow-sm transition-all duration-300 ${
-        darkMode
-          ? 'bg-gray-950 border-b border-gray-800'
-          : 'bg-white border-b border-gray-200'
-      }`}
-    >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        {/* Logo / brand */}
-        <div className="flex items-center gap-3">
-          <div
-            className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm ${
-              darkMode
-                ? 'bg-gradient-to-br from-blue-500 to-blue-700'
-                : 'bg-gradient-to-br from-red-500 to-red-700'
-            }`}
-          >
-            <img src="/airstream.png" className="w-5 h-5" alt="" onError={(e) => { e.target.style.display = 'none'; }} />
-          </div>
-          <h1
-            className={`text-xl font-bold tracking-widest select-none ${
-              darkMode ? 'text-white' : 'text-gray-900'
-            }`}
-          >
-            AIRSTREAM
-          </h1>
-        </div>
-
-        {/* Right side: profile menu (only when logged in) */}
-        {isLoggedIn && user && (
-          <ProfileMenu
-            user={user}
-            darkMode={darkMode}
-            onDarkModeToggle={handleDarkModeToggle}
-            onLogout={handleLogout}
-          />
-        )}
-      </div>
-    </header>
-  );
-
-  const renderFooter = () => (
-    <footer className={`p-4 text-center text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-      © {new Date().getFullYear()} Airstream • All Rights Reserved
-    </footer>
-  );
-
-  // ─── Splash / loading while checking auth ────────────────────────────────
+  // ─── Loading splash ──────────────────────────────────────────────────────────
   if (!authChecked) {
     return (
       <div
-        className={`w-full min-h-screen flex items-center justify-center transition-colors duration-300 ${
-          darkMode ? 'bg-gray-950' : 'bg-white'
-        }`}
+        className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-white'}`}
       >
-        <div className="flex flex-col items-center gap-4">
-          <div
-            className={`w-10 h-10 rounded-full border-4 border-t-transparent animate-spin ${
-              darkMode ? 'border-blue-500' : 'border-red-500'
-            }`}
-          />
-          <p className={`text-sm font-medium tracking-widest ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            AIRSTREAM
-          </p>
+        <div className="flex flex-col items-center gap-3">
+          <svg
+            className={`animate-spin h-8 w-8 ${darkMode ? 'text-blue-400' : 'text-red-500'}`}
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
         </div>
       </div>
     );
   }
 
-  // ─── Critical config error page ──────────────────────────────────────────
-  if (error && (error.includes('Backend not configured') || error.includes('Client error'))) {
-    return (
-      <div className={`w-full min-h-screen flex flex-col transition-colors duration-300 ${darkMode ? 'bg-gray-950 text-white' : 'bg-white text-gray-900'}`}>
-        {renderHeader()}
-        <div className="flex-grow flex items-center justify-center p-4">
-          <div className={`p-6 rounded-xl max-w-lg text-center shadow-lg ${darkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-            <h1 className="text-2xl font-semibold mb-4">Application Error</h1>
-            <p className="mb-6">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-            >
-              Reload Page
-            </button>
-          </div>
-        </div>
-        {renderFooter()}
-      </div>
-    );
-  }
-
-  // ─── Main render ─────────────────────────────────────────────────────────
-  return (
-    <div
-      className={`w-full min-h-screen flex flex-col transition-colors duration-300 ${
-        darkMode ? 'bg-gray-950 text-white' : 'bg-white text-gray-900'
+  // ─── Footer ──────────────────────────────────────────────────────────────────
+  const renderFooter = () => (
+    <footer
+      className={`py-4 text-center text-xs border-t ${
+        darkMode ? 'text-gray-500 border-gray-800' : 'text-gray-400 border-gray-200'
       }`}
     >
-      {!hideHeader && renderHeader()}
+      Airstream &copy; {new Date().getFullYear()}
+    </footer>
+  );
 
-      <main className="flex-grow w-full max-w-6xl mx-auto p-4 sm:p-6 flex flex-col relative overflow-hidden">
-        {/* Dashboard grid background */}
-        {location.pathname === '/dashboard' && (
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              backgroundImage: darkMode
-                ? `linear-gradient(to right, rgba(66,135,245,0.2) 1px, transparent 1px),
-                   linear-gradient(to bottom, rgba(66,135,245,0.2) 1px, transparent 1px)`
-                : `linear-gradient(to right, rgba(139,0,0,0.3) 1px, transparent 1px),
+  // ─── Render ───────────────────────────────────────────────────────────────────
+  return (
+    <div
+      className={`min-h-screen flex flex-col relative ${darkMode ? 'dark bg-gray-950 text-white' : 'bg-white text-gray-900'}`}
+    >
+      {/* Header */}
+      {!hideHeader && (
+        <header
+          className={`sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 py-3 border-b backdrop-blur-md ${
+            darkMode
+              ? 'bg-gray-900/90 border-gray-800 text-white'
+              : 'bg-white/90 border-gray-200 text-gray-900'
+          }`}
+        >
+          <span
+            className={`text-2xl font-extrabold tracking-tight select-none ${
+              darkMode
+                ? 'text-white'
+                : 'bg-gradient-to-r from-red-600 to-red-400 bg-clip-text text-transparent'
+            }`}
+          >
+            Airstream
+          </span>
+          <div className="flex items-center gap-2">
+            {/* Dark mode toggle */}
+            <button
+              onClick={handleDarkModeToggle}
+              className={`p-2 rounded-lg transition-colors ${
+                darkMode ? 'text-yellow-400 hover:bg-gray-800' : 'text-gray-600 hover:bg-gray-100'
+              }`}
+              aria-label="Toggle dark mode"
+              title="Toggle dark mode"
+            >
+              {darkMode ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                </svg>
+              )}
+            </button>
+            {isLoggedIn && (
+              <ProfileMenu user={user} darkMode={darkMode} onLogout={handleLogout} />
+            )}
+          </div>
+        </header>
+      )}
+
+      {/* Grid background */}
+      {darkMode && (
+        <div
+          className="fixed inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(66,135,245,0.2) 1px, transparent 1px),
+                   linear-gradient(to bottom, rgba(66,135,245,0.2) 1px, transparent 1px)`,
+            backgroundSize: '30px 30px',
+            backgroundColor: '#0f172a',
+            zIndex: 0,
+          }}
+        />
+      )}
+      {!darkMode && (
+        <div
+          className="fixed inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `linear-gradient(to right, rgba(139,0,0,0.3) 1px, transparent 1px),
                    linear-gradient(to bottom, rgba(139,0,0,0.3) 1px, transparent 1px)`,
-              backgroundSize: '30px 30px',
-              backgroundColor: darkMode ? '#0f172a' : '#ffffff',
-              zIndex: 0,
-            }}
-          />
-        )}
+            backgroundSize: '30px 30px',
+            backgroundColor: '#ffffff',
+            zIndex: 0,
+          }}
+        />
+      )}
 
+      <main className="flex-grow relative z-10 px-2 sm:px-4 pb-4">
         <Routes>
-          {/* Home: if logged in, go to dashboard; else show homepage */}
+          {/* Home — always accessible; Homepage receives isLoggedIn to show "Go to Dashboard" */}
           <Route
             path="/"
-            element={
-              isLoggedIn ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <Homepage isLoggedIn={isLoggedIn} />
-              )
-            }
+            element={<Homepage isLoggedIn={isLoggedIn} />}
           />
 
           {/* Login */}
@@ -289,9 +254,28 @@ function App() {
                       {error}
                     </div>
                   )}
+
+                  {/* Upload bar */}
                   <UploadForm refresh={fetchFiles} darkMode={darkMode} />
+
+                  {/* Folder section — sits between upload bar and file list */}
+                  <FolderList
+                    darkMode={darkMode}
+                    files={files}
+                    folders={folders}
+                    onFoldersChanged={fetchFolders}
+                  />
+
+                  {/* File list */}
                   <div className={`flex-grow ${files.length === 0 ? 'flex justify-center items-center' : ''}`}>
-                    <FileList files={files} refresh={fetchFiles} darkMode={darkMode} isLoading={false} />
+                    <FileList
+                      files={files}
+                      refresh={fetchFiles}
+                      darkMode={darkMode}
+                      isLoading={false}
+                      folders={folders}
+                      onFoldersChanged={fetchFolders}
+                    />
                   </div>
                 </div>
               ) : (

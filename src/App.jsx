@@ -142,13 +142,13 @@ function App() {
         {/* Logo / brand */}
         <div className="flex items-center gap-3">
           <div
-            className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm ${
+            className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-sm ${
               darkMode
                 ? 'bg-gradient-to-br from-blue-500 to-blue-700'
                 : 'bg-gradient-to-br from-red-500 to-red-700'
             }`}
           >
-            <img src="/airstream.png" className="w-5 h-5" alt="" onError={(e) => { e.target.style.display = 'none'; }} />
+            <img src="/airstream.png" className="w-7 h-7" alt="" onError={(e) => { e.target.style.display = 'none'; }} />
           </div>
           <h1
             className={`text-xl font-bold tracking-widest select-none ${
@@ -250,16 +250,10 @@ function App() {
         )}
 
         <Routes>
-          {/* Home: if logged in, go to dashboard; else show homepage */}
+          {/* Home: always show homepage; isLoggedIn prop controls button link */}
           <Route
             path="/"
-            element={
-              isLoggedIn ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <Homepage isLoggedIn={isLoggedIn} />
-              )
-            }
+            element={<Homepage isLoggedIn={isLoggedIn} darkMode={darkMode} />}
           />
 
           {/* Login */}

@@ -30,8 +30,8 @@ const getDb = () => mongoose.connection;
 // ─────────────────────────────────────────────────────────────────────────────
 const cookieOptions = (rememberMe = false) => ({
   httpOnly: true,
-  secure: true,
-  sameSite: 'lax',    // same-origin via _redirects proxy, lax works now
+  secure: true,       // must be true when sameSite is 'none'
+  sameSite: 'none',   // allows cross-origin cookies to be sent
   path: '/',
   ...(rememberMe && { maxAge: 30 * 24 * 60 * 60 * 1000 }), // 30 days in ms
 });
@@ -194,7 +194,7 @@ router.post('/logout', (req, res) => {
   res.clearCookie('airstream_session', {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
+    sameSite: 'none',
     path: '/',
   });
   return res.json({ success: true });

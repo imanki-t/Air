@@ -231,7 +231,7 @@ function App() {
         />
       )}
 
-      <main className="flex-grow relative z-10 px-2 sm:px-4 pb-4">
+      <main className={`flex-grow relative z-10 pb-4 ${hideHeader ? '' : 'px-2 sm:px-4'}`}>
         <Routes>
           {/* Home — always accessible; Homepage receives isLoggedIn to show "Go to Dashboard" */}
           <Route

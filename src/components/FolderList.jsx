@@ -775,7 +775,7 @@ const ViewAllFoldersModal = ({ darkMode, folders, onClose, onView, onEdit, onDel
             <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
               <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-4 w-4', darkMode ? 'text-gray-500' : 'text-gray-400')} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg>
             </div>
-            <input type="text" placeholder="Search folders…" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus
+            <input type="text" placeholder="" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus
               className={cn('w-full pl-9 pr-3 py-2 rounded-lg border text-sm outline-none transition-colors', darkMode ? 'bg-gray-800 text-white border-gray-700 placeholder-gray-500 focus:ring-1 focus:ring-blue-500' : 'bg-gray-50 text-gray-900 border-gray-200 placeholder-gray-400 focus:ring-1 focus:ring-blue-500')} />
           </div>
         </div>
@@ -892,8 +892,27 @@ const FolderList = ({ darkMode, files = [], folders = [], onFoldersChanged, refr
   const [viewTarget,    setViewTarget]    = useState(null);
 
   const toggleOptions = useCallback((id) => setOpenOptionsId((p) => (p === id ? null : id)), []);
-  const displayedFolders = folders.slice(0, visibleCount);
-  const hasMore = folders.length > visibleCount;
+
+  // Sort by lastViewed desc so most-recently opened folders appear first
+  const sortedFolders = [...folders].sort((a, b) => {
+    if (!a.lastViewed && !b.lastViewed) return 0;
+    if (!a.lastViewed) return 1;
+    if (!b.lastViewed) return -1;
+    return new Date(b.lastViewed) - new Date(a.lastViewed);
+  });
+
+  const displayedFolders = sortedFolders.slice(0, visibleCount);
+  const hasMore = sortedFolders.length > visibleCount;
+
+  // Records lastViewed on the backend (persists cross-device/session) then opens folder
+  const handleViewFolder = useCallback(async (folder) => {
+    setViewTarget(folder);
+    setOpenOptionsId(null);
+    try {
+      await axios.patch(`${backendUrl}/api/folders/${folder._id}`, { lastViewed: new Date().toISOString() });
+      onFoldersChanged();
+    } catch (_) { /* non-critical, fail silently */ }
+  }, [backendUrl, onFoldersChanged]);
 
   const handleCreate = async (name, color) => {
     await axios.post(`${backendUrl}/api/folders`, { name, color });
@@ -954,7 +973,7 @@ const FolderList = ({ darkMode, files = [], folders = [], onFoldersChanged, refr
               <FolderCard key={folder._id} folder={folder} darkMode={darkMode}
                 isOptionsOpen={openOptionsId === String(folder._id)}
                 onToggleOptions={() => toggleOptions(String(folder._id))}
-                onView={() => { setViewTarget(folder); setOpenOptionsId(null); }}
+                onView={() => handleViewFolder(folder)}
                 onEdit={() => { setEditTarget(folder); setOpenOptionsId(null); }}
                 onDeleteRequest={() => { setDeleteTarget(folder); setOpenOptionsId(null); }} />
             ))}
@@ -975,7 +994,7 @@ const FolderList = ({ darkMode, files = [], folders = [], onFoldersChanged, refr
       {editTarget   && <FolderFormModal mode="edit" initialName={editTarget.name} initialColor={editTarget.color} darkMode={darkMode} onConfirm={handleEdit} onClose={() => { setEditTarget(null); setOpenOptionsId(null); }} />}
       {deleteTarget && <DeleteConfirmModal folder={deleteTarget} darkMode={darkMode} onConfirm={handleDelete} onClose={() => { setDeleteTarget(null); setOpenOptionsId(null); }} />}
       {viewTarget   && <FolderViewModal folder={viewTarget} allFiles={files} darkMode={darkMode} backendUrl={backendUrl} onClose={() => setViewTarget(null)} onRemoveFile={handleRemoveFileFromFolder} onFoldersChanged={onFoldersChanged} refresh={refresh} />}
-      {showViewAll  && <ViewAllFoldersModal darkMode={darkMode} folders={folders} onClose={() => setShowViewAll(false)} onView={(f) => { setViewTarget(f); setOpenOptionsId(null); }} onEdit={(f) => { setEditTarget(f); setOpenOptionsId(null); }} onDeleteRequest={(f) => { setDeleteTarget(f); setOpenOptionsId(null); }} />}
+      {showViewAll  && <ViewAllFoldersModal darkMode={darkMode} folders={sortedFolders} onClose={() => setShowViewAll(false)} onView={(f) => { handleViewFolder(f); setOpenOptionsId(null); }} onEdit={(f) => { setEditTarget(f); setOpenOptionsId(null); }} onDeleteRequest={(f) => { setDeleteTarget(f); setOpenOptionsId(null); }} />}
 
       <style>{`
         @keyframes folderModalIn{from{opacity:0;transform:scale(0.95) translateY(12px)}to{opacity:1;transform:scale(1) translateY(0)}}

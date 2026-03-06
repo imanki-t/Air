@@ -24,7 +24,7 @@ function App() {
   const [authChecked, setAuthChecked] = useState(false); // prevent flash
 
   const location = useLocation();
-  const hideHeader = location.pathname === '/' || location.pathname === '/login';
+  const hideHeader = location.pathname === '/' || location.pathname === '/signup';
   const showFooter = location.pathname === '/dashboard';
 
   // ─── Check existing session on mount ────────────────────────────────────────
@@ -241,7 +241,7 @@ function App() {
 
           {/* Login */}
           <Route
-            path="/login"
+            path="/signup"
             element={
               isLoggedIn ? (
                 <Navigate to="/dashboard" replace />
@@ -291,7 +291,7 @@ function App() {
                   </div>
                 </div>
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/signup" replace />
               )
             }
           />

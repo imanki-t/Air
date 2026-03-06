@@ -3,6 +3,7 @@
  * Middleware to protect API routes.
  * - Auth routes (/api/auth/*) are allowed with origin check only (no JWT needed for login/logout)
  * - Public share routes are allowed without auth
+ * - Export-download routes are allowed without auth (token-gated by the route itself)
  * - All other /api routes require a valid JWT in httpOnly cookie
  */
 
@@ -18,12 +19,17 @@ const protectRoute = (req, res, next) => {
     (referer && referer.startsWith(frontendURL)) ||
     process.env.NODE_ENV === 'development';
 
-  // ─── 1. Always allow public shared‑file GET routes ───────────────────────
+  // ─── 1. Always allow public shared-file GET routes ────────────────────────
   if (req.method === 'GET' && (req.path.includes('/share/') || req.path.includes('/s/'))) {
     return next();
   }
 
-  // ─── 2. Auth routes: only require valid origin (no JWT needed yet) ────────
+  // ─── 2. Always allow export-download GET routes (token-gated by the route) ─
+  if (req.method === 'GET' && req.path.includes('/export-download/')) {
+    return next();
+  }
+
+  // ─── 3. Auth routes: only require valid origin (no JWT needed yet) ────────
   //    e.g. POST /api/auth/google, GET /api/auth/me, POST /api/auth/logout
   if (req.path.startsWith('/auth/')) {
     if (!isFromAuthorizedOrigin) {
@@ -33,7 +39,7 @@ const protectRoute = (req, res, next) => {
     return next();
   }
 
-  // ─── 3. All other API routes: require valid JWT in httpOnly cookie ────────
+  // ─── 4. All other API routes: require valid JWT in httpOnly cookie ─────────
   if (!isFromAuthorizedOrigin) {
     console.log(`API route blocked – origin: ${origin}, referer: ${referer}, path: ${req.path}`);
     return res.status(403).json({ error: 'Access denied. Unauthorized origin.' });

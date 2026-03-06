@@ -313,7 +313,7 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
                 : 'bg-gradient-to-br from-red-500 to-red-600'
             }`}
           >
-            <img src="/airstream.png" className="h-7 w-7" alt="Airstream" onError={(e) => { e.target.style.display = 'none'; }} />
+            <img src="/airstream.png" className="h-10 w-10" alt="Airstream" onError={(e) => { e.target.style.display = 'none'; }} />
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
             <span
@@ -472,7 +472,7 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
 
                     {/* Remember me */}
                     <label
-                      className={`flex items-center gap-2.5 cursor-pointer select-none group w-full ${
+                      className={`flex items-center justify-center gap-2.5 cursor-pointer select-none group w-full ${
                         darkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}
                     >

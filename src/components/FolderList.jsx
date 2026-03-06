@@ -751,37 +751,62 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
 const ViewAllFoldersModal = ({ darkMode, folders, onClose, onView, onEdit, onDeleteRequest }) => {
   const [search, setSearch] = useState('');
   const [openOptionsId, setOpenOptionsId] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
+
   const filtered = search.trim() ? folders.filter((f) => f.name.toLowerCase().includes(search.toLowerCase())) : folders;
   const toggleOptions = useCallback((id) => setOpenOptionsId((p) => (p === id ? null : id)), []);
 
   useEffect(() => {
-    const h = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', h); return () => document.removeEventListener('keydown', h);
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onResize);
+    return () => { document.removeEventListener('keydown', onKey); window.removeEventListener('resize', onResize); };
   }, [onClose]);
+
+  // Mobile  → panel capped at 50 vh (bottom-sheet style); grid fills remaining space and scrolls
+  // Desktop → panel capped at 85 vh; grid area capped at ~360 px (≈9 cards across 3-4 cols) then scrolls
+  const panelMaxHeight  = isMobile ? '50vh'  : '85vh';
+  const gridMaxHeight   = isMobile ? undefined : '360px';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className={cn('relative z-10 w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl border flex flex-col folder-modal-anim', darkMode ? 'bg-gray-900 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800')} style={{ maxHeight: '85vh' }}>
+      <div
+        className={cn('relative z-10 w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl border flex flex-col folder-modal-anim', darkMode ? 'bg-gray-900 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800')}
+        style={{ maxHeight: panelMaxHeight }}
+      >
+        {/* ── Header — always visible ─────────────────────────────────────── */}
         <div className={cn('flex items-center gap-3 px-5 py-4 border-b flex-shrink-0', darkMode ? 'border-gray-700' : 'border-gray-200')}>
           <FolderSVG color={darkMode ? '#fff' : '#1f2937'} className="w-6 h-6" />
           <h2 className={cn('font-semibold text-base flex-grow', darkMode ? 'text-white' : 'text-gray-900')}>
             All Folders <span className={cn('ml-2 text-xs px-2 py-0.5 rounded-full', darkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500')}>{folders.length}</span>
           </h2>
-          <button onClick={onClose} className={cn('p-1.5 rounded-full transition-colors', darkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100')}><CloseIcon /></button>
+          <button onClick={onClose} className={cn('p-1.5 rounded-full transition-colors flex-shrink-0', darkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100')} aria-label="Close"><CloseIcon /></button>
         </div>
+
+        {/* ── Search bar — always visible ──────────────────────────────────── */}
         <div className={cn('px-5 py-3 border-b flex-shrink-0', darkMode ? 'border-gray-700/60' : 'border-gray-100')}>
           <div className="relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-              <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-4 w-4', darkMode ? 'text-gray-500' : 'text-gray-400')} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" className={cn('h-4 w-4', darkMode ? 'text-gray-500' : 'text-gray-400')} viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+              </svg>
             </div>
-            <input type="text" placeholder="" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus
+            <input type="text" placeholder="Search folders…" value={search} onChange={(e) => setSearch(e.target.value)} autoFocus
               className={cn('w-full pl-9 pr-3 py-2 rounded-lg border text-sm outline-none transition-colors', darkMode ? 'bg-gray-800 text-white border-gray-700 placeholder-gray-500 focus:ring-1 focus:ring-blue-500' : 'bg-gray-50 text-gray-900 border-gray-200 placeholder-gray-400 focus:ring-1 focus:ring-blue-500')} />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+
+        {/* ── Folder grid — scrollable ─────────────────────────────────────── */}
+        <div
+          className="overflow-y-auto px-5 py-4"
+          style={{ maxHeight: gridMaxHeight, flex: isMobile ? '1' : 'none' }}
+        >
           {filtered.length === 0 ? (
-            <div className={cn('text-center py-10 text-sm', darkMode ? 'text-gray-500' : 'text-gray-400')}>{search ? `No folders matching "${search}"` : 'No folders yet'}</div>
+            <div className={cn('text-center py-10 text-sm', darkMode ? 'text-gray-500' : 'text-gray-400')}>
+              {search ? `No folders matching "${search}"` : 'No folders yet'}
+            </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {filtered.map((folder) => (

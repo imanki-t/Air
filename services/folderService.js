@@ -1,25 +1,31 @@
 // services/folderService.js
 // Full folder management service for Airstream
 // Handles: create, read, update, delete folders + file assignment
+// IMPORTANT: ObjectId is taken from mongoose.mongo — NOT from the 'mongodb'
+// package — so all BSON types share a single bson version and avoid the
+// "Unsupported BSON version" error.
 
 const mongoose = require('mongoose');
 
 const getDb = () => mongoose.connection.db;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helper: get ObjectId from mongoose's bundled driver (avoids BSON conflicts)
+// ─────────────────────────────────────────────────────────────────────────────
+const getObjectId = () => mongoose.mongo.ObjectId;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helper: safely convert string to ObjectId
 // ─────────────────────────────────────────────────────────────────────────────
 const safeObjectId = (id) => {
+  const ObjectId = getObjectId();
   try {
-    const { ObjectId } = require('mongodb');
     if (ObjectId.isValid(id) && String(new ObjectId(id)) === id) {
       return new ObjectId(id);
     }
   } catch (_) {}
   return null;
 };
-
-const getObjectId = () => require('mongodb').ObjectId;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/folders  — return all folders for the authenticated user

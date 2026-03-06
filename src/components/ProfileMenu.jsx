@@ -134,20 +134,21 @@ const Modal = ({ open, onClose, darkMode, children }) => {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] overflow-y-auto"
       style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
-      <div
-        className={`relative w-full max-w-md rounded-2xl shadow-2xl border ${
-          darkMode
-            ? 'bg-gray-900 border-gray-700/80'
-            : 'bg-white border-gray-200'
-        }`}
-        style={{ maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
+      <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
+        <div
+          className={`relative w-full rounded-2xl shadow-2xl border sm:max-w-md ${
+            darkMode
+              ? 'bg-gray-900 border-gray-700/80'
+              : 'bg-white border-gray-200'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -469,7 +470,7 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
                 <InfoRow icon={Icon.Mail} text="A download link will be sent to your email address" darkMode={darkMode} />
                 <InfoRow icon={Icon.FileZip} text="Contains all your uploaded files plus a manifest.json" darkMode={darkMode} />
                 <InfoRow icon={Icon.Clock} text="Link expires after 24 hours" darkMode={darkMode} />
-                <InfoRow icon={Icon.Refresh} text="The ZIP can be used to import data back into Airstream" darkMode={darkMode} />
+                <InfoRow icon={Icon.Import} text="The ZIP can be used to import data back into Airstream" darkMode={darkMode} />
               </div>
 
               {exportError && (

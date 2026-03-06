@@ -1,17 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 
 const Homepage = ({ isLoggedIn }) => {
   const [darkMode, setDarkMode] = useState(false);
-  const [navigating, setNavigating] = useState(false);
-  const navigate = useNavigate();
 
-  const handleDashboardClick = (e) => {
-    e.preventDefault();
-    setNavigating(true);
-    setTimeout(() => {
-      navigate(isLoggedIn ? '/dashboard' : '/login');
-    }, 1500);
+  const handleDashboardClick = () => {
+    window.location.href = isLoggedIn ? '/dashboard' : '/login';
   };
 
 useEffect(() => {
@@ -182,7 +175,6 @@ backgroundSize: '30px 30px',
           <div className="mt-10">
             <button
               onClick={handleDashboardClick}
-              disabled={navigating}
               className={`px-8 py-3 text-lg font-medium rounded-md shadow-md transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                 darkMode
                   ? 'bg-primaryBlue text-white hover:bg-blue-600 focus:ring-blue-500'
@@ -314,7 +306,6 @@ Access your dashboard now and experience seamless file management designed just 
             <div className="mt-8">
               <button
                 onClick={handleDashboardClick}
-                disabled={navigating}
                 className={`px-8 py-3 text-lg font-medium rounded-md shadow-md transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                   darkMode
                     ? 'bg-primaryBlue text-white hover:bg-blue-600 focus:ring-blue-500'
@@ -322,6 +313,7 @@ Access your dashboard now and experience seamless file management designed just 
                 }`}>
                   Go to Dashboard
               </button>
+            </div>
             </div>
           </div>
         </div>
@@ -345,49 +337,6 @@ Access your dashboard now and experience seamless file management designed just 
           </div>
         </div>
       </footer>
-      {/* Page transition overlay */}
-      {navigating && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-          style={{ backgroundColor: darkMode ? '#0f172a' : '#ffffff' }}
-        >
-          <div className="flex flex-col items-center gap-4">
-            {/* Animated logo */}
-            <div className={`relative w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg ${
-              darkMode ? 'bg-blue-600' : 'bg-red-500'
-            }`}>
-              <img src="air.png" alt="Airstream" className="w-10 h-10 rounded-lg" onError={(e) => { e.target.style.display = 'none'; }} />
-              {/* Spinning ring */}
-              <svg className="absolute inset-0 w-full h-full animate-spin" viewBox="0 0 64 64">
-                <circle
-                  cx="32" cy="32" r="28"
-                  fill="none"
-                  stroke={darkMode ? 'rgba(96,165,250,0.5)' : 'rgba(239,68,68,0.4)'}
-                  strokeWidth="3"
-                  strokeDasharray="40 90"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
-            <p className={`text-sm font-medium tracking-widest uppercase ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Loading…
-            </p>
-            {/* Progress bar */}
-            <div className={`w-40 h-1 rounded-full overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-gray-200'}`}>
-              <div
-                className={`h-full rounded-full ${darkMode ? 'bg-blue-500' : 'bg-red-500'}`}
-                style={{ animation: 'progressBar 1.5s ease-in-out forwards' }}
-              />
-            </div>
-          </div>
-          <style>{`
-            @keyframes progressBar {
-              from { width: 0%; }
-              to { width: 100%; }
-            }
-          `}</style>
-        </div>
-      )}
     </div>
   );
 };

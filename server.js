@@ -5,6 +5,7 @@ const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const mongoose = require('mongoose');
 const { Server } = require('socket.io');
 
 const connectDB = require('./config/db');
@@ -20,7 +21,6 @@ dotenv.config();
 const app = express();
 
 // Trust the first proxy — required on Render/Heroku/Railway
-// Without this express-rate-limit throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
 app.set('trust proxy', 1);
 
 connectDB();
@@ -90,6 +90,7 @@ io.on('connection', (socket) => {
 
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;
 
+// ── Expired share link cleanup ────────────────────────────────────────────────
 const runAndLogCleanup = async (context = 'periodic') => {
   try {
     const cleanedCount = await scheduleCleanup();
@@ -101,8 +102,88 @@ const runAndLogCleanup = async (context = 'periodic') => {
   }
 };
 
-setInterval(() => runAndLogCleanup('Periodic'), ONE_HOUR_IN_MS);
-runAndLogCleanup('Startup');
+// ── Pending account deletion cleanup ─────────────────────────────────────────
+// Permanently deletes accounts where pendingDeletion=true and 7 days have passed.
+const cleanupPendingDeletions = async () => {
+  try {
+    const db = mongoose.connection;
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const usersToDelete = await db.collection('users').find({
+      pendingDeletion: true,
+      deletionScheduledAt: { $lt: sevenDaysAgo },
+    }).toArray();
+
+    if (usersToDelete.length === 0) return;
+
+    console.log(`Deletion cleanup: permanently deleting ${usersToDelete.length} account(s)...`);
+
+    const bucket = new mongoose.mongo.GridFSBucket(db.db, { bucketName: 'uploads' });
+
+    for (const user of usersToDelete) {
+      const userId = user._id.toString();
+      try {
+        // Get all files for this user
+        const fileMappings = await db.collection('drive_mappings')
+          .find({ userId })
+          .toArray();
+
+        // Delete each file from GridFS
+        for (const mapping of fileMappings) {
+          try {
+            const gridFSId = new mongoose.Types.ObjectId(mapping.driveId);
+            await bucket.delete(gridFSId);
+          } catch (gfsErr) {
+            console.warn(`Deletion cleanup: GridFS delete failed for ${mapping.driveId}:`, gfsErr.message);
+          }
+        }
+
+        // Delete all drive_mappings
+        await db.collection('drive_mappings').deleteMany({ userId });
+
+        // Delete all folders
+        await db.collection('folders').deleteMany({ userId });
+
+        // Delete all export tokens
+        await db.collection('export_tokens').deleteMany({ userId });
+
+        // Delete the user record
+        await db.collection('users').deleteOne({ _id: user._id });
+
+        console.log(`Deletion cleanup: permanently deleted account ${user.email} (${userId})`);
+      } catch (userErr) {
+        console.error(`Deletion cleanup: failed to delete account ${user.email}:`, userErr.message);
+      }
+    }
+  } catch (error) {
+    console.error('Error during pending deletion cleanup:', error);
+  }
+};
+
+// ── Expired export tokens cleanup ─────────────────────────────────────────────
+const cleanupExpiredExportTokens = async () => {
+  try {
+    const db = mongoose.connection;
+    const result = await db.collection('export_tokens').deleteMany({
+      expiresAt: { $lt: new Date() },
+    });
+    if (result.deletedCount > 0) {
+      console.log(`Export token cleanup: removed ${result.deletedCount} expired token(s).`);
+    }
+  } catch (error) {
+    console.error('Error during export token cleanup:', error);
+  }
+};
+
+// Run all cleanup tasks
+const runAllCleanup = async (context = 'Periodic') => {
+  await runAndLogCleanup(context);
+  await cleanupPendingDeletions();
+  await cleanupExpiredExportTokens();
+};
+
+setInterval(() => runAllCleanup('Periodic'), ONE_HOUR_IN_MS);
+runAllCleanup('Startup');
 
 // --- START ---
 

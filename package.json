@@ -18,6 +18,9 @@
     "google-auth-library": "^9.0.0",
     "cookie-parser": "^1.4.6",
     "axios": "^1.6.0",
-    "express-rate-limit": "^6.7.0"
+    "express-rate-limit": "^6.7.0",
+    "googleapis": "^140.0.0",
+    "archiver": "^7.0.1",
+    "adm-zip": "^0.5.16"
   }
 }

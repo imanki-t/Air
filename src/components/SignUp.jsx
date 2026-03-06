@@ -306,15 +306,15 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
       <header className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-3">
           <div
-            className={`w-9 h-9 flex items-center justify-center rounded-lg shadow-lg ${
+            className={`w-12 h-12 flex items-center justify-center rounded-xl shadow-lg ${
               darkMode
                 ? 'bg-gradient-to-br from-blue-500 to-blue-600'
                 : 'bg-gradient-to-br from-red-500 to-red-600'
             }`}
           >
-            <img src="/airstream.png" className="h-5 w-5" alt="Airstream" onError={(e) => { e.target.style.display = 'none'; }} />
+            <img src="/airstream.png" className="h-7 w-7" alt="Airstream" onError={(e) => { e.target.style.display = 'none'; }} />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
             <span
               className={`text-transparent bg-clip-text ${
                 darkMode
@@ -453,10 +453,16 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
 
                     {/* Remember me */}
                     <label
-                      className={`flex items-center gap-2.5 cursor-pointer select-none group ${
+                      className={`flex items-center gap-2.5 cursor-pointer select-none group w-full ${
                         darkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}
                     >
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                      />
                       <div
                         className={`relative w-4 h-4 rounded flex-shrink-0 border-2 transition-all duration-150 ${
                           rememberMe
@@ -467,7 +473,6 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
                             ? 'border-gray-600 group-hover:border-gray-500'
                             : 'border-gray-300 group-hover:border-gray-400'
                         }`}
-                        onClick={() => setRememberMe((v) => !v)}
                       >
                         {rememberMe && (
                           <svg className="absolute inset-0 w-3 h-3 m-auto text-white" fill="none" viewBox="0 0 12 12" stroke="currentColor">
@@ -475,12 +480,6 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
                           </svg>
                         )}
                       </div>
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                      />
                       <span className="text-sm">Remember me for 30 days</span>
                     </label>
                   </div>

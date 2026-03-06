@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import UploadForm from './components/UploadForm';
 import FileList from './components/FileList';
-import AccessGate from './components/AccessGate';
+import SignUp from './components/SignUp';
 import Homepage from './components/Homepage';
 import ProfileMenu from './components/ProfileMenu';
 import axios from 'axios';
@@ -142,13 +142,13 @@ function App() {
         {/* Logo / brand */}
         <div className="flex items-center gap-3">
           <div
-            className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-sm ${
+            className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm ${
               darkMode
                 ? 'bg-gradient-to-br from-blue-500 to-blue-700'
                 : 'bg-gradient-to-br from-red-500 to-red-700'
             }`}
           >
-            <img src="/airstream.png" className="w-7 h-7" alt="" onError={(e) => { e.target.style.display = 'none'; }} />
+            <img src="/airstream.png" className="w-5 h-5" alt="" onError={(e) => { e.target.style.display = 'none'; }} />
           </div>
           <h1
             className={`text-xl font-bold tracking-widest select-none ${
@@ -250,10 +250,16 @@ function App() {
         )}
 
         <Routes>
-          {/* Home: always show homepage; isLoggedIn prop controls button link */}
+          {/* Home: if logged in, go to dashboard; else show homepage */}
           <Route
             path="/"
-            element={<Homepage isLoggedIn={isLoggedIn} darkMode={darkMode} />}
+            element={
+              isLoggedIn ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Homepage isLoggedIn={isLoggedIn} />
+              )
+            }
           />
 
           {/* Login */}
@@ -263,7 +269,7 @@ function App() {
               isLoggedIn ? (
                 <Navigate to="/dashboard" replace />
               ) : (
-                <AccessGate onAccessGranted={handleAccessGranted} darkMode={darkMode} />
+                <SignUp onAccessGranted={handleAccessGranted} darkMode={darkMode} />
               )
             }
           />

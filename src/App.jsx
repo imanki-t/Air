@@ -158,12 +158,35 @@ function App() {
           }`}
         >
           <div className="flex items-center gap-2.5">
-            <img
-              src="/airstream.png"
-              alt="Airstream logo"
-              className="h-8 w-8 object-contain select-none"
-              onError={e => { e.target.style.display = 'none'; }}
-            />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 500 500"
+              className="h-8 w-8 select-none flex-shrink-0"
+              aria-label="Airstream logo"
+            >
+              {/* Outer circle */}
+              <circle
+                cx="250" cy="250" r="210"
+                fill="none"
+                stroke={darkMode ? '#ffffff' : '#000000'}
+                strokeWidth="36"
+              />
+              {/* Dot */}
+              <circle
+                cx="250" cy="172"
+                r="30"
+                fill={darkMode ? '#ffffff' : '#000000'}
+              />
+              {/* Chevron / V shape */}
+              <polyline
+                points="155,218 250,330 345,218"
+                fill="none"
+                stroke={darkMode ? '#ffffff' : '#000000'}
+                strokeWidth="36"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
             <span
               className={`text-2xl font-black tracking-widest select-none uppercase ${
                 darkMode

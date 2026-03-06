@@ -316,8 +316,7 @@ Access your dashboard now and experience seamless file management designed just 
             </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
       <footer className={`relative z-10 px-6 py-10 border-t ${
         darkMode

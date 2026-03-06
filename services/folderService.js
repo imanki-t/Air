@@ -98,9 +98,9 @@ const updateFolder = async (req, res) => {
     const folderId = safeObjectId(req.params.id);
     if (!folderId) return res.status(400).json({ error: 'Invalid folder ID.' });
 
-    const { name, color } = req.body;
-    if (!name && !color) {
-      return res.status(400).json({ error: 'Provide name and/or color to update.' });
+    const { name, color, lastViewed } = req.body;
+    if (!name && !color && !lastViewed) {
+      return res.status(400).json({ error: 'Provide name, color, and/or lastViewed to update.' });
     }
 
     const db = getDb();
@@ -111,6 +111,9 @@ const updateFolder = async (req, res) => {
     }
     if (color && /^#[0-9A-Fa-f]{6}$/.test(color)) {
       updates.color = color;
+    }
+    if (lastViewed) {
+      updates.lastViewed = new Date(lastViewed);
     }
 
     const result = await db.collection('user_folders').findOneAndUpdate(

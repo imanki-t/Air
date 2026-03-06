@@ -111,16 +111,23 @@ const ColorPicker = ({ selected, onSelect, darkMode }) => (
 // ─────────────────────────────────────────────────────────────────────────────
 const FolderOptionsDropdown = ({ darkMode, onView, onEdit, onDelete, onClose }) => {
   const dropRef = useRef(null);
-  const [style, setStyle] = useState({ top: '100%', right: 0 });
+  const [style, setStyle] = useState({ top: '100%', right: 0, opacity: 0 });
 
   useLayoutEffect(() => {
     if (!dropRef.current) return;
     const r = dropRef.current.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const s = {};
-    s.right  = r.right  > vw - 8 ? 'auto' : 0;
-    s.left   = r.right  > vw - 8 ? 0      : 'auto';
+    const s = { opacity: 1 };
+    // Horizontal: prefer right-aligned; if left edge clips, pin to left instead
+    if (r.left < 8) {
+      s.left = 0;
+      s.right = 'auto';
+    } else {
+      s.right = 0;
+      s.left = 'auto';
+    }
+    // Vertical: prefer below; if bottom clips, flip above
     s.top    = r.bottom > vh - 8 ? 'auto' : '100%';
     s.bottom = r.bottom > vh - 8 ? '100%' : 'auto';
     setStyle(s);
@@ -134,7 +141,7 @@ const FolderOptionsDropdown = ({ darkMode, onView, onEdit, onDelete, onClose }) 
 
   return (
     <div ref={dropRef} style={style}
-      className={cn('absolute w-44 rounded-xl border shadow-2xl z-[9999] overflow-hidden folder-dropdown-anim',
+      className={cn('absolute w-44 rounded-xl border shadow-2xl z-[9999] overflow-hidden folder-dropdown-anim transition-opacity',
         darkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200')}
       role="menu">
       <button onClick={onView}   className={cn('w-full px-3 py-2.5 text-left text-sm flex items-center gap-2.5 transition-colors', darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50')} role="menuitem"><EyeIcon />    View Files</button>
@@ -926,11 +933,6 @@ const FolderList = ({ darkMode, files = [], folders = [], onFoldersChanged, refr
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => setCreateModal(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors">
             <PlusIcon /><span className="hidden sm:inline">New Folder</span>
-          </button>
-          <button type="button" onClick={() => setIsVisible(false)}
-            className={cn('p-1.5 rounded-lg transition-colors', darkMode ? 'text-gray-400 hover:bg-gray-700 hover:text-white' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700')}
-            title="Hide folders">
-            <CloseIcon className="h-4 w-4" />
           </button>
         </div>
       </div>

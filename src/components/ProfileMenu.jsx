@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import axios from 'axios';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -119,38 +120,33 @@ const Icon = {
   ),
 };
 
-// ─── Modal — fixed overlay, always visible on all screen sizes ────────────────
+// ─── Modal — renders via portal directly on body, bypasses all z-index stacking ──
 const Modal = ({ open, onClose, darkMode, children }) => {
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    document.body.style.overflow = open ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
   if (!open) return null;
 
-  return (
+  return ReactDOM.createPortal(
     <div
-      className="fixed inset-0 z-[9999] overflow-y-auto"
-      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 overflow-y-auto"
+      style={{ zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
         <div
           className={`relative w-full rounded-2xl shadow-2xl border sm:max-w-md ${
-            darkMode
-              ? 'bg-gray-900 border-gray-700/80'
-              : 'bg-white border-gray-200'
+            darkMode ? 'bg-gray-900 border-gray-700/80' : 'bg-white border-gray-200'
           }`}
           onClick={(e) => e.stopPropagation()}
         >
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

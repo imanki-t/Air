@@ -13,6 +13,7 @@ const FOLDER_COLORS = [
   { name: 'Indigo',  value: '#6366f1' },
   { name: 'Blue',    value: '#3b82f6' },
   { name: 'Sky',     value: '#0ea5e9' },
+  { name: 'Cyan',    value: '#06b6d4' },
   { name: 'Teal',    value: '#14b8a6' },
   { name: 'Emerald', value: '#10b981' },
   { name: 'Lime',    value: '#84cc16' },
@@ -761,7 +762,7 @@ const FolderList = ({ darkMode, files = [], folders = [], onFoldersChanged }) =>
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between mb-4">
         {/* Title */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <FolderSVG color={darkMode ? '#818cf8' : '#6366f1'} className="w-5 h-5" />
+          <FolderSVG color={darkMode ? '#ffffff' : '#1f2937'} className="w-5 h-5" />
           <h2 className={cn('text-lg font-semibold', darkMode ? 'text-white' : 'text-gray-900')}>
             Folders
           </h2>
@@ -784,7 +785,7 @@ const FolderList = ({ darkMode, files = [], folders = [], onFoldersChanged }) =>
             </div>
             <input
               type="text"
-              placeholder="Search folders..."
+              placeholder=""
               value={folderSearch}
               onChange={(e) => setFolderSearch(e.target.value)}
               className={cn(

@@ -360,9 +360,15 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
         </button>
 
         {open && (
-          <div className={`absolute right-0 mt-2 w-72 max-w-[calc(100vw-1rem)] rounded-2xl border shadow-xl overflow-hidden z-50 ${
-            darkMode ? 'bg-gray-900 border-gray-700/80 shadow-black/40' : 'bg-white border-gray-200 shadow-gray-200/80'
-          }`}>
+          <>
+            {/* Mobile backdrop */}
+            <div className="fixed inset-0 z-40 sm:hidden" onClick={() => setOpen(false)} />
+            <div className={`
+              z-50 rounded-2xl border shadow-xl overflow-hidden
+              fixed left-1/2 -translate-x-1/2 top-16 w-[92vw]
+              sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-72 sm:translate-x-0 sm:fixed-none
+              ${darkMode ? 'bg-gray-900 border-gray-700/80 shadow-black/40' : 'bg-white border-gray-200 shadow-gray-200/80'}
+            `}>
 
             {/* User info */}
             <div className={`px-4 py-4 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
@@ -430,6 +436,7 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
               <MenuItem IconComp={Icon.Logout} label="Sign out" onClick={handleLogout} />
             </div>
           </div>
+          </>
         )}
       </div>
 
@@ -530,7 +537,7 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
           ) : (
             <>
               <div className={`rounded-xl p-4 mb-4 space-y-3 ${darkMode ? 'bg-gray-800/60 border border-gray-700/60' : 'bg-gray-50 border border-gray-200'}`}>
-                <InfoRow icon={Icon.FileZip} text="Select your Airstream export ZIP file" darkMode={darkMode} />
+                <InfoRow icon={Icon.Import} text="Select your Airstream export ZIP file" darkMode={darkMode} />
                 <InfoRow icon={Icon.Plus} text="Files will be added to your current account" darkMode={darkMode} />
                 <InfoRow icon={Icon.Shield} text="Existing files will not be removed or replaced" darkMode={darkMode} />
               </div>

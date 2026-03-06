@@ -420,17 +420,17 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
               {/* Card header */}
               <div className={cn('flex items-center justify-between px-5 py-4 border-b', darkMode ? 'border-gray-700' : 'border-gray-200')}>
                 <div className="flex items-center gap-2">
-                  <button onClick={onClose}
-                    className={cn('p-1.5 rounded-lg transition-colors mr-1 flex-shrink-0', darkMode ? 'text-gray-400 hover:bg-gray-700 hover:text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800')}
-                    aria-label="Go back">
-                    <ArrowLeftIcon className="w-5 h-5" />
-                  </button>
                   <FolderSVG color={folder.color} className="w-5 h-5 flex-shrink-0" />
                   <h2 className={cn('font-semibold text-base', darkMode ? 'text-white' : 'text-gray-900')}>{folder.name}</h2>
                   <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', darkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500')}>
                     {visible.length} item{visible.length !== 1 ? 's' : ''}{filter !== 'all' ? ` (${filter})` : ''}
                   </span>
                 </div>
+                <button onClick={onClose}
+                  className={cn('p-1.5 rounded-lg transition-colors flex-shrink-0', darkMode ? 'text-gray-400 hover:bg-gray-700 hover:text-white' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800')}
+                  aria-label="Close folder">
+                  <CloseIcon className="h-4 w-4" />
+                </button>
               </div>
 
               {/* Controls row */}

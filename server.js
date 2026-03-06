@@ -10,6 +10,7 @@ const { Server } = require('socket.io');
 const connectDB = require('./config/db');
 const fileRoutes = require('./routes/fileRoutes');
 const authRoutes = require('./routes/authRoutes');
+const folderRoutes = require('./routes/folderRoutes');
 const protectRoute = require('./middleware/authMiddleware');
 const { apiLimiter } = require('./middleware/rateLimitMiddleware');
 const { scheduleCleanup, accessSharedFile } = require('./services/fileService');
@@ -29,7 +30,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: process.env.FRONTEND_URL,
-    methods: ['GET', 'POST', 'DELETE'],
+    methods: ['GET', 'POST', 'DELETE', 'PATCH', 'PUT'],
     credentials: true,
   },
 });
@@ -64,6 +65,9 @@ app.use('/api/auth', authRoutes);
 // File routes (full JWT auth)
 app.use('/api/files', fileRoutes);
 
+// Folder routes (full JWT auth)
+app.use('/api/folders', folderRoutes);
+
 // --- WEBSOCKET ---
 
 io.on('connection', (socket) => {
@@ -71,6 +75,10 @@ io.on('connection', (socket) => {
 
   socket.on('fileUploaded', () => {
     socket.broadcast.emit('refreshFileList');
+  });
+
+  socket.on('folderUpdated', () => {
+    socket.broadcast.emit('refreshFolderList');
   });
 
   socket.on('disconnect', () => {

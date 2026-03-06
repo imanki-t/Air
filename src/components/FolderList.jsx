@@ -418,7 +418,7 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overscroll-contain">
           <div className="p-4 w-full mx-auto max-w-7xl">
 
             {/* Dashboard-style card wrapping all content */}

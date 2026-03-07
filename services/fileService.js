@@ -103,7 +103,9 @@ const generateShortShareId = () => {
 // ─────────────────────────────────────────────────────────────────────────────
 const checkOwnership = (mapping, reqUserId) => {
   if (!mapping) return { allowed: false, mapping: null };
-  if (mapping.userId && mapping.userId !== reqUserId) {
+  // [FIX] IDOR: previously `mapping.userId &&` meant documents with no userId
+  // field silently passed the check. Now a missing userId also denies access.
+  if (!mapping.userId || mapping.userId !== reqUserId) {
     return { allowed: false, mapping };
   }
   return { allowed: true, mapping };
@@ -305,6 +307,7 @@ const downloadFile = async (req, res) => {
     const fileSize = fileMapping.metadata?.size;
 
     const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
     res.setHeader('Content-Type', contentType);
     if (fileSize) res.setHeader('Content-Length', fileSize);

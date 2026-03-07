@@ -181,6 +181,11 @@ const addFilesToFolder = async (req, res) => {
       return res.status(400).json({ error: 'fileIds must be a non-empty array.' });
     }
 
+    // [FIX] Cap array size to prevent unbounded $in queries against the DB
+    if (fileIds.length > 500) {
+      return res.status(400).json({ error: 'Too many file IDs in a single request (max 500).' });
+    }
+
     // Normalise to trimmed strings; validate each is a valid ObjectId string
     const ObjectId = getObjectId();
     const cleanFileIds = fileIds
@@ -192,10 +197,26 @@ const addFilesToFolder = async (req, res) => {
     }
 
     const db = getDb();
+
+    // [FIX] Ownership check: verify every fileId belongs to this user before
+    // adding it to their folder. Without this, any valid ObjectId string could
+    // be stuffed into a folder regardless of who owns the file.
+    const ownedFiles = await db.collection('drive_mappings').find({
+      _id: { $in: cleanFileIds.map((id) => new ObjectId(id)) },
+      userId,
+    }, { projection: { _id: 1 } }).toArray();
+
+    const ownedIds = new Set(ownedFiles.map((f) => f._id.toString()));
+    const verifiedFileIds = cleanFileIds.filter((id) => ownedIds.has(id));
+
+    if (verifiedFileIds.length === 0) {
+      return res.status(403).json({ error: 'None of the provided file IDs belong to you.' });
+    }
+
     const result = await db.collection('user_folders').findOneAndUpdate(
       { _id: folderId, userId },
       {
-        $addToSet: { fileIds: { $each: cleanFileIds } },
+        $addToSet: { fileIds: { $each: verifiedFileIds } },
         $set: { updatedAt: new Date() },
       },
       { returnDocument: 'after' }

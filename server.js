@@ -4,6 +4,7 @@ const http = require('http');
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
 const { Server } = require('socket.io');
@@ -15,7 +16,7 @@ const fileRoutes = require('./routes/fileRoutes');
 const authRoutes = require('./routes/authRoutes');
 const folderRoutes = require('./routes/folderRoutes');
 const protectRoute = require('./middleware/authMiddleware');
-const { apiLimiter } = require('./middleware/rateLimitMiddleware');
+const { shareLimiter } = require('./middleware/rateLimitMiddleware');
 const { scheduleCleanup, accessSharedFile } = require('./services/fileService');
 
 dotenv.config();
@@ -41,6 +42,13 @@ app.set('io', io);
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 
+// Security headers (LOW-02) — helmet sets X-Frame-Options, X-Content-Type-Options,
+// HSTS, CSP and more. crossOriginResourcePolicy is set to cross-origin so the
+// frontend can load previews/downloads from the API domain.
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+
 app.use(cors({
   origin: process.env.FRONTEND_URL,
   credentials: true,
@@ -56,7 +64,7 @@ app.get('/', (req, res) => {
 });
 
 // Public share link route
-app.get('/s/:shareId', apiLimiter, accessSharedFile);
+app.get('/s/:shareId', shareLimiter, accessSharedFile);
 
 // All /api routes: origin + JWT check
 app.use('/api', protectRoute);

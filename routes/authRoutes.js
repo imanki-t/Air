@@ -45,6 +45,8 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const fs = require('fs');
+const os = require('os');
 const { OAuth2Client } = require('google-auth-library');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
@@ -145,9 +147,12 @@ const verifyTokenAndCheckRevocation = async (token, db) => {
   return decoded;
 };
 
-// Multer for import uploads — memory storage, 6 GB limit
+// [HIGH-08] Import uploads use disk storage instead of memory storage.
+// memoryStorage() loads the entire ZIP into RAM — a 6 GB upload would exhaust
+// Node's heap and crash the process. diskStorage() writes to a temp file so
+// RAM usage stays flat regardless of upload size.
 const importUpload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({ destination: os.tmpdir() }),
   limits: { fileSize: 6 * 1024 * 1024 * 1024 },
 });
 
@@ -737,7 +742,7 @@ router.get('/export-download/:token', async (req, res) => {
 // POST /api/auth/import-data
 // Accepts the exported ZIP file and re-imports all files into the user's account.
 // ─────────────────────────────────────────────────────────────────────────────
-router.post('/import-data', importUpload.single('exportFile'), async (req, res) => {
+router.post('/import-data', authLimiter, importUpload.single('exportFile'), async (req, res) => {
   try {
     const token = getToken(req);
     if (!token) return res.status(401).json({ error: 'Not authenticated.' });
@@ -757,8 +762,9 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
 
     let zip;
     try {
-      zip = new AdmZip(req.file.buffer);
+      zip = new AdmZip(req.file.path); // [HIGH-08] read from disk, not RAM
     } catch {
+      fs.unlink(req.file.path, () => {});
       return res.status(400).json({ error: 'Invalid ZIP file. Please upload a valid Airstream export.' });
     }
 
@@ -949,6 +955,11 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
     })().catch((err) => {
       console.error('Background import error:', err);
       if (io) io.to(userId).emit('importComplete', { userId, imported: 0, skipped: total, message: 'Import failed unexpectedly.' });
+    }).finally(() => {
+      // [HIGH-08] Delete the temp file once processing is done regardless of outcome
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.warn('Import: temp file cleanup warning:', err.message);
+      });
     });
 
   } catch (error) {

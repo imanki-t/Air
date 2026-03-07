@@ -37,7 +37,7 @@ const io = new Server(server, {
 
 app.set('io', io);
 
-// --- MIDDLEWARE ---
+// ── Middleware ────────────────────────────────────────────────────────────────
 
 app.use(cors({
   origin: process.env.FRONTEND_URL,
@@ -47,7 +47,7 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// --- ROUTES ---
+// ── Routes ────────────────────────────────────────────────────────────────────
 
 app.get('/', (req, res) => {
   res.send('Storage API is running');
@@ -68,7 +68,7 @@ app.use('/api/files', fileRoutes);
 // Folder routes (full JWT auth)
 app.use('/api/folders', folderRoutes);
 
-// --- WEBSOCKET ---
+// ── WebSocket ─────────────────────────────────────────────────────────────────
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
@@ -86,12 +86,12 @@ io.on('connection', (socket) => {
   });
 });
 
-// --- SCHEDULED CLEANUP ---
+// ── Scheduled Cleanup ─────────────────────────────────────────────────────────
 
 const ONE_HOUR_IN_MS = 60 * 60 * 1000;
 
 // ── Expired share link cleanup ────────────────────────────────────────────────
-const runAndLogCleanup = async (context = 'periodic') => {
+const runAndLogCleanup = async (context = 'Periodic') => {
   try {
     const cleanedCount = await scheduleCleanup();
     if (cleanedCount > 0) {
@@ -104,9 +104,11 @@ const runAndLogCleanup = async (context = 'periodic') => {
 
 // ── Pending account deletion cleanup ─────────────────────────────────────────
 // Permanently deletes accounts where pendingDeletion=true and 7 days have passed.
+// FIX: use mongoose.connection.db (the actual Db object) — not mongoose.connection
+// (the Connection object), which does not expose .find().toArray() directly.
 const cleanupPendingDeletions = async () => {
   try {
-    const db = mongoose.connection;
+    const db = mongoose.connection.db; // ← correct: the native Db instance
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const usersToDelete = await db.collection('users').find({
@@ -118,7 +120,8 @@ const cleanupPendingDeletions = async () => {
 
     console.log(`Deletion cleanup: permanently deleting ${usersToDelete.length} account(s)...`);
 
-    const bucket = new mongoose.mongo.GridFSBucket(db.db, { bucketName: 'uploads' });
+    // FIX: pass db directly (not db.db) since db is already the native Db instance
+    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: 'uploads' });
 
     for (const user of usersToDelete) {
       const userId = user._id.toString();
@@ -161,9 +164,10 @@ const cleanupPendingDeletions = async () => {
 };
 
 // ── Expired export tokens cleanup ─────────────────────────────────────────────
+// FIX: same as above — use mongoose.connection.db
 const cleanupExpiredExportTokens = async () => {
   try {
-    const db = mongoose.connection;
+    const db = mongoose.connection.db; // ← correct: the native Db instance
     const result = await db.collection('export_tokens').deleteMany({
       expiresAt: { $lt: new Date() },
     });
@@ -185,7 +189,7 @@ const runAllCleanup = async (context = 'Periodic') => {
 setInterval(() => runAllCleanup('Periodic'), ONE_HOUR_IN_MS);
 runAllCleanup('Startup');
 
-// --- START ---
+// ── Start ─────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

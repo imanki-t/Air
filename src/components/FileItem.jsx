@@ -153,7 +153,7 @@ const CustomVideoPlayer = ({ src }) => {
     setTimeout(() => setSkipFlash(null), 700);
   };
   const fmtTime     = (t) => {
-    if (!t || isNaN(t)) return '0:00';
+    if (!t || isNaN(t) || !isFinite(t)) return '0:00';
     const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = String(Math.floor(t % 60)).padStart(2,'0');
     return h ? `${h}:${String(m).padStart(2,'0')}:${s}` : `${m}:${s}`;
   };
@@ -239,14 +239,17 @@ const CustomVideoPlayer = ({ src }) => {
             onSeeked={handleSeeked}
             onLoadedMetadata={() => {
               if (videoRef.current) {
-                setDuration(videoRef.current.duration);
+                const d = videoRef.current.duration;
+                if (isFinite(d) && !isNaN(d)) setDuration(d);
                 setVidW(videoRef.current.videoWidth);
                 setVidH(videoRef.current.videoHeight);
               }
             }}
             onDurationChange={() => {
-              if (videoRef.current && !isNaN(videoRef.current.duration))
-                setDuration(videoRef.current.duration);
+              if (videoRef.current) {
+                const d = videoRef.current.duration;
+                if (isFinite(d) && !isNaN(d)) setDuration(d);
+              }
             }}
             onPlay={() => { setPlaying(true); nudgeControls(); }}
             onPause={() => { setPlaying(false); setShowCtrl(true); clearTimeout(hideTimer.current); }}
@@ -502,7 +505,7 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
   const doSkip      = (dir) => { if (!audioRef.current||!duration) return; audioRef.current.currentTime=Math.max(0,Math.min(duration,audioRef.current.currentTime+dir*skipSec)); };
 
   const fmtSize = (b) => { if (!b||b===0) return ''; const k=1024,s=['B','KB','MB','GB'],i=Math.floor(Math.log(b)/Math.log(k)); return parseFloat((b/Math.pow(k,i)).toFixed(1))+' '+s[i]; };
-  const fmtTime = (t) => { if (!t||isNaN(t)) return '0:00'; const m=Math.floor(t/60),s=String(Math.floor(t%60)).padStart(2,'0'); return `${m}:${s}`; };
+  const fmtTime = (t) => { if (!t||isNaN(t)||!isFinite(t)) return '0:00'; const m=Math.floor(t/60),s=String(Math.floor(t%60)).padStart(2,'0'); return `${m}:${s}`; };
 
   const prog = duration > 0 ? (currentTime / duration) * 100 : 0;
   const bars = Array.from({ length: 40 }, (_, i) => i);
@@ -680,7 +683,8 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
 
       <audio ref={audioRef} src={src} crossOrigin="use-credentials"
         onTimeUpdate={() => { if (audioRef.current) setCurrentTime(audioRef.current.currentTime); }}
-        onLoadedMetadata={() => { if (audioRef.current) setDuration(audioRef.current.duration); }}
+        onLoadedMetadata={() => { if (audioRef.current) { const d = audioRef.current.duration; if (isFinite(d) && !isNaN(d)) setDuration(d); } }}
+        onDurationChange={() => { if (audioRef.current) { const d = audioRef.current.duration; if (isFinite(d) && !isNaN(d)) setDuration(d); } }}
         onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
     </div>
   );

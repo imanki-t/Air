@@ -409,7 +409,7 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto overscroll-contain">
-          <div className="p-4 w-full mx-auto max-w-7xl">
+          <div className="p-4 pt-16 sm:pt-4 w-full mx-auto max-w-7xl">
 
             {/* Dashboard-style card wrapping all content */}
             <div className={cn('rounded-xl border shadow-lg overflow-hidden', darkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200')}>

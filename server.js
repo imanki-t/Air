@@ -192,7 +192,8 @@ const cleanupPendingDeletions = async () => {
         const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: 'uploads' });
         for (const mapping of mappings) {
           try {
-            await bucket.delete(new mongoose.Types.ObjectId(mapping.driveId));
+            const gridId = mapping.driveId && mongoose.Types.ObjectId.isValid(mapping.driveId) ? new mongoose.Types.ObjectId(mapping.driveId) : null;
+            if (gridId) await bucket.delete(gridId);
           } catch (e) {
             console.warn(`GridFS delete warning for user ${userId}:`, e.message);
           }

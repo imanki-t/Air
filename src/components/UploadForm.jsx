@@ -34,7 +34,7 @@ const UploadForm = ({ refresh, darkMode }) => {
  const uploadedFilesDisplayTimerRef = useRef(null);
 
  useEffect(() => {
-   socketRef.current = io(import.meta.env.VITE_BACKEND_URL);
+   socketRef.current = io(import.meta.env.VITE_BACKEND_URL, { withCredentials: true });
    return () => {
      if (socketRef.current) socketRef.current.disconnect();
    };

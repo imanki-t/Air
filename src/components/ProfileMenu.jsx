@@ -185,6 +185,7 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
 
   // Import
   const importInputRef = useRef(null);
+  const importTimeoutRef = useRef(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState(null);
@@ -209,6 +210,16 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
     if (open) document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [open]);
+
+  // Clean up the import socket/timeout if the modal is closed before completion
+  useEffect(() => {
+    return () => {
+      if (importTimeoutRef.current) {
+        clearTimeout(importTimeoutRef.current);
+        importTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -295,6 +306,8 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
       });
 
       socket.on('importComplete', (data) => {
+        clearTimeout(importTimeoutRef.current);
+        importTimeoutRef.current = null;
         socket.disconnect();
         setImportInProgress(false);
         setImportResult(data);
@@ -302,7 +315,7 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
       });
 
       // Safety timeout — treat as done after 10 min regardless
-      setTimeout(() => {
+      importTimeoutRef.current = setTimeout(() => {
         socket.disconnect();
         setImportInProgress(false);
       }, 10 * 60 * 1000);

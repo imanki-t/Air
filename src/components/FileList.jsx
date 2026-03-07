@@ -178,7 +178,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
   const [isMobileView, setIsMobileView] = useState(false);
 
   useEffect(() => {
-    const socket = io(import.meta.env.VITE_BACKEND_URL); // uses your VITE_BACKEND_URL
+    const socket = io(import.meta.env.VITE_BACKEND_URL, { withCredentials: true });
 
     socket.on("connect", () => {
       console.log("Connected to WebSocket");

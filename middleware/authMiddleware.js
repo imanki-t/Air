@@ -5,25 +5,37 @@
  * - Public share routes are allowed without auth
  * - Export-download routes are allowed without auth (token-gated by the route itself)
  * - All other /api routes require a valid JWT in httpOnly cookie
+ *
+ * SECURITY FIXES:
+ *  - [MED-01] Removed Referer header fallback — only Origin is trusted for origin validation.
+ *             Referer is spoofable and not a reliable security boundary.
+ *  - [LOW-04] DEV_ORIGINS are now gated behind NODE_ENV !== 'production' so localhost
+ *             origins are never accepted in a production deployment.
  */
 
 const jwt = require('jsonwebtoken');
 
-// Explicit localhost origins allowed in development — never a blanket NODE_ENV bypass
-const DEV_ORIGINS = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:4173',
-];
+// Only active in non-production environments.
+// In production this array is empty, so only FRONTEND_URL is accepted.
+const DEV_ORIGINS =
+  process.env.NODE_ENV !== 'production'
+    ? [
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'http://localhost:4173',
+      ]
+    : [];
 
 const protectRoute = (req, res, next) => {
   const origin = req.headers.origin;
-  const referer = req.headers.referer;
   const frontendURL = process.env.FRONTEND_URL;
 
+  // [MED-01] Only check the Origin header — Referer is no longer used.
+  // Origin is sent by browsers for all cross-origin requests and cannot be
+  // forged by a page-level script. Referer can be omitted or faked by
+  // server-side callers and is not a trustworthy security signal.
   const isFromAuthorizedOrigin =
-    (origin && (origin === frontendURL || DEV_ORIGINS.includes(origin))) ||
-    (referer && (referer.startsWith(frontendURL) || DEV_ORIGINS.some(o => referer.startsWith(o))));
+    origin && (origin === frontendURL || DEV_ORIGINS.includes(origin));
 
   // ─── 1. Always allow public shared-file GET routes ────────────────────────
   if (req.method === 'GET' && (req.path.includes('/share/') || req.path.includes('/s/'))) {
@@ -38,7 +50,7 @@ const protectRoute = (req, res, next) => {
   // ─── 3. Auth routes: only require valid origin (no JWT needed yet) ────────
   if (req.path.startsWith('/auth/')) {
     if (!isFromAuthorizedOrigin) {
-      console.log(`Auth route blocked – origin: ${origin}, referer: ${referer}`);
+      console.log(`Auth route blocked – origin: ${origin}`);
       return res.status(403).json({ error: 'Access denied. Unauthorized origin.' });
     }
     return next();
@@ -46,7 +58,7 @@ const protectRoute = (req, res, next) => {
 
   // ─── 4. All other API routes: require valid JWT in httpOnly cookie ─────────
   if (!isFromAuthorizedOrigin) {
-    console.log(`API route blocked – origin: ${origin}, referer: ${referer}, path: ${req.path}`);
+    console.log(`API route blocked – origin: ${origin}, path: ${req.path}`);
     return res.status(403).json({ error: 'Access denied. Unauthorized origin.' });
   }
 

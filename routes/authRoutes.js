@@ -254,6 +254,7 @@ router.post('/google', authLimiter, async (req, res) => {
         picture,
         darkMode:                false,
         hideFolderFiles:         false,
+        themeMode:               'system',
         tokenVersion:            0,
         googleDriveAccessToken:  tokens.access_token  || null,
         googleDriveRefreshToken: tokens.refresh_token || null,
@@ -340,6 +341,7 @@ router.post('/google', authLimiter, async (req, res) => {
         picture,
         darkMode:        user.darkMode || false,
         hideFolderFiles: user.hideFolderFiles || false,
+        themeMode:       user.themeMode || 'system',
         driveConnected:  !!(tokens.refresh_token || user.googleDriveRefreshToken),
       },
     });
@@ -376,6 +378,7 @@ router.get('/me', async (req, res) => {
       picture: user.picture,
       darkMode: user.darkMode || false,
       hideFolderFiles: user.hideFolderFiles || false,
+      themeMode: user.themeMode || 'system',
       driveConnected: !!user.googleDriveRefreshToken,
     });
   } catch (error) {
@@ -522,11 +525,12 @@ router.patch('/preferences', async (req, res) => {
       return res.status(err.status || 401).json({ error: err.message });
     }
 
-    const { darkMode, hideFolderFiles } = req.body;
+    const { darkMode, hideFolderFiles, themeMode } = req.body;
 
     const updates = { updatedAt: new Date() };
     if (typeof darkMode === 'boolean') updates.darkMode = darkMode;
     if (typeof hideFolderFiles === 'boolean') updates.hideFolderFiles = hideFolderFiles;
+    if (typeof themeMode === 'string' && ['system','dark','light'].includes(themeMode)) updates.themeMode = themeMode;
 
     if (Object.keys(updates).length === 1) {
       return res.status(400).json({ error: 'No valid preference provided.' });

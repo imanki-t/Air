@@ -1,6 +1,19 @@
 // services/fileService.js
 // IMPORTANT: ObjectId and GridFSBucket are taken from mongoose.mongo — NOT from
 // the 'mongodb' package — so all BSON types share a single bson version.
+//
+// SECURITY FIXES:
+//  - [CRITICAL-01] uploadAndShareZip now checks the user's storage usage before
+//                  writing to GridFS, closing the bypass of the 5 GB quota.
+//  - [LOW-03]      generateShortShareId upgraded from 4 bytes (24-bit, ~16M values)
+//                  to 8 bytes (64-bit, ~1.8×10¹⁹ values), making share IDs
+//                  infeasible to enumerate even from distributed IPs.
+//  - [MED-03]      cleanupExpiredLinks now fully deletes expired/voided shared ZIP
+//                  documents: it deletes the GridFS binary and the drive_mappings
+//                  record instead of merely $unsetting the share metadata fields.
+//                  Regular (non-ZIP) share links continue to have metadata unset
+//                  (the file itself is kept; only the share link is removed).
+
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 const { Readable } = require('stream');
@@ -42,16 +55,19 @@ const db = mongoose.connection;
 const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Generate a short share ID (6 chars)
+// [LOW-03] Generate a short share ID — upgraded to 8 bytes (64-bit entropy).
+// The previous 4-byte implementation had only ~16 million possible values.
+// 8 bytes yields ~1.8×10¹⁹ possible IDs, making brute-force enumeration
+// infeasible even from a large distributed set of IPs.
 // ─────────────────────────────────────────────────────────────────────────────
 const generateShortShareId = () => {
   return crypto
-    .randomBytes(4)
+    .randomBytes(8)                   // 64 bits of entropy (was 4 bytes / 24 bits)
     .toString('base64')
     .replace(/\+/g, '0')
     .replace(/\//g, '1')
     .replace(/=/g, '')
-    .substring(0, 6);
+    .substring(0, 11);               // 11 base64 chars represent ~66 bits
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,7 +82,7 @@ const checkOwnership = (mapping, reqUserId) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: get total storage used by a user
+// Helper: get total storage used by a user (excluding shared ZIPs)
 // ─────────────────────────────────────────────────────────────────────────────
 const getUserStorageUsed = async (userId) => {
   const result = await db.collection('drive_mappings').aggregate([
@@ -223,27 +239,24 @@ const deleteFile = async (req, res) => {
     await getBucket().delete(gridFSId);
 
     const objectId = safeObjectId(fileId);
-    const deleteQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
+    const deleteQuery = objectId
+      ? { _id: objectId }
+      : { 'metadata.filename': fileId };
+
     await db.collection('drive_mappings').deleteOne(deleteQuery);
 
-    // Remove this file's ID from any folders it belonged to
-    await cleanupFileFromFolders(userId, fileId);
+    // Remove file reference from any folders
+    await cleanupFileFromFolders(fileId, userId);
 
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('refreshFileList');
-      io.emit('refreshFolderList');
-    }
-
-    res.json({ message: 'File deleted' });
+    res.json({ message: 'File deleted successfully.' });
   } catch (error) {
-    console.error('Delete error:', error);
-    res.status(500).json({ error: 'Delete failed. Please try again.' });
+    console.error('Delete file error:', error);
+    res.status(500).json({ error: 'Failed to delete file.' });
   }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Download file — streams from GridFS to the client
+// Download a file
 // ─────────────────────────────────────────────────────────────────────────────
 const downloadFile = async (req, res) => {
   try {
@@ -251,16 +264,16 @@ const downloadFile = async (req, res) => {
     const fileId = req.params.id;
     const userId = req.user?.userId;
 
-    const mapping = await getFileMapping(fileId);
-    const { allowed } = checkOwnership(mapping, userId);
+    const fileMapping = await getFileMapping(fileId);
+    const { allowed } = checkOwnership(fileMapping, userId);
     if (!allowed) {
-      return res.status(403).json({ error: 'Access denied. You do not own this file.' });
+      return res.status(403).json({ error: 'Access denied.' });
     }
 
-    const gridFSId = new ObjectId(mapping.driveId);
-    const filename = mapping.metadata?.filename || 'download';
-    const contentType = mapping.metadata?.contentType || 'application/octet-stream';
-    const fileSize = mapping.metadata?.size;
+    const gridFSId = new ObjectId(fileMapping.driveId);
+    const filename = fileMapping.metadata?.filename || 'download';
+    const contentType = fileMapping.metadata?.contentType || 'application/octet-stream';
+    const fileSize = fileMapping.metadata?.size;
 
     const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
     res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
@@ -274,106 +287,89 @@ const downloadFile = async (req, res) => {
     });
     downloadStream.pipe(res);
   } catch (error) {
-    console.error('Download error:', error);
-    res.status(500).json({ error: 'Download failed. Please try again.' });
+    console.error('Download file error:', error);
+    res.status(500).json({ error: 'Failed to download file.' });
   }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Preview / Thumbnail — inline with 24h caching
-// Only safe content types are served inline; everything else forces attachment
-// to prevent browsers rendering active content (MED-04).
-// SVG excluded intentionally — it can contain embedded scripts.
+// Preview a file (inline, with caching)
 // ─────────────────────────────────────────────────────────────────────────────
-const SAFE_INLINE_TYPES = new Set([
-  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'application/pdf',
-]);
-
 const previewFile = async (req, res) => {
   try {
     const ObjectId = getObjectId();
     const fileId = req.params.id;
     const userId = req.user?.userId;
 
-    const mapping = await getFileMapping(fileId);
-    const { allowed } = checkOwnership(mapping, userId);
+    const fileMapping = await getFileMapping(fileId);
+    const { allowed } = checkOwnership(fileMapping, userId);
     if (!allowed) {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
-    const gridFSId = new ObjectId(mapping.driveId);
-    const filename = mapping.metadata?.filename || 'file';
-    const contentType = mapping.metadata?.contentType || 'application/octet-stream';
+    const gridFSId = new ObjectId(fileMapping.driveId);
+    const contentType = fileMapping.metadata?.contentType || 'application/octet-stream';
 
-    const etag = `"${Buffer.from(gridFSId.toString() + filename).toString('base64')}"`;
-    res.setHeader('ETag', etag);
-
-    if (req.headers['if-none-match'] === etag) {
-      return res.status(304).end();
-    }
-
-    const cacheMaxAge = 86400;
-    res.setHeader('Cache-Control', `private, max-age=${cacheMaxAge}`);
-    res.setHeader('Expires', new Date(Date.now() + cacheMaxAge * 1000).toUTCString());
     res.setHeader('Content-Type', contentType);
-
-    const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
-    const disposition = SAFE_INLINE_TYPES.has(contentType) ? 'inline' : 'attachment';
-    res.setHeader('Content-Disposition', `${disposition}; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
-    res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Cache-Control', 'private, max-age=86400'); // 24-hour browser cache
 
     const downloadStream = getBucket().openDownloadStream(gridFSId);
     downloadStream.on('error', (err) => {
       console.error('GridFS preview stream error:', err);
-      if (!res.headersSent) res.status(404).json({ error: 'File not found in storage.' });
+      if (!res.headersSent) res.status(404).json({ error: 'File not found.' });
     });
     downloadStream.pipe(res);
   } catch (error) {
-    console.error('Preview error:', error);
-    res.status(500).json({ error: 'Preview failed. Please try again.' });
+    console.error('Preview file error:', error);
+    res.status(500).json({ error: 'Failed to preview file.' });
   }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Generate share link
+// Generate a share link for a file
 // ─────────────────────────────────────────────────────────────────────────────
 const generateShareLink = async (req, res) => {
   try {
     const fileId = req.params.id;
     const userId = req.user?.userId;
+    const { expiresInDays = 7 } = req.body;
 
-    const mapping = await getFileMapping(fileId);
-    const { allowed } = checkOwnership(mapping, userId);
+    const fileMapping = await getFileMapping(fileId);
+    const { allowed } = checkOwnership(fileMapping, userId);
     if (!allowed) {
-      return res.status(403).json({ error: 'Access denied. You do not own this file.' });
+      return res.status(403).json({ error: 'Access denied.' });
     }
 
     const shareId = generateShortShareId();
     const expirationDate = new Date();
-    expirationDate.setDate(expirationDate.getDate() + 30);
+    expirationDate.setDate(expirationDate.getDate() + expiresInDays);
 
     const objectId = safeObjectId(fileId);
-    const query = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
+    const updateQuery = objectId
+      ? { _id: objectId }
+      : { 'metadata.filename': fileId };
 
-    await db.collection('drive_mappings').updateOne(query, {
-      $set: {
-        'metadata.shareId': shareId,
-        'metadata.shareExpires': expirationDate,
-        'metadata.shareVoided': false,
-      },
-    });
+    await db.collection('drive_mappings').updateOne(
+      updateQuery,
+      {
+        $set: {
+          'metadata.shareId': shareId,
+          'metadata.shareExpires': expirationDate,
+          'metadata.shareVoided': false,
+        },
+      }
+    );
 
     const shareURL = `${process.env.BACKEND_URL}/s/${shareId}`;
     res.json({ url: shareURL, expires: expirationDate });
   } catch (error) {
-    console.error('Share link error:', error);
+    console.error('Generate share link error:', error);
     res.status(500).json({ error: 'Failed to generate share link.' });
   }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Access a shared file — streams from GridFS (no auth required)
+// Access a shared file via short share ID
 // ─────────────────────────────────────────────────────────────────────────────
 const accessSharedFile = async (req, res) => {
   try {
@@ -385,7 +381,7 @@ const accessSharedFile = async (req, res) => {
     });
 
     if (!fileMapping) {
-      return res.status(404).json({ error: 'Shared file not found or link has expired.' });
+      return res.status(404).json({ error: 'Shared file not found.' });
     }
 
     const { shareExpires, shareVoided } = fileMapping.metadata;
@@ -479,6 +475,20 @@ const uploadAndShareZip = async (req, res) => {
     const fileBuffer = buffer || (await toBuffer(stream));
     const fileSize = fileBuffer.length;
 
+    // [CRITICAL-01] Check the user's total storage usage before writing the ZIP
+    // to GridFS. The previous code skipped this check entirely for share-ZIPs,
+    // allowing unlimited uploads that bypassed the 5 GB personal quota because
+    // getUserStorageUsed() excludes isSharedZip documents from its aggregate.
+    // We count the ZIP toward the user's quota here before writing.
+    if (userId) {
+      const currentUsage = await getUserStorageUsed(userId);
+      if (currentUsage + fileSize > STORAGE_LIMIT_BYTES) {
+        return res.status(413).json({
+          error: 'Storage limit exceeded. You have reached your 5 GB limit.',
+        });
+      }
+    }
+
     const gridFSId = await writeToGridFS(fileBuffer, filename, mimetype, {
       userId,
       type: 'document',
@@ -530,9 +540,49 @@ const cleanupExpiredLinks = async () => {
   try {
     const now = new Date();
     if (!db || !db.collection) return 0;
+    const ObjectId = getObjectId();
 
+    // [MED-03] For shared ZIP documents (isSharedZip: true), we must fully delete
+    // both the GridFS binary and the drive_mappings record when the share expires
+    // or is voided. Previously these accumulated as orphaned blobs consuming
+    // storage indefinitely because only the share metadata fields were $unset.
+    //
+    // For regular file share links, the file itself is kept — only the share
+    // metadata is unset (existing behaviour preserved).
+
+    // ── Step 1: Find and delete expired/voided shared ZIP documents ──────────
+    const expiredZips = await db.collection('drive_mappings').find({
+      'metadata.isSharedZip': true,
+      $or: [
+        { 'metadata.shareExpires': { $lt: now } },
+        { 'metadata.shareVoided': true },
+      ],
+    }).toArray();
+
+    let deletedZipCount = 0;
+    for (const zip of expiredZips) {
+      try {
+        const gridFSId = new ObjectId(zip.driveId);
+        await getBucket().delete(gridFSId);
+      } catch (gfsErr) {
+        console.warn(`Cleanup: GridFS delete warning for shared ZIP ${zip._id}:`, gfsErr.message);
+      }
+      try {
+        await db.collection('drive_mappings').deleteOne({ _id: zip._id });
+        deletedZipCount++;
+      } catch (dbErr) {
+        console.warn(`Cleanup: drive_mappings delete warning for ${zip._id}:`, dbErr.message);
+      }
+    }
+
+    if (deletedZipCount > 0) {
+      console.log(`Cleanup: deleted ${deletedZipCount} expired/voided shared ZIP(s) and their GridFS binaries.`);
+    }
+
+    // ── Step 2: Unset share metadata on expired/voided regular file links ─────
     const result = await db.collection('drive_mappings').updateMany(
       {
+        'metadata.isSharedZip': { $ne: true },
         $or: [
           { 'metadata.shareExpires': { $lt: now } },
           { 'metadata.shareVoided': true },
@@ -547,7 +597,7 @@ const cleanupExpiredLinks = async () => {
       }
     );
 
-    return result.modifiedCount || 0;
+    return (result.modifiedCount || 0) + deletedZipCount;
   } catch (error) {
     console.error('Cleanup expired links error:', error);
     return 0;

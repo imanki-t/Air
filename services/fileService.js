@@ -11,6 +11,7 @@ const {
   storeDriveMapping,
   safeObjectId,
 } = require('../utils/driveUtils');
+const { cleanupFileFromFolders } = require('./folderService');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers to grab the correct BSON classes from mongoose's bundled driver
@@ -224,6 +225,9 @@ const deleteFile = async (req, res) => {
     const objectId = safeObjectId(fileId);
     const deleteQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
     await db.collection('drive_mappings').deleteOne(deleteQuery);
+
+    // Remove this file's ID from any folders it belonged to
+    await cleanupFileFromFolders(userId, fileId);
 
     const io = req.app.get('io');
     if (io) io.emit('refreshFileList');

@@ -213,16 +213,47 @@ function App() {
 
   // ─── Footer ──────────────────────────────────────────────────────────────────
   const renderFooter = () => (
-    <footer className={`py-4 text-center text-xs border-t ${darkMode ? 'text-gray-500 border-gray-800' : 'text-gray-400 border-gray-200'}`}>
-      Airstream &copy; {new Date().getFullYear()} &nbsp;&middot;&nbsp;{' '}
-      <a
-        href="https://quickwitty.onrender.com/contacts"
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`underline hover:opacity-80 transition-opacity ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}
-      >
-        Contact
-      </a>
+    <footer className={`relative z-10 border-t mt-auto ${darkMode ? 'border-gray-800 bg-gray-950/80' : 'border-gray-200 bg-white/80'} backdrop-blur-sm`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+
+          {/* Brand */}
+          <div className="flex items-center gap-2.5">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" className="h-5 w-5 flex-shrink-0" aria-label="Airstream logo">
+              <circle cx="250" cy="250" r="210" fill="none" stroke={darkMode ? '#6b7280' : '#9ca3af'} strokeWidth="36" />
+              <circle cx="250" cy="172" r="30" fill={darkMode ? '#6b7280' : '#9ca3af'} />
+              <polyline points="155,218 250,330 345,218" fill="none" stroke={darkMode ? '#6b7280' : '#9ca3af'} strokeWidth="36" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className={`text-xs font-bold tracking-widest uppercase ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              Airstream
+            </span>
+          </div>
+
+          {/* Links + copyright */}
+          <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+            <a
+              href="https://quickwitty.onrender.com/contacts"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`transition-colors duration-150 ${darkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}
+            >
+              Contact
+            </a>
+            <span className="opacity-30">·</span>
+            <a
+              href="https://policies.google.com/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`transition-colors duration-150 ${darkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}
+            >
+              Privacy
+            </a>
+            <span className="opacity-30">·</span>
+            <span>© {new Date().getFullYear()} Airstream Cloud</span>
+          </div>
+
+        </div>
+      </div>
     </footer>
   );
 

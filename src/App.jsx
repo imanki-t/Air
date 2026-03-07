@@ -236,7 +236,7 @@ function App() {
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className={`min-h-screen flex flex-col relative ${darkMode ? 'dark bg-gray-950 text-white' : 'bg-white text-gray-900'}`}>
+    <div className={`min-h-screen w-full overflow-x-hidden flex flex-col relative ${darkMode ? 'dark bg-gray-950 text-white' : 'bg-white text-gray-900'}`}>
       {/* Header */}
       {!hideHeader && (
         <header className={`sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 py-3 border-b backdrop-blur-md ${

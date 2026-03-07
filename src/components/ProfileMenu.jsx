@@ -252,7 +252,7 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
     setImportLoading(true); setImportError('');
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('exportFile', file);
       const res = await axios.post(`${backendUrl}/api/auth/import-data`, formData, {
         withCredentials: true,
         headers: { 'Content-Type': 'multipart/form-data' },

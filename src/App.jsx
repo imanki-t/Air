@@ -12,6 +12,60 @@ import axios from 'axios';
 // Global axios setting: always send cookies
 axios.defaults.withCredentials = true;
 
+// ─── Axios response interceptor: auto-refresh on 401 ────────────────────────
+// When any API call gets a 401, attempt POST /api/auth/refresh once.
+// If refresh succeeds the new JWT cookie is set and the original request retries.
+// If refresh fails the user is sent to /signup via a page reload (simplest
+// approach given auth state lives in App and the interceptor is module-level).
+let isRefreshing = false;
+let refreshQueue = []; // callbacks waiting for the refresh to complete
+
+const processQueue = (error) => {
+  refreshQueue.forEach((cb) => (error ? cb.reject(error) : cb.resolve()));
+  refreshQueue = [];
+};
+
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config;
+    // Only intercept 401s that haven't already been retried, and skip the
+    // refresh + auth endpoints themselves to avoid infinite loops.
+    if (
+      error.response?.status === 401 &&
+      !original._retried &&
+      !original.url?.includes('/api/auth/refresh') &&
+      !original.url?.includes('/api/auth/me') &&
+      !original.url?.includes('/api/auth/google')
+    ) {
+      if (isRefreshing) {
+        // Another request is already refreshing — queue this one
+        return new Promise((resolve, reject) => {
+          refreshQueue.push({ resolve, reject });
+        }).then(() => {
+          original._retried = true;
+          return axios(original);
+        });
+      }
+      original._retried = true;
+      isRefreshing = true;
+      try {
+        await axios.post(`${BACKEND_URL}/api/auth/refresh`);
+        processQueue(null);
+        return axios(original); // retry with the new JWT cookie
+      } catch (refreshErr) {
+        processQueue(refreshErr);
+        // Refresh failed — force re-login
+        window.location.href = '/signup';
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 function App() {
@@ -45,6 +99,23 @@ function App() {
         setDarkMode(userData.darkMode ?? false);
         setHideFolderFiles(userData.hideFolderFiles ?? false);
       } catch (err) {
+        // JWT expired (common after 15 min) — try to refresh before giving up.
+        // This is what keeps rememberMe users logged in across page reloads.
+        if (err.response?.status === 401) {
+          try {
+            await axios.post(`${BACKEND_URL}/api/auth/refresh`);
+            // Refresh issued a new JWT cookie — retry /me
+            const res2 = await axios.get(`${BACKEND_URL}/api/auth/me`);
+            const userData = res2.data;
+            setUser(userData);
+            setIsLoggedIn(true);
+            setDarkMode(userData.darkMode ?? false);
+            setHideFolderFiles(userData.hideFolderFiles ?? false);
+            return;
+          } catch (_) {
+            // Refresh token also expired or invalid — user must log in again
+          }
+        }
         setIsLoggedIn(false);
         setUser(null);
       } finally {

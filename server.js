@@ -91,7 +91,7 @@ io.use(async (socket, next) => {
 
     if (!token) return next(new Error('Not authenticated'));
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'], clockTolerance: 30 });
 
     // Check tokenVersion against the DB — bare jwt.verify() only checks the signature.
     const db = mongoose.connection.db;

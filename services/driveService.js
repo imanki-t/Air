@@ -196,6 +196,18 @@ const deleteFileFromDrive = async (userId, driveFileId) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Generate a short-lived direct Google Drive streaming URL.
+// The access_token is embedded as a query parameter so the browser can stream
+// the file straight from Google's CDN with no Render proxy hop in between.
+// Tokens are valid for ~1 hour — plenty for a single viewing session.
+// ─────────────────────────────────────────────────────────────────────────────
+const getDirectStreamUrl = async (userId, driveFileId) => {
+  const auth = await getUserDriveClient(userId);
+  const { token } = await auth.getAccessToken(); // refreshes automatically if expired
+  return `https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media&access_token=${token}`;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Get Google Drive storage quota for the user.
 // Returns an object with all quota values in bytes:
 //   limit             — total quota (e.g. 15 GB standard, more with Google One)
@@ -223,6 +235,7 @@ module.exports = {
   downloadFileBufferFromDrive,
   deleteFileFromDrive,
   getDriveStorageQuota,
+  getDirectStreamUrl,
   ensureAppFolder,
   getUserDriveClient,
   buildOAuth2Client,

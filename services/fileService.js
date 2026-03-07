@@ -24,6 +24,7 @@ const {
   downloadFileBufferFromDrive,
   deleteFileFromDrive,
   getDriveStorageQuota,
+  getDirectStreamUrl,
 } = require('./driveService');
 
 const getObjectId = () => mongoose.mongo.ObjectId;
@@ -378,6 +379,31 @@ const previewFile = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Return a short-lived direct Google Drive URL for video/audio streaming.
+// The browser hits Google's CDN directly — no Render proxy hop — so playback
+// starts instantly and seeking is near-instant.
+// The token embedded in the URL is valid for ~1 hour.
+// ─────────────────────────────────────────────────────────────────────────────
+const getVideoStreamUrl = async (req, res) => {
+  try {
+    const fileId = req.params.id;
+    const userId = req.user?.userId;
+
+    const fileMapping = await getFileMapping(fileId);
+    const { allowed } = checkOwnership(fileMapping, userId);
+    if (!allowed) return res.status(403).json({ error: 'Access denied.' });
+
+    if (!fileMapping.driveId) return res.status(500).json({ error: 'File record is corrupt (missing storage ID).' });
+
+    const url = await getDirectStreamUrl(userId, fileMapping.driveId);
+    res.json({ url });
+  } catch (error) {
+    console.error('getVideoStreamUrl error:', error);
+    res.status(500).json({ error: 'Failed to generate stream URL.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Generate a share link for a file
 // ─────────────────────────────────────────────────────────────────────────────
 const generateShareLink = async (req, res) => {
@@ -672,6 +698,7 @@ module.exports = {
   getFiles,
   downloadFile,
   previewFile,
+  getVideoStreamUrl,
   deleteFile,
   generateShareLink,
   accessSharedFile,

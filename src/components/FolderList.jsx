@@ -405,17 +405,7 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
           backgroundColor: darkMode ? '#0f172a' : '#ffffff',
         }}>
 
-        {/* Top bar */}
-        <div className={cn('flex items-center gap-3 px-4 py-3 border-b flex-shrink-0 shadow-sm backdrop-blur-md', darkMode ? 'border-gray-700 bg-gray-900/90' : 'border-gray-200 bg-white/90')}>
-          <FolderSVG color={folder.color} className="w-7 h-7 flex-shrink-0" />
-          <div className="min-w-0 flex-grow">
-            <h2 className={cn('font-semibold text-base truncate leading-tight', darkMode ? 'text-white' : 'text-gray-900')}>{folder.name}</h2>
-            <p className={cn('text-xs', darkMode ? 'text-gray-500' : 'text-gray-400')}>{folderFiles.length} file{folderFiles.length !== 1 ? 's' : ''} · {visible.length} visible</p>
-          </div>
-          <button onClick={onClose} className={cn('p-2 rounded-full transition-colors flex-shrink-0', darkMode ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-200' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700')}>
-            <CloseIcon className="h-5 w-5" />
-          </button>
-        </div>
+        {/* Top bar removed — card header below provides the same info with one close button */}
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto overscroll-contain">

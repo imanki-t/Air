@@ -123,6 +123,11 @@ const Icon = {
       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
     </svg>
   ),
+  Monitor: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  ),
 };
 
 // ─── Modal — renders via portal directly on body, bypasses all z-index stacking ──
@@ -173,6 +178,10 @@ const InfoRow = ({ icon: IconComp, text, darkMode }) => (
 // ─── Main component ───────────────────────────────────────────────────────────
 const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefresh, hideFolderFiles, onHideFolderFilesToggle }) => {
   const [open, setOpen] = useState(false);
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [themeMode, setThemeMode] = useState(() => {
+    return localStorage.getItem('airstream-theme') || 'system';
+  });
   const [stats, setStats] = useState({ fileCount: 0, storageUsed: 0, storageLimit: 0, driveQuota: null });
   const [loadingStats, setLoadingStats] = useState(false);
 
@@ -204,7 +213,7 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
 
   useEffect(() => {
     const handleOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false);
+      if (menuRef.current && !menuRef.current.contains(e.target)) { setOpen(false); setShowThemeMenu(false); }
     };
     if (open) document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
@@ -243,7 +252,16 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
   const accentRing = darkMode ? 'focus:ring-blue-500' : 'focus:ring-red-400';
 
   // ── Handlers ────────────────────────────────────────────────────────────────
-  const handleDarkToggle = () => { setOpen(false); onDarkModeToggle?.(); };
+  const handleThemeChange = (mode) => {
+    setThemeMode(mode);
+    localStorage.setItem('airstream-theme', mode);
+    let isDark;
+    if (mode === 'system') isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    else isDark = mode === 'dark';
+    if (isDark !== darkMode) onDarkModeToggle?.();
+    setOpen(false);
+    setShowThemeMenu(false);
+  };
   const handleLogout = async () => {
     setOpen(false);
     try { await axios.post(`${backendUrl}/api/auth/logout`, {}, { withCredentials: true }); } catch (_) {}
@@ -470,22 +488,43 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
               </div>
             </div>
 
-            {/* Dark mode toggle */}
-            <div className={`px-4 py-2.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
+            {/* Theme selector */}
+            <div className={`px-4 py-2.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'} relative`}>
               <button
-                onClick={handleDarkToggle}
+                onClick={() => setShowThemeMenu(p => !p)}
                 className={`w-full flex items-center justify-between text-sm transition-colors duration-150 ${
                   darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
               >
                 <span className="flex items-center gap-2.5">
-                  {darkMode ? <Icon.Moon className="w-4 h-4" /> : <Icon.Sun className="w-4 h-4" />}
-                  {darkMode ? 'Dark mode' : 'Light mode'}
+                  {themeMode === 'dark' ? <Icon.Moon className="w-4 h-4" /> : themeMode === 'light' ? <Icon.Sun className="w-4 h-4" /> : <Icon.Monitor className="w-4 h-4" />}
+                  Theme
                 </span>
-                <div className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${darkMode ? 'bg-blue-600' : 'bg-gray-300'}`}>
-                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${darkMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                </div>
+                <span className={`flex items-center gap-1 text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  <span className="capitalize">{themeMode}</span>
+                  <svg className={`w-3.5 h-3.5 transition-transform ${showThemeMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </span>
               </button>
+              {showThemeMenu && (
+                <div className={`mt-2 rounded-xl border overflow-hidden shadow-lg ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                  {[
+                    { mode: 'system', icon: Icon.Monitor, label: 'System' },
+                    { mode: 'dark',   icon: Icon.Moon,    label: 'Dark' },
+                    { mode: 'light',  icon: Icon.Sun,     label: 'Light' },
+                  ].map(({ mode, icon: Ic, label }) => (
+                    <button key={mode} onClick={() => handleThemeChange(mode)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
+                        themeMode === mode
+                          ? (darkMode ? 'bg-blue-600/20 text-blue-300' : 'bg-blue-50 text-blue-700 font-medium')
+                          : (darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100')
+                      }`}>
+                      <Ic className="w-4 h-4 flex-shrink-0" />
+                      {label}
+                      {themeMode === mode && <svg className="ml-auto w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Hide folder files toggle */}

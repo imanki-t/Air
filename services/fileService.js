@@ -222,9 +222,9 @@ const getFiles = async (req, res) => {
   try {
     const userId = req.user?.userId;
 
-    const query = userId
-      ? { userId, 'metadata.isSharedZip': { $ne: true } }
-      : {};
+    if (!userId) return res.status(401).json({ error: 'Not authenticated.' });
+
+    const query = { userId, 'metadata.isSharedZip': { $ne: true } };
 
     const files = await db.collection('drive_mappings')
       .find(query)
@@ -274,7 +274,8 @@ const deleteFile = async (req, res) => {
     await db.collection('drive_mappings').deleteOne(deleteQuery);
 
     // Remove file reference from any folders
-    await cleanupFileFromFolders(fileId, userId);
+    // [FIX] Argument order corrected: signature is (userId, fileId)
+    await cleanupFileFromFolders(userId, fileId);
 
     res.json({ message: 'File deleted successfully.' });
   } catch (error) {
@@ -377,7 +378,12 @@ const generateShareLink = async (req, res) => {
   try {
     const fileId = req.params.id;
     const userId = req.user?.userId;
-    const { expiresInDays = 7 } = req.body;
+    const rawDays = req.body.expiresInDays;
+    // [FIX] Validate and clamp expiresInDays — must be a number between 1 and 365.
+    // Unvalidated, a caller could pass -1 (instant expiry) or 99999 (never expires).
+    const expiresInDays = (Number.isFinite(Number(rawDays)) && Number(rawDays) >= 1)
+      ? Math.min(Math.floor(Number(rawDays)), 365)
+      : 7;
 
     const fileMapping = await getFileMapping(fileId);
     const { allowed } = checkOwnership(fileMapping, userId);
@@ -440,12 +446,20 @@ const accessSharedFile = async (req, res) => {
 
     const gridFSId = new ObjectId(fileMapping.driveId);
     const filename = fileMapping.metadata?.filename || 'download';
-    const contentType = fileMapping.metadata?.contentType || 'application/octet-stream';
+    const storedContentType = fileMapping.metadata?.contentType || 'application/octet-stream';
     const fileSize = fileMapping.metadata?.size;
 
+    // [FIX] Apply the same XSS guard as previewFile — shared files are public
+    // (no auth) so serving HTML/SVG/JS inline is especially dangerous. Force
+    // unsafe types to application/octet-stream so the browser always downloads.
+    const safeContentType = isUnsafePreviewType(storedContentType)
+      ? 'application/octet-stream'
+      : storedContentType;
+
     const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
-    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Type', safeContentType);
     if (fileSize) res.setHeader('Content-Length', fileSize);
 
     const downloadStream = getBucket().openDownloadStream(gridFSId);

@@ -113,7 +113,12 @@ const updateFolder = async (req, res) => {
       updates.color = color;
     }
     if (lastViewed) {
-      updates.lastViewed = new Date(lastViewed);
+      // [FIX] Validate before storing — new Date('garbage') silently creates an
+      // Invalid Date which writes a null-like value into MongoDB.
+      const parsedDate = new Date(lastViewed);
+      if (!isNaN(parsedDate.getTime())) {
+        updates.lastViewed = parsedDate;
+      }
     }
 
     const result = await db.collection('user_folders').findOneAndUpdate(

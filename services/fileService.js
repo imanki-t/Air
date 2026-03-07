@@ -120,7 +120,7 @@ const getUserStorageUsed = async (userId) => {
     {
       $group: {
         _id: null,
-        total: { $sum: { $toInt: { $ifNull: ['$metadata.size', 0] } } },
+        total: { $sum: { $toLong: { $ifNull: ['$metadata.size', 0] } } }, // [FIX] $toLong handles files >2.1 GB ($toInt overflows at 2^31-1)
       },
     },
   ]).toArray();
@@ -183,7 +183,15 @@ const uploadFile = async (req, res) => {
     const fileSize = fileBuffer.length;
     const uploadDate = new Date();
 
-    const gridFSId = await writeToGridFS(fileBuffer, originalname, mimetype, {
+    // [FIX] Sanitize filename — multer originalname is user-controlled; strip
+    // path separators, traversal sequences, and control characters before storing.
+    const sanitizedName = (originalname || '')
+      .replace(/[/\\]/g, '_')
+      .replace(/\.\./g, '_')
+      .replace(/[\x00-\x1f\x7f]/g, '_')
+      .trim() || `upload_${Date.now()}`;
+
+    const gridFSId = await writeToGridFS(fileBuffer, sanitizedName, mimetype, {
       userId,
       type,
       uploadedAt: uploadDate,
@@ -191,7 +199,7 @@ const uploadFile = async (req, res) => {
 
     const mongoId = new ObjectId();
     const metadata = {
-      filename: originalname,
+      filename: sanitizedName,
       type,
       contentType: mimetype,
       size: fileSize,
@@ -207,7 +215,7 @@ const uploadFile = async (req, res) => {
       length: fileSize,
       chunkSize: 261120,
       uploadDate,
-      filename: originalname,
+      filename: sanitizedName,
       contentType: mimetype,
       metadata,
     });
@@ -306,7 +314,8 @@ const downloadFile = async (req, res) => {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
-    const gridFSId = new ObjectId(fileMapping.driveId);
+    const gridFSId = safeObjectId(fileMapping.driveId);
+    if (!gridFSId) return res.status(500).json({ error: 'File record is corrupt (invalid storage ID).' });
     const filename = fileMapping.metadata?.filename || 'download';
     const contentType = fileMapping.metadata?.contentType || 'application/octet-stream';
     const fileSize = fileMapping.metadata?.size;
@@ -344,7 +353,8 @@ const previewFile = async (req, res) => {
       return res.status(403).json({ error: 'Access denied.' });
     }
 
-    const gridFSId = new ObjectId(fileMapping.driveId);
+    const gridFSId = safeObjectId(fileMapping.driveId);
+    if (!gridFSId) return res.status(500).json({ error: 'File record is corrupt (invalid storage ID).' });
     const storedContentType = fileMapping.metadata?.contentType || 'application/octet-stream';
 
     // [HIGH-04] Prevent stored XSS: HTML, SVG, XML, and JavaScript must never
@@ -452,7 +462,8 @@ const accessSharedFile = async (req, res) => {
       return res.status(410).json({ error: 'This share link has expired.' });
     }
 
-    const gridFSId = new ObjectId(fileMapping.driveId);
+    const gridFSId = safeObjectId(fileMapping.driveId);
+    if (!gridFSId) return res.status(500).json({ error: 'Shared file record is corrupt.' });
     const filename = fileMapping.metadata?.filename || 'download';
     const storedContentType = fileMapping.metadata?.contentType || 'application/octet-stream';
     const fileSize = fileMapping.metadata?.size;

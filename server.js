@@ -54,7 +54,7 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '32kb' }));
 app.use(cookieParser());
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -107,6 +107,7 @@ io.use(async (socket, next) => {
     }
 
     socket.userId = decoded.userId; // attach userId to the socket for room use
+    socket.decodedToken = decoded;  // [FIX] store for per-event tokenVersion re-check
     next();
   } catch (err) {
     next(new Error('Invalid or expired session'));
@@ -119,12 +120,36 @@ io.on('connection', (socket) => {
   socket.join(userId);
   console.log(`Client connected: ${socket.id} (user: ${userId})`);
 
-  socket.on('fileUploaded', () => {
+  // [FIX] Re-validate tokenVersion on every sensitive socket event.
+  // The connection-time check only runs once — a revoked session (logout,
+  // delete-account) would otherwise keep receiving events for up to 15 min.
+  const revalidateSocket = async () => {
+    try {
+      const db = mongoose.connection.db;
+      const user = await db.collection('users').findOne(
+        { _id: new mongoose.Types.ObjectId(userId) },
+        { projection: { tokenVersion: 1 } }
+      );
+      const decoded = socket.decodedToken;
+      if (!user || (decoded?.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
+        socket.disconnect(true);
+        return false;
+      }
+      return true;
+    } catch {
+      socket.disconnect(true);
+      return false;
+    }
+  };
+
+  socket.on('fileUploaded', async () => {
+    if (!await revalidateSocket()) return;
     // Emit only to this user's room, not all connected clients
     io.to(userId).emit('refreshFileList');
   });
 
-  socket.on('folderUpdated', () => {
+  socket.on('folderUpdated', async () => {
+    if (!await revalidateSocket()) return;
     io.to(userId).emit('refreshFolderList');
   });
 
@@ -175,6 +200,9 @@ const cleanupPendingDeletions = async () => {
         await db.collection('drive_mappings').deleteMany({ userId });
         await db.collection('user_folders').deleteMany({ userId });
         await db.collection('export_tokens').deleteMany({ userId });
+        // [FIX] Also purge refresh tokens — previously these were left as orphaned
+        // documents until the TTL index expired them, which could be up to 30 days.
+        await db.collection('refresh_tokens').deleteMany({ userId });
         await db.collection('users').deleteOne({ _id: user._id });
         console.log(`Permanently deleted account for user ${userId}`);
       } catch (userErr) {
@@ -215,6 +243,13 @@ setInterval(() => runAllCleanup('Periodic'), ONE_HOUR_IN_MS);
 // to be undefined, which crashes cleanupPendingDeletions and cleanupExpiredExportTokens.
 mongoose.connection.once('open', () => {
   runAllCleanup('Startup');
+
+  // [FIX] TTL index on refresh_tokens.expiresAt — MongoDB automatically removes
+  // expired documents so used/expired refresh tokens don't accumulate forever.
+  mongoose.connection.db.collection('refresh_tokens').createIndex(
+    { expiresAt: 1 },
+    { expireAfterSeconds: 0, background: true }
+  ).catch((err) => console.warn('refresh_tokens TTL index warning:', err.message));
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────

@@ -65,7 +65,7 @@ const UploadForm = ({ refresh, darkMode }) => {
 
  const checkForSavedUploads = () => {
    try {
-     const savedUploadState = localStorage.getItem(STORAGE_KEY);
+     const savedUploadState = sessionStorage.getItem(STORAGE_KEY);
      if (!savedUploadState) return false;
 
      const parsedState = JSON.parse(savedUploadState);
@@ -74,7 +74,7 @@ const UploadForm = ({ refresh, darkMode }) => {
        setPendingResume(parsedState);
        return true;
      } else {
-       localStorage.removeItem(STORAGE_KEY);
+       sessionStorage.removeItem(STORAGE_KEY);
        if (parsedState?.fileId) {
          cleanupIncompleteUpload(parsedState.fileId);
        }
@@ -82,7 +82,7 @@ const UploadForm = ({ refresh, darkMode }) => {
      }
    } catch (error) {
      console.error('Error checking for saved uploads:', error);
-     localStorage.removeItem(STORAGE_KEY);
+     sessionStorage.removeItem(STORAGE_KEY);
      return false;
    }
  };
@@ -121,12 +121,12 @@ const UploadForm = ({ refresh, darkMode }) => {
        const fullResult = event.target.result;
        const truncatedResult = fullResult.slice(0, Math.min(fullResult.length, 1024 * 1024));
        dataToSave.fileSignature = truncatedResult;
-       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
      };
      const fileSlice = uploadFileRef.current.slice(0, Math.min(1024 * 1024, uploadFileRef.current.size));
      reader.readAsDataURL(fileSlice);
    } else {
-     localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
    }
  };
 
@@ -303,7 +303,7 @@ const UploadForm = ({ refresh, darkMode }) => {
 
      window.removeEventListener('unload', handleUnload);
      window.removeEventListener('beforeunload', handleUnload);
-     localStorage.removeItem(STORAGE_KEY);
+     sessionStorage.removeItem(STORAGE_KEY);
      setPendingResume(null);
      uploadFileRef.current = null;
      setMessage(`File "${fileToUpload.name}" uploaded successfully.`);
@@ -432,7 +432,7 @@ const UploadForm = ({ refresh, darkMode }) => {
      controllerRef.current = null;
    }
 
-   localStorage.removeItem(STORAGE_KEY);
+   sessionStorage.removeItem(STORAGE_KEY);
    setPendingResume(null);
    uploadFileRef.current = null;
 
@@ -474,7 +474,7 @@ const UploadForm = ({ refresh, darkMode }) => {
    setFiles(newFiles);
    setMessage('');
    setPendingResume(null);
-   localStorage.removeItem(STORAGE_KEY);
+   sessionStorage.removeItem(STORAGE_KEY);
  }, [files]);
 
  const handleDragOver = useCallback((e) => {
@@ -496,7 +496,7 @@ const UploadForm = ({ refresh, darkMode }) => {
    setFiles(newFiles);
    setMessage('');
    setPendingResume(null);
-   localStorage.removeItem(STORAGE_KEY);
+   sessionStorage.removeItem(STORAGE_KEY);
  };
 
  const handleResumeUpload = () => {
@@ -506,7 +506,7 @@ const UploadForm = ({ refresh, darkMode }) => {
  };
 
  const handleCancelResume = () => {
-   localStorage.removeItem(STORAGE_KEY);
+   sessionStorage.removeItem(STORAGE_KEY);
    setPendingResume(null);
    setMessage('');
    if (pendingResume?.fileId) {
@@ -725,7 +725,7 @@ const UploadForm = ({ refresh, darkMode }) => {
              setMessage('');
              setUploadedFiles([]);
              setPendingResume(null);
-             localStorage.removeItem(STORAGE_KEY);
+             sessionStorage.removeItem(STORAGE_KEY);
            }}
            className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors shadow-md"
          >

@@ -158,7 +158,7 @@ const CustomVideoPlayer = ({ src }) => {
   const IconFSIn    = () => <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>;
   const IconFSOut   = () => <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>;
   const IconSkipB   = () => <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>;
-  const IconSkipF   = () => <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 18l8.5-6L6 6v12zm2-12h2v12h-2z" transform="scale(-1,1) translate(-24,0)"/></svg>;
+  const IconSkipF   = () => <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>;
 
   return (
     <>
@@ -245,7 +245,7 @@ const CustomVideoPlayer = ({ src }) => {
                 borderRadius:12, padding:'10px 14px',
               }}>
                 {skipFlash === 'f'
-                  ? <svg viewBox="0 0 24 24" fill="white" width="28" height="28"><path d="M6 18l8.5-6L6 6v12zm2-12h2v12H8z" transform="scale(-1,1) translate(-24,0)"/></svg>
+                  ? <svg viewBox="0 0 24 24" fill="white" width="28" height="28"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
                   : <svg viewBox="0 0 24 24" fill="white" width="28" height="28"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>}
                 <span style={{ color:'#fff', fontSize:12, fontWeight:600, letterSpacing:.5 }}>
                   {skipFlash === 'f' ? `+${skipSec}s` : `-${skipSec}s`}
@@ -319,14 +319,14 @@ const CustomVideoPlayer = ({ src }) => {
 
             {/* Skip back */}
             <button onClick={() => doSkip(-1)} title={`-${skipSec}s`}
-              style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:'2px 6px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, flexShrink:0, fontSize:13, fontWeight:700, lineHeight:'18px', height:22, width:22 }}>
-              {'<'}
+              style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:0, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, flexShrink:0, height:22, width:22 }}>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
             </button>
 
             {/* Skip forward */}
             <button onClick={() => doSkip(1)} title={`+${skipSec}s`}
-              style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:'2px 6px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, flexShrink:0, fontSize:13, fontWeight:700, lineHeight:'18px', height:22, width:22 }}>
-              {'>'}
+              style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:0, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, flexShrink:0, height:22, width:22 }}>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
             </button>
 
             {/* Skip duration picker */}
@@ -564,8 +564,8 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
 
         {/* Skip back */}
         <button onClick={() => doSkip(-1)} title={`-${skipSec}s`}
-          style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:'2px 6px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, fontSize:13, fontWeight:700, lineHeight:'18px', height:22, width:22, flexShrink:0 }}>
-          {'<'}
+          style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:0, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, height:22, width:22, flexShrink:0 }}>
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
         </button>
 
         {/* Play/Pause — big centre */}
@@ -588,8 +588,8 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
 
         {/* Skip forward */}
         <button onClick={() => doSkip(1)} title={`+${skipSec}s`}
-          style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:'2px 6px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, fontSize:13, fontWeight:700, lineHeight:'18px', height:22, width:22, flexShrink:0 }}>
-          {'>'}
+          style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:0, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, height:22, width:22, flexShrink:0 }}>
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
         </button>
 
         <div style={{ flex:1 }} />
@@ -1446,8 +1446,10 @@ return (
             <div onClick={e => e.stopPropagation()}>
               {type === 'image' && (
                 <div style={{
-                  width: 'min(92vw, 900px)',
-                  height: 'min(78vh, 620px)',
+                  width: 900,
+                  height: 620,
+                  maxWidth: '92vw',
+                  maxHeight: '78vh',
                   background: '#000',
                   borderRadius: 12,
                   border: '1px solid rgba(59,130,246,.2)',
@@ -1457,6 +1459,7 @@ return (
                   justifyContent: 'center',
                   overflow: 'hidden',
                   flexShrink: 0,
+                  flexGrow: 0,
                 }}>
                   <img
                     src={previewUrl}
@@ -1466,7 +1469,7 @@ return (
                       maxWidth: '100%', maxHeight: '100%',
                       objectFit: 'contain',
                       display: 'block',
-                      borderRadius: 0,
+                      borderRadius: 8,
                     }}
                     draggable={false}
                   />

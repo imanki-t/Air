@@ -452,15 +452,15 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
                   <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Storage</span>
                   <span className={`text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     {driveLimit > 0
-                      ? `${formatBytes(appUsed)} / ${formatBytes(driveLimit)}`
-                      : formatBytes(appUsed)}
+                      ? `${formatBytes(driveTotal)} / ${formatBytes(driveLimit)}`
+                      : formatBytes(driveTotal)}
                   </span>
                 </div>
-                {/* Single bar: Airstream's share of total Drive capacity */}
+                {/* Single bar: total Google Drive usage against full capacity */}
                 <div className={`h-1.5 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${loadingStats ? (darkMode ? 'bg-gray-600' : 'bg-gray-300') : appBarColor}`}
-                    style={{ width: loadingStats ? '0%' : `${appPercent}%` }}
+                    style={{ width: loadingStats ? '0%' : `${drivePercent}%` }}
                   />
                 </div>
                 <div className={`mt-1.5 flex justify-between text-[10px] ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>

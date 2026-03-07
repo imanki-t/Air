@@ -44,6 +44,7 @@
 
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
@@ -558,8 +559,13 @@ router.post('/export-data', async (req, res) => {
     const exportToken = uuidv4();
     const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72 hours
 
+    // [SEC-03] 96-char random key embedded in the ZIP manifest and verified on
+    // import, proving the ZIP was produced by this server and not forged.
+    const exportKey = crypto.randomBytes(48).toString('hex'); // 48 bytes => 96 hex chars
+
     await db.collection('export_tokens').insertOne({
       token: exportToken,
+      exportKey,
       userId: decoded.userId,
       email: decoded.email,
       createdAt: new Date(),
@@ -624,31 +630,53 @@ router.get('/export-download/:token', async (req, res) => {
       .find({ userId: exportRecord.userId, 'metadata.isSharedZip': { $ne: true } })
       .toArray();
 
-    // Build manifest
+    // [FIX] Compute stable, de-duplicated zipEntry names first so manifest and
+    // ZIP always agree on filenames — fixes the 'entry not found' mismatch that
+    // caused 0 imported / N skipped on every import.
+    const ObjectId = getObjectId();
+    const bucket = new mongoose.mongo.GridFSBucket(db.db, { bucketName: 'uploads' });
+
+    const usedZipEntries = new Set();
+    const manifestFiles = files.map((f) => {
+      const raw = f.metadata?.filename || `file_${f._id}`;
+      let base = raw.replace(/[^a-zA-Z0-9._\-\s]/g, '_');
+      // De-duplicate: append a counter if this sanitized name is already taken
+      if (usedZipEntries.has(base)) {
+        const dotIdx = base.lastIndexOf('.');
+        const name  = dotIdx > 0 ? base.slice(0, dotIdx) : base;
+        const ext   = dotIdx > 0 ? base.slice(dotIdx)    : '';
+        let counter = 1;
+        while (usedZipEntries.has(`${name}_${counter}${ext}`)) counter++;
+        base = `${name}_${counter}${ext}`;
+      }
+      usedZipEntries.add(base);
+      return {
+        filename:    raw,           // original name shown to user
+        zipEntry:    base,          // exact path used inside the ZIP under files/
+        contentType: f.metadata?.contentType || 'application/octet-stream',
+        size:        f.metadata?.size || 0,
+        uploadDate:  f.metadata?.uploadDate || f.createdAt,
+        type:        f.metadata?.type || 'other',
+        _id:         f._id,
+        _driveId:    f.driveId,
+      };
+    });
+
+    // [SEC-03] Embed exportKey so import can verify this ZIP came from this server
     const manifest = {
       airstreamExport: true,
-      version: '1.0',
+      version:    '1.1',
       exportedAt: new Date().toISOString(),
-      userId: exportRecord.userId,
-      files: files.map((f) => ({
-        filename: f.metadata?.filename || 'unknown',
-        contentType: f.metadata?.contentType || 'application/octet-stream',
-        size: f.metadata?.size || 0,
-        uploadDate: f.metadata?.uploadDate || f.createdAt,
-        type: f.metadata?.type || 'other',
+      userId:     exportRecord.userId,
+      exportKey:  exportRecord.exportKey,
+      files: manifestFiles.map(({ filename, zipEntry, contentType, size, uploadDate, type }) => ({
+        filename, zipEntry, contentType, size, uploadDate, type,
       })),
     };
 
     const timestamp = Date.now();
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="airstream-export-${timestamp}.zip"`
-    );
+    res.setHeader('Content-Disposition', `attachment; filename="airstream-export-${timestamp}.zip"`);
     res.setHeader('Content-Type', 'application/zip');
-
-    const bucket = new mongoose.mongo.GridFSBucket(db.db, {
-      bucketName: 'uploads',
-    });
 
     archive = archiver('zip', { zlib: { level: 6 } });
     archive.on('error', (err) => {
@@ -658,20 +686,26 @@ router.get('/export-download/:token', async (req, res) => {
 
     archive.pipe(res);
 
-    // Add manifest first
+    // manifest goes in first
     archive.append(JSON.stringify(manifest, null, 2), { name: 'manifest.json' });
 
-    // Stream each file from GridFS
-    const ObjectId = getObjectId();
-    for (const file of files) {
+    // [FIX] The old code passed a raw GridFS ReadableStream to archive.append().
+    // If the stream emitted 'error' (e.g. file missing from GridFS), archiver
+    // never heard it — the file was silently dropped, producing a 1KB manifest-only
+    // ZIP. Fix: buffer each file explicitly so errors are caught and skipped cleanly.
+    for (const fileMeta of manifestFiles) {
       try {
-        const gridFSId = new ObjectId(file.driveId);
-        const dlStream = bucket.openDownloadStream(gridFSId);
-        const safeFilename = (file.metadata?.filename || `file_${file._id}`)
-          .replace(/[^a-zA-Z0-9._\-\s]/g, '_');
-        archive.append(dlStream, { name: `files/${safeFilename}` });
+        const gridFSId = new ObjectId(fileMeta._driveId);
+        const fileBuffer = await new Promise((resolve, reject) => {
+          const chunks = [];
+          const dlStream = bucket.openDownloadStream(gridFSId);
+          dlStream.on('data',  (chunk) => chunks.push(chunk));
+          dlStream.on('end',   ()      => resolve(Buffer.concat(chunks)));
+          dlStream.on('error', reject);
+        });
+        archive.append(fileBuffer, { name: `files/${fileMeta.zipEntry}` });
       } catch (fileErr) {
-        console.warn(`Export: skipping file ${file._id}:`, fileErr.message);
+        console.warn(`Export: skipping file ${fileMeta._id}:`, fileErr.message);
       }
     }
 
@@ -728,6 +762,16 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
       return res.status(400).json({ error: 'This does not appear to be an Airstream export file.' });
     }
 
+    // [SEC-03] Verify the exportKey embedded in the manifest exists in our DB.
+    // This proves the ZIP was produced by this server, not forged externally.
+    if (!manifest.exportKey || typeof manifest.exportKey !== 'string' || manifest.exportKey.length !== 96) {
+      return res.status(400).json({ error: 'Invalid export file: missing or malformed security key.' });
+    }
+    const keyRecord = await db.collection('export_tokens').findOne({ exportKey: manifest.exportKey });
+    if (!keyRecord) {
+      return res.status(400).json({ error: 'Invalid export file: security key not recognised. Only exports from this Airstream instance can be imported.' });
+    }
+
     // [HIGH-06] Reject manifests that exceed the file count cap.
     // An unbounded list drives an O(n) background loop and floods the socket room.
     if (!Array.isArray(manifest.files) || manifest.files.length > MAX_IMPORT_FILES) {
@@ -771,7 +815,10 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
 
         // Sanitize: allow only safe characters in filename
         const safeFilename = rawFilename.replace(/[^a-zA-Z0-9._\-\s]/g, '_') || `file_${Date.now()}`;
-        const zipEntryName = `files/${safeFilename}`;
+        // [FIX] Use the pre-computed zipEntry from the manifest (v1.1+) so the
+        // lookup is always exact. Falls back to the sanitized name for old v1.0 exports.
+        const zipEntryFilename = fileMeta.zipEntry || safeFilename;
+        const zipEntryName = `files/${zipEntryFilename}`;
         const entry = zip.getEntry(zipEntryName);
 
         if (!entry) {

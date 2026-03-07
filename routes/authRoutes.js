@@ -521,7 +521,7 @@ router.get('/stats', async (req, res) => {
         $group: {
           _id: null,
           fileCount: { $sum: 1 },
-          storageUsed: { $sum: { $toInt: { $ifNull: ['$metadata.size', 0] } } },
+          storageUsed: { $sum: { $toLong: { $ifNull: ['$metadata.size', 0] } } }, // [FIX] $toLong handles files >2.1 GB ($toInt overflows at 2^31-1)
         },
       },
     ]).toArray();
@@ -543,7 +543,7 @@ router.get('/stats', async (req, res) => {
 // Generates a time-limited export token and emails the user a download link.
 // The download streams all files as a ZIP without storing anything extra.
 // ─────────────────────────────────────────────────────────────────────────────
-router.post('/export-data', async (req, res) => {
+router.post('/export-data', authLimiter, async (req, res) => {
   try {
     const token = getToken(req);
     if (!token) return res.status(401).json({ error: 'Not authenticated.' });
@@ -828,7 +828,7 @@ router.post('/import-data', authLimiter, importUpload.single('exportFile'), asyn
       const PER_FILE_MAX = STORAGE_LIMIT_BYTES; // 5 GB per-file ceiling
       const usageResult = await db.collection('drive_mappings').aggregate([
         { $match: { userId, 'metadata.isSharedZip': { $ne: true } } },
-        { $group: { _id: null, total: { $sum: { $toInt: { $ifNull: ['$metadata.size', 0] } } } } },
+        { $group: { _id: null, total: { $sum: { $toLong: { $ifNull: ['$metadata.size', 0] } } } } }, // [FIX] $toLong handles files >2.1 GB
       ]).toArray();
       let usedBytes = usageResult[0]?.total || 0;
 
@@ -975,6 +975,9 @@ router.post('/import-data', authLimiter, importUpload.single('exportFile'), asyn
 
   } catch (error) {
     console.error('Import data error:', error);
+    // [FIX] Clean up temp file on unexpected outer error — validation paths use
+    // rejectAndCleanup() but an unhandled exception here would leak the file.
+    if (req.file?.path) fs.unlink(req.file.path, () => {});
     return res.status(500).json({ error: 'Import failed. Please try again.' });
   }
 });
@@ -985,7 +988,7 @@ router.post('/import-data', authLimiter, importUpload.single('exportFile'), asyn
 // A scheduled cleanup job permanently deletes it after 7 days.
 // If the user signs back in within 7 days, the account is restored.
 // ─────────────────────────────────────────────────────────────────────────────
-router.post('/delete-account', async (req, res) => {
+router.post('/delete-account', authLimiter, async (req, res) => {
   try {
     const token = getToken(req);
     if (!token) return res.status(401).json({ error: 'Not authenticated.' });

@@ -19,6 +19,7 @@ const PlayerStyles = () => (
     @keyframes vpPop{from{opacity:0;transform:scale(.92) translateY(4px)}to{opacity:1;transform:scale(1) translateY(0)}}
     .vp-flash{animation:vpFlash .6s ease-out forwards}
     @keyframes vpFlash{0%{opacity:1}70%{opacity:.6}100%{opacity:0}}
+    @keyframes vpSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
   `}</style>
 );
 
@@ -43,6 +44,7 @@ const CustomVideoPlayer = ({ src }) => {
   const [isFS,         setIsFS]         = useState(false);
   const [vidW,         setVidW]         = useState(0);
   const [vidH,         setVidH]         = useState(0);
+  const [isBuffering,  setIsBuffering]  = useState(true);  // true until first canplay
   const hideTimer = useRef(null);
   const isFSRef   = useRef(false);  // sync ref so callbacks always see latest value
 
@@ -235,14 +237,33 @@ const CustomVideoPlayer = ({ src }) => {
             onPlay={() => { setPlaying(true); nudgeControls(); }}
             onPause={() => { setPlaying(false); setShowCtrl(true); clearTimeout(hideTimer.current); }}
             onEnded={() => { setPlaying(false); setShowCtrl(true); }}
+            onWaiting={() => setIsBuffering(true)}
+            onPlaying={() => setIsBuffering(false)}
+            onCanPlay={() => { trySetDuration(); setIsBuffering(false); }}
             style={{
               position: 'absolute', inset: 0, width: '100%', height: '100%',
               objectFit: 'contain', display: 'block', background: '#000',
             }}
           />
 
+          {/* ── Buffering spinner ── */}
+          {isBuffering && (
+            <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'none', zIndex:5 }}>
+              <div style={{
+                width: 52, height: 52, borderRadius: '50%',
+                background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <svg width="32" height="32" viewBox="0 0 32 32" style={{ animation: 'vpSpin 0.8s linear infinite' }}>
+                  <circle cx="16" cy="16" r="12" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="3"/>
+                  <path d="M16 4 A12 12 0 0 1 28 16" fill="none" stroke="#60a5fa" strokeWidth="3" strokeLinecap="round"/>
+                </svg>
+              </div>
+            </div>
+          )}
+
           {/* ── Centre big play/pause pulse ── */}
-          {!playing && (
+          {!playing && !isBuffering && (
             <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
               <div style={{
                 width: 64, height: 64, borderRadius: '50%',
@@ -701,6 +722,7 @@ const [isActionLoading, setIsActionLoading] = useState(false); // Loading state 
 const [showMenu, setShowMenu] = useState(false);
 const [downloadProgress, setDownloadProgress] = useState(0);
 const [showViewer, setShowViewer] = useState(false);
+const [streamUrl, setStreamUrl] = useState(null);
 
 // --- Refs ---
 const menuRef = useRef(null);
@@ -853,9 +875,22 @@ const copyToClipboard = async (link) => {
   }
 };
 
-const openViewer = () => {
+const openViewer = async () => {
   setShowMenu(false);
+  setStreamUrl(null); // reset any previous URL
   setShowViewer(true);
+  // For video/audio: fetch a direct Google Drive URL so the browser
+  // streams from Google's CDN instead of proxying through the Render server.
+  const type = file.metadata?.type;
+  if (type === 'video' || type === 'audio') {
+    try {
+      const res = await axios.get(`${backendUrl}/api/files/stream-url/${file._id}`);
+      if (res.data?.url) setStreamUrl(res.data.url);
+    } catch (err) {
+      console.warn('Could not get direct stream URL, falling back to proxy:', err.message);
+      // streamUrl stays null → falls back to previewUrl below
+    }
+  }
 };
   
 
@@ -1529,8 +1564,8 @@ return (
                   />
                 </div>
               )}
-              {type === 'video' && <CustomVideoPlayer src={previewUrl} />}
-              {type === 'audio' && <CustomAudioPlayer src={previewUrl} filename={file.filename} fileSize={file.length} />}
+              {type === 'video' && <CustomVideoPlayer src={streamUrl || previewUrl} />}
+              {type === 'audio' && <CustomAudioPlayer src={streamUrl || previewUrl} filename={file.filename} fileSize={file.length} />}
             </div>
           </div>
 

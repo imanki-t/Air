@@ -1,16 +1,9 @@
 // services/fileService.js
-// All file storage is now Google Drive — GridFS has been removed.
+// All file storage uses Google Drive — GridFS has been removed.
 //
-// Key changes vs GridFS version:
-//  - driveId in drive_mappings is a Google Drive file-ID string, not a MongoDB ObjectId.
-//  - Storage limit is checked against Drive quota (via getDriveStorageQuota) instead of
-//    a hard-coded 5 GB cap.  The user's personal Drive space is the limit.
-//  - uploadFile, downloadFile, previewFile, deleteFile, accessSharedFile, uploadAndShareZip,
-//    cleanupIncompleteUpload, cleanupExpiredLinks all use driveService.
-//
-// Security fixes retained from GridFS version:
+// Security fixes retained:
 //  - [HIGH-04] isUnsafePreviewType: HTML/SVG/XML/JS forced to attachment.
-//  - [CRITICAL-01] Storage quota check before every upload (now real Drive quota).
+//  - [CRITICAL-01] Storage quota check against real Drive quota before every upload.
 //  - [MED-03] Expired/voided shared ZIPs: Drive file deleted + mapping removed.
 //  - [LOW-03] 8-byte (64-bit) share IDs.
 
@@ -33,71 +26,57 @@ const {
 } = require('./driveService');
 
 const getObjectId = () => mongoose.mongo.ObjectId;
+
 const db = mongoose.connection;
 
+const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB fallback
+
 // ─────────────────────────────────────────────────────────────────────────────
-// [HIGH-04] MIME types that must never be served inline by the browser.
-// Serving these inline would enable stored XSS.
+// [HIGH-04] MIME types that must never be served inline — they would be
+// executed by the browser as code, enabling stored XSS.
+// Any content-type that starts with one of these prefixes is treated as unsafe.
 // ─────────────────────────────────────────────────────────────────────────────
-const UNSAFE_PREVIEW_TYPES = new Set([
+const UNSAFE_PREVIEW_MIME_PREFIXES = [
   'text/html',
-  'application/xhtml+xml',
-  'image/svg+xml',
   'text/xml',
   'application/xml',
+  'application/xhtml',
   'application/javascript',
   'text/javascript',
   'application/x-javascript',
+  'image/svg+xml',
   'text/x-javascript',
-  'text/ecmascript',
-  'application/ecmascript',
-]);
+  'module',
+];
 
-const isUnsafePreviewType = (contentType) => {
-  if (!contentType) return false;
-  const base = contentType.split(';')[0].trim().toLowerCase();
-  return UNSAFE_PREVIEW_TYPES.has(base);
+const isUnsafePreviewType = (mimeType) => {
+  const lower = (mimeType || '').toLowerCase().split(';')[0].trim();
+  return UNSAFE_PREVIEW_MIME_PREFIXES.some((prefix) => lower.startsWith(prefix));
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [LOW-03] 8-byte (64-bit) share IDs — infeasible to enumerate
+// [LOW-03] Generate a short share ID — upgraded to 8 bytes (64-bit entropy).
+// The previous 4-byte implementation had only ~16 million possible values.
+// 8 bytes yields ~1.8×10¹⁹ possible IDs, making brute-force enumeration
+// infeasible even from a large distributed set of IPs.
 // ─────────────────────────────────────────────────────────────────────────────
-const generateShortShareId = () => crypto.randomBytes(8).toString('hex');
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: sum file sizes stored in drive_mappings for a user (app usage)
-// ─────────────────────────────────────────────────────────────────────────────
-const getUserStorageUsed = async (userId) => {
-  const result = await db.collection('drive_mappings').aggregate([
-    { $match: { userId, 'metadata.isSharedZip': { $ne: true } } },
-    {
-      $group: {
-        _id: null,
-        total: { $sum: { $toLong: { $ifNull: ['$metadata.size', 0] } } },
-      },
-    },
-  ]).toArray();
-  return result[0]?.total || 0;
+const generateShortShareId = () => {
+  return crypto
+    .randomBytes(8)                   // 64 bits of entropy (was 4 bytes / 24 bits)
+    .toString('base64')
+    .replace(/\+/g, '0')
+    .replace(/\//g, '1')
+    .replace(/=/g, '')
+    .substring(0, 11);               // 11 base64 chars represent ~66 bits
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: convert stream → Buffer
-// ─────────────────────────────────────────────────────────────────────────────
-const toBuffer = async (streamOrBuffer) => {
-  if (Buffer.isBuffer(streamOrBuffer)) return streamOrBuffer;
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    streamOrBuffer.on('data',  (c) => chunks.push(c));
-    streamOrBuffer.on('end',   ()  => resolve(Buffer.concat(chunks)));
-    streamOrBuffer.on('error', reject);
-  });
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Ownership check helper
+// Helper: verify ownership of a file mapping
 // ─────────────────────────────────────────────────────────────────────────────
 const checkOwnership = (mapping, reqUserId) => {
-  if (!mapping) return { allowed: false, mapping };
+  if (!mapping) return { allowed: false, mapping: null };
+  // [FIX] IDOR: previously `mapping.userId &&` meant documents with no userId
+  // field silently passed the check. Now a missing userId also denies access.
   if (!mapping.userId || mapping.userId !== reqUserId) {
     return { allowed: false, mapping };
   }
@@ -105,12 +84,41 @@ const checkOwnership = (mapping, reqUserId) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helper: get total storage used by a user (excluding shared ZIPs)
+// ─────────────────────────────────────────────────────────────────────────────
+const getUserStorageUsed = async (userId) => {
+  const result = await db.collection('drive_mappings').aggregate([
+    { $match: { userId, 'metadata.isSharedZip': { $ne: true } } },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: { $toLong: { $ifNull: ['$metadata.size', 0] } } }, // [FIX] $toLong handles files >2.1 GB ($toInt overflows at 2^31-1)
+      },
+    },
+  ]).toArray();
+  return result[0]?.total || 0;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: convert buffer or stream → Buffer
+// ─────────────────────────────────────────────────────────────────────────────
+const toBuffer = async (streamOrBuffer) => {
+  if (Buffer.isBuffer(streamOrBuffer)) return streamOrBuffer;
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    streamOrBuffer.on('data', (c) => chunks.push(c));
+    streamOrBuffer.on('end', () => resolve(Buffer.concat(chunks)));
+    streamOrBuffer.on('error', reject);
+  });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Upload file → Google Drive
 // ─────────────────────────────────────────────────────────────────────────────
 const uploadFile = async (req, res) => {
   try {
-    const ObjectId  = getObjectId();
-    const userId    = req.user?.userId;
+    const ObjectId = getObjectId();
+    const userId = req.user?.userId;
     const { originalname, mimetype, buffer, stream, size } = req.file;
 
     // ── Check Drive quota before uploading ──────────────────────────────────
@@ -125,28 +133,25 @@ const uploadFile = async (req, res) => {
           });
         }
       } catch (quotaErr) {
-        // If quota check fails (e.g. token issue), fall through — Drive API will
-        // reject the upload itself if there really is no space.
+        // Non-fatal — Drive API will reject if truly out of space
         console.warn('Quota pre-check failed (non-fatal):', quotaErr.message);
       }
     }
 
-    const type       = getFileCategory(mimetype);
+    const type = getFileCategory(mimetype);
     const fileBuffer = buffer || (await toBuffer(stream));
-    const fileSize   = fileBuffer.length;
+    const fileSize = fileBuffer.length;
     const uploadDate = new Date();
 
-    // Sanitize filename — multer originalname is user-controlled
     const sanitizedName = (originalname || '')
       .replace(/[/\\]/g, '_')
       .replace(/\.\./g, '_')
       .replace(/[\x00-\x1f\x7f]/g, '_')
       .trim() || `upload_${Date.now()}`;
 
-    // Upload to Google Drive
     const driveFileId = await uploadFileToDrive(userId, sanitizedName, mimetype, fileBuffer);
 
-    const mongoId  = new ObjectId();
+    const mongoId = new ObjectId();
     const metadata = {
       filename:    sanitizedName,
       type,
@@ -154,10 +159,8 @@ const uploadFile = async (req, res) => {
       size:        fileSize,
       uploadDate,
       uploadedAt:  uploadDate,
-      driveFileId: driveFileId, // redundant backup of driveId at metadata level
     };
 
-    // driveId is now a Drive file ID string, not a MongoDB ObjectId
     await storeDriveMapping(mongoId, driveFileId, metadata, { userId });
 
     res.status(201).json({
@@ -181,21 +184,24 @@ const uploadFile = async (req, res) => {
 const getFiles = async (req, res) => {
   try {
     const userId = req.user?.userId;
+
     if (!userId) return res.status(401).json({ error: 'Not authenticated.' });
 
+    const query = { userId, 'metadata.isSharedZip': { $ne: true } };
+
     const files = await db.collection('drive_mappings')
-      .find({ userId, 'metadata.isSharedZip': { $ne: true } })
+      .find(query)
       .sort({ createdAt: -1 })
       .toArray();
 
     const formattedFiles = files.map((file) => ({
-      _id:         file._id,
-      length:      file.metadata?.size ? parseInt(file.metadata.size) : 0,
-      chunkSize:   261120,
-      uploadDate:  file.metadata?.uploadDate || file.createdAt,
-      filename:    file.metadata?.filename,
+      _id: file._id,
+      length: file.metadata?.size ? parseInt(file.metadata.size) : 0,
+      chunkSize: 261120,
+      uploadDate: file.metadata?.uploadDate || file.createdAt,
+      filename: file.metadata?.filename,
       contentType: file.metadata?.contentType,
-      metadata:    file.metadata,
+      metadata: file.metadata,
     }));
 
     res.json(formattedFiles);
@@ -226,11 +232,10 @@ const deleteFile = async (req, res) => {
     // Delete from Google Drive (non-fatal if 404)
     await deleteFileFromDrive(userId, mapping.driveId);
 
-    const objectId    = safeObjectId(fileId);
+    const objectId = safeObjectId(fileId);
     const deleteQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
     await db.collection('drive_mappings').deleteOne(deleteQuery);
 
-    // Remove file reference from any folders
     await cleanupFileFromFolders(userId, fileId);
 
     res.json({ message: 'File deleted successfully.' });
@@ -252,13 +257,10 @@ const downloadFile = async (req, res) => {
     const { allowed } = checkOwnership(fileMapping, userId);
     if (!allowed) return res.status(403).json({ error: 'Access denied.' });
 
-    if (!fileMapping.driveId) {
-      return res.status(500).json({ error: 'File record is corrupt (missing storage ID).' });
-    }
-
-    const filename    = fileMapping.metadata?.filename    || 'download';
+    if (!fileMapping.driveId) return res.status(500).json({ error: 'File record is corrupt (missing storage ID).' });
+    const filename = fileMapping.metadata?.filename || 'download';
     const contentType = fileMapping.metadata?.contentType || 'application/octet-stream';
-    const fileSize    = fileMapping.metadata?.size;
+    const fileSize = fileMapping.metadata?.size;
 
     const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -266,12 +268,12 @@ const downloadFile = async (req, res) => {
     res.setHeader('Content-Type', contentType);
     if (fileSize) res.setHeader('Content-Length', fileSize);
 
-    const driveStream = await downloadFileStreamFromDrive(userId, fileMapping.driveId);
-    driveStream.on('error', (err) => {
+    const downloadStream = await downloadFileStreamFromDrive(userId, fileMapping.driveId);
+    downloadStream.on('error', (err) => {
       console.error('Drive download stream error:', err);
       if (!res.headersSent) res.status(404).json({ error: 'File not found in storage.' });
     });
-    driveStream.pipe(res);
+    downloadStream.pipe(res);
   } catch (error) {
     console.error('Download file error:', error);
     res.status(500).json({ error: 'Failed to download file.' });
@@ -279,8 +281,7 @@ const downloadFile = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Preview a file — streams inline (with XSS guard), 24h browser cache
-// [HIGH-04] HTML/SVG/XML/JS are forced to attachment so they can't execute.
+// Preview a file (inline, with caching) — streams from Google Drive
 // ─────────────────────────────────────────────────────────────────────────────
 const previewFile = async (req, res) => {
   try {
@@ -291,15 +292,14 @@ const previewFile = async (req, res) => {
     const { allowed } = checkOwnership(fileMapping, userId);
     if (!allowed) return res.status(403).json({ error: 'Access denied.' });
 
-    if (!fileMapping.driveId) {
-      return res.status(500).json({ error: 'File record is corrupt (missing storage ID).' });
-    }
-
+    if (!fileMapping.driveId) return res.status(500).json({ error: 'File record is corrupt (missing storage ID).' });
     const storedContentType = fileMapping.metadata?.contentType || 'application/octet-stream';
-    const isUnsafe          = isUnsafePreviewType(storedContentType);
+
+    // [HIGH-04] Prevent stored XSS: force unsafe types to download as opaque binary.
+    const isUnsafe = isUnsafePreviewType(storedContentType);
     const servedContentType = isUnsafe ? 'application/octet-stream' : storedContentType;
-    const filename          = fileMapping.metadata?.filename || 'preview';
-    const safeFilename      = encodeURIComponent(filename).replace(/['()]/g, escape);
+    const filename = fileMapping.metadata?.filename || 'preview';
+    const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
 
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Security-Policy', 'sandbox');
@@ -309,15 +309,15 @@ const previewFile = async (req, res) => {
       res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
     } else {
       res.setHeader('Content-Type', servedContentType);
-      res.setHeader('Cache-Control', 'private, max-age=86400'); // 24-hour browser cache
+      res.setHeader('Cache-Control', 'private, max-age=86400');
     }
 
-    const driveStream = await downloadFileStreamFromDrive(userId, fileMapping.driveId);
-    driveStream.on('error', (err) => {
+    const downloadStream = await downloadFileStreamFromDrive(userId, fileMapping.driveId);
+    downloadStream.on('error', (err) => {
       console.error('Drive preview stream error:', err);
       if (!res.headersSent) res.status(404).json({ error: 'File not found.' });
     });
-    driveStream.pipe(res);
+    downloadStream.pipe(res);
   } catch (error) {
     console.error('Preview file error:', error);
     res.status(500).json({ error: 'Failed to preview file.' });
@@ -329,33 +329,39 @@ const previewFile = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const generateShareLink = async (req, res) => {
   try {
-    const fileId  = req.params.id;
-    const userId  = req.user?.userId;
+    const fileId = req.params.id;
+    const userId = req.user?.userId;
     const rawDays = req.body.expiresInDays;
+    // [FIX] Validate and clamp expiresInDays — must be a number between 1 and 365.
+    // Unvalidated, a caller could pass -1 (instant expiry) or 99999 (never expires).
     const expiresInDays = (Number.isFinite(Number(rawDays)) && Number(rawDays) >= 1)
       ? Math.min(Math.floor(Number(rawDays)), 365)
       : 7;
 
     const fileMapping = await getFileMapping(fileId);
     const { allowed } = checkOwnership(fileMapping, userId);
-    if (!allowed) return res.status(403).json({ error: 'Access denied.' });
+    if (!allowed) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
 
-    const shareId       = generateShortShareId();
+    const shareId = generateShortShareId();
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + expiresInDays);
 
-    const objectId    = safeObjectId(fileId);
-    const updateQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
+    const objectId = safeObjectId(fileId);
+    const updateQuery = objectId
+      ? { _id: objectId }
+      : { 'metadata.filename': fileId };
 
     await db.collection('drive_mappings').updateOne(
       updateQuery,
       {
         $set: {
-          'metadata.shareId':      shareId,
+          'metadata.shareId': shareId,
           'metadata.shareExpires': expirationDate,
-          'metadata.shareVoided':  false,
+          'metadata.shareVoided': false,
         },
-      },
+      }
     );
 
     const shareURL = `${process.env.BACKEND_URL}/s/${shareId}`;
@@ -367,8 +373,8 @@ const generateShareLink = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Access a shared file — public route (no auth), uses owner's Drive credentials
-// [HIGH-04] XSS guard applied; [FIX] CSP sandbox added
+// Access a shared file via short share ID — uses owner's Drive credentials
+// [HIGH-04] XSS guard applied; CSP sandbox added
 // ─────────────────────────────────────────────────────────────────────────────
 const accessSharedFile = async (req, res) => {
   try {
@@ -386,17 +392,13 @@ const accessSharedFile = async (req, res) => {
       return res.status(410).json({ error: 'This share link has expired.' });
     }
 
-    if (!fileMapping.driveId) {
-      return res.status(500).json({ error: 'Shared file record is corrupt.' });
-    }
+    if (!fileMapping.driveId) return res.status(500).json({ error: 'Shared file record is corrupt.' });
 
     const ownerUserId     = fileMapping.userId;
     const filename        = fileMapping.metadata?.filename || 'download';
     const storedContentType = fileMapping.metadata?.contentType || 'application/octet-stream';
     const fileSize        = fileMapping.metadata?.size;
 
-    // [HIGH-04] Force unsafe types to download — shared files are public so
-    // defense-in-depth is especially important here.
     const safeContentType = isUnsafePreviewType(storedContentType)
       ? 'application/octet-stream'
       : storedContentType;
@@ -408,86 +410,15 @@ const accessSharedFile = async (req, res) => {
     res.setHeader('Content-Type', safeContentType);
     if (fileSize) res.setHeader('Content-Length', fileSize);
 
-    // Server-side: fetch from the owner's Drive and proxy to the requester
-    const driveStream = await downloadFileStreamFromDrive(ownerUserId, fileMapping.driveId);
-    driveStream.on('error', (err) => {
+    const downloadStream = await downloadFileStreamFromDrive(ownerUserId, fileMapping.driveId);
+    downloadStream.on('error', (err) => {
       console.error('Drive share stream error:', err);
       if (!res.headersSent) res.status(404).json({ error: 'File not found in storage.' });
     });
-    driveStream.pipe(res);
+    downloadStream.pipe(res);
   } catch (error) {
     console.error('Access shared file error:', error);
     res.status(500).json({ error: 'Failed to access shared file.' });
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Upload a ZIP for batch-share — stores in Drive, returns a share URL
-// [CRITICAL-01] Drive quota checked before upload
-// ─────────────────────────────────────────────────────────────────────────────
-const uploadAndShareZip = async (req, res) => {
-  try {
-    const ObjectId   = getObjectId();
-    const userId     = req.user?.userId;
-    const { originalname, buffer, stream } = req.file;
-    const filename   = originalname || `shared_archive_${Date.now()}.zip`;
-    const mimetype   = 'application/zip';
-    const uploadDate = new Date();
-
-    const fileBuffer = buffer || (await toBuffer(stream));
-    const fileSize   = fileBuffer.length;
-
-    // [CRITICAL-01] Check Drive quota before uploading the ZIP
-    if (userId) {
-      try {
-        const quota     = await getDriveStorageQuota(userId);
-        const available = quota.limit - quota.usage;
-        if (available > 0 && fileSize > available) {
-          return res.status(413).json({
-            error: `Not enough Google Drive storage. You have ${(available / (1024 ** 3)).toFixed(2)} GB available.`,
-          });
-        }
-      } catch (quotaErr) {
-        console.warn('Quota pre-check failed for share-zip (non-fatal):', quotaErr.message);
-      }
-    }
-
-    const driveFileId = await uploadFileToDrive(userId, filename, mimetype, fileBuffer);
-
-    const mongoId  = new ObjectId();
-    const metadata = {
-      filename,
-      type:        'document',
-      contentType: mimetype,
-      size:        fileSize,
-      uploadDate,
-      uploadedAt:  uploadDate,
-      isSharedZip: true,
-      driveFileId: driveFileId,
-    };
-
-    await storeDriveMapping(mongoId, driveFileId, metadata, { userId });
-
-    const shareId        = generateShortShareId();
-    const expirationDate = new Date();
-    expirationDate.setDate(expirationDate.getDate() + 30);
-
-    await db.collection('drive_mappings').updateOne(
-      { _id: mongoId },
-      {
-        $set: {
-          'metadata.shareId':      shareId,
-          'metadata.shareExpires': expirationDate,
-          'metadata.shareVoided':  false,
-        },
-      },
-    );
-
-    const shareURL = `${process.env.BACKEND_URL}/s/${shareId}`;
-    res.status(201).json({ url: shareURL, expires: expirationDate });
-  } catch (error) {
-    console.error('Error uploading and sharing zip:', error);
-    res.status(500).json({ error: 'Upload and share failed.' });
   }
 };
 
@@ -533,6 +464,74 @@ const cleanupIncompleteUpload = async (req, res) => {
   } catch (error) {
     console.error('Cleanup error:', error);
     res.status(500).json({ error: 'Cleanup failed.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Upload & share a ZIP (batch share) — stores in Google Drive
+// ─────────────────────────────────────────────────────────────────────────────
+const uploadAndShareZip = async (req, res) => {
+  try {
+    const ObjectId = getObjectId();
+    const userId = req.user?.userId;
+    const { originalname, buffer, stream } = req.file;
+    const filename = originalname || `shared_archive_${Date.now()}.zip`;
+    const mimetype = 'application/zip';
+    const uploadDate = new Date();
+
+    const fileBuffer = buffer || (await toBuffer(stream));
+    const fileSize = fileBuffer.length;
+
+    // Check Drive quota before uploading
+    if (userId) {
+      try {
+        const quota = await getDriveStorageQuota(userId);
+        const available = quota.limit - quota.usage;
+        if (available > 0 && fileSize > available) {
+          return res.status(413).json({
+            error: `Not enough Google Drive storage. You have ${(available / (1024 ** 3)).toFixed(2)} GB available.`,
+          });
+        }
+      } catch (quotaErr) {
+        console.warn('Quota pre-check failed for share-zip (non-fatal):', quotaErr.message);
+      }
+    }
+
+    const driveFileId = await uploadFileToDrive(userId, filename, mimetype, fileBuffer);
+
+    const mongoId = new ObjectId();
+    const metadata = {
+      filename,
+      type:        'document',
+      contentType: mimetype,
+      size:        fileSize,
+      uploadDate,
+      uploadedAt:  uploadDate,
+      isSharedZip: true,
+    };
+
+    await storeDriveMapping(mongoId, driveFileId, metadata, { userId });
+
+    const shareId = generateShortShareId();
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + 30);
+
+    await db.collection('drive_mappings').updateOne(
+      { _id: mongoId },
+      {
+        $set: {
+          'metadata.shareId':      shareId,
+          'metadata.shareExpires': expirationDate,
+          'metadata.shareVoided':  false,
+        },
+      }
+    );
+
+    const shareURL = `${process.env.BACKEND_URL}/s/${shareId}`;
+    res.status(201).json({ url: shareURL, expires: expirationDate });
+  } catch (error) {
+    console.error('Error uploading and sharing zip:', error);
+    res.status(500).json({ error: 'Upload and share failed.' });
   }
 };
 
@@ -592,7 +591,7 @@ const cleanupExpiredLinks = async () => {
           'metadata.shareExpires': '',
           'metadata.shareVoided':  '',
         },
-      },
+      }
     );
 
     return (result.modifiedCount || 0) + deletedZipCount;

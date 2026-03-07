@@ -509,77 +509,90 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
     const db = getDb();
     const ObjectId = getObjectId();
     const bucket = new mongoose.mongo.GridFSBucket(db.db, { bucketName: 'uploads' });
-
     const userId = decoded.userId;
-    let imported = 0;
-    let skipped = 0;
-
-    for (const fileMeta of manifest.files) {
-      const zipEntryName = `files/${fileMeta.filename.replace(/[^a-zA-Z0-9._\-\s]/g, '_')}`;
-      const entry = zip.getEntry(zipEntryName);
-
-      if (!entry) {
-        console.warn(`Import: entry not found for ${zipEntryName}`);
-        skipped++;
-        continue;
-      }
-
-      try {
-        const fileBuffer = entry.getData();
-        const mongoId = new ObjectId();
-
-        // Write to GridFS
-        const uploadStream = bucket.openUploadStream(fileMeta.filename, {
-          metadata: {
-            userId,
-            type: fileMeta.type || 'other',
-            uploadedAt: new Date(),
-          },
-        });
-
-        await new Promise((resolve, reject) => {
-          uploadStream.on('finish', resolve);
-          uploadStream.on('error', reject);
-          uploadStream.write(fileBuffer);
-          uploadStream.end();
-        });
-
-        const gridFSId = uploadStream.id.toString();
-
-        // Store drive mapping
-        await db.collection('drive_mappings').insertOne({
-          _id: mongoId,
-          driveId: gridFSId,
-          userId,
-          createdAt: new Date(),
-          metadata: {
-            filename: fileMeta.filename,
-            type: fileMeta.type || 'other',
-            contentType: fileMeta.contentType || 'application/octet-stream',
-            size: fileBuffer.length,
-            uploadDate: new Date(),
-            uploadedAt: new Date(),
-            gridFSId,
-          },
-        });
-
-        imported++;
-      } catch (fileErr) {
-        console.error(`Import: failed to import ${fileMeta.filename}:`, fileErr.message);
-        skipped++;
-      }
-    }
-
-    // Emit socket refresh
     const io = req.app.get('io');
-    if (io) io.emit('refreshFileList');
+    const total = manifest.files.length;
 
-    return res.json({
-      success: true,
-      imported,
-      skipped,
-      message: `Successfully imported ${imported} file${imported !== 1 ? 's' : ''}${skipped > 0 ? `, ${skipped} skipped` : ''}.`,
+    // ── Respond immediately so the client can show a live progress bar ────────
+    res.json({ success: true, total, userId });
+
+    // ── Process files in the background ───────────────────────────────────────
+    (async () => {
+      let imported = 0;
+      let skipped = 0;
+
+      for (const fileMeta of manifest.files) {
+        const zipEntryName = `files/${fileMeta.filename.replace(/[^a-zA-Z0-9._\-\s]/g, '_')}`;
+        const entry = zip.getEntry(zipEntryName);
+
+        if (!entry) {
+          console.warn(`Import: entry not found for ${zipEntryName}`);
+          skipped++;
+          if (io) io.emit('importProgress', { userId, imported, skipped, total });
+          continue;
+        }
+
+        try {
+          const fileBuffer = entry.getData();
+          const mongoId = new ObjectId();
+
+          const uploadStream = bucket.openUploadStream(fileMeta.filename, {
+            metadata: { userId, type: fileMeta.type || 'other', uploadedAt: new Date() },
+          });
+
+          await new Promise((resolve, reject) => {
+            uploadStream.on('finish', resolve);
+            uploadStream.on('error', reject);
+            uploadStream.write(fileBuffer);
+            uploadStream.end();
+          });
+
+          const gridFSId = uploadStream.id.toString();
+
+          await db.collection('drive_mappings').insertOne({
+            _id: mongoId,
+            driveId: gridFSId,
+            userId,
+            createdAt: new Date(),
+            metadata: {
+              filename: fileMeta.filename,
+              type: fileMeta.type || 'other',
+              contentType: fileMeta.contentType || 'application/octet-stream',
+              size: fileBuffer.length,
+              uploadDate: new Date(),
+              uploadedAt: new Date(),
+              gridFSId,
+            },
+          });
+
+          imported++;
+
+          // Emit per-file progress + trigger file list refresh so file appears immediately
+          if (io) {
+            io.emit('importProgress', { userId, imported, skipped, total });
+            io.emit('refreshFileList');
+          }
+        } catch (fileErr) {
+          console.error(`Import: failed to import ${fileMeta.filename}:`, fileErr.message);
+          skipped++;
+          if (io) io.emit('importProgress', { userId, imported, skipped, total });
+        }
+      }
+
+      // ── All done ─────────────────────────────────────────────────────────────
+      if (io) {
+        io.emit('importComplete', {
+          userId,
+          imported,
+          skipped,
+          message: `Successfully imported ${imported} file${imported !== 1 ? 's' : ''}${skipped > 0 ? `, ${skipped} skipped` : ''}.`,
+        });
+      }
+    })().catch((err) => {
+      console.error('Background import error:', err);
+      if (io) io.emit('importComplete', { userId, imported: 0, skipped: total, message: 'Import failed unexpectedly.' });
     });
+
   } catch (error) {
     console.error('Import data error:', error);
     return res.status(500).json({ error: 'Import failed. Please try again.' });

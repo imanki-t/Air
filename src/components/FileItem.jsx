@@ -76,11 +76,16 @@ const CustomVideoPlayer = ({ src }) => {
       isFSRef.current = entering;
       setIsFS(entering);
       if (!entering) {
-        // exiting fullscreen — always show controls and cancel hide timer
         clearTimeout(hideTimer.current);
         setShowCtrl(true);
-        // unlock screen orientation
         try { screen.orientation?.unlock?.(); } catch(_) {}
+      } else {
+        // Just entered fullscreen — show controls then start hide timer if playing
+        setShowCtrl(true);
+        clearTimeout(hideTimer.current);
+        if (videoRef.current && !videoRef.current.paused) {
+          hideTimer.current = setTimeout(() => setShowCtrl(false), 3000);
+        }
       }
     };
     document.addEventListener('fullscreenchange', h);
@@ -142,8 +147,8 @@ const CustomVideoPlayer = ({ src }) => {
     return h ? `${h}:${String(m).padStart(2,'0')}:${s}` : `${m}:${s}`;
   };
 
-  const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const buf = duration > 0 ? (buffered  / duration) * 100 : 0;
+  const pct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+  const buf = duration > 0 ? Math.min(100, (buffered  / duration) * 100) : 0;
 
   /* ── Icon helpers ── */
   const IconPlay    = () => <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M8 5v14l11-7z"/></svg>;
@@ -198,6 +203,10 @@ const CustomVideoPlayer = ({ src }) => {
                 setVidH(videoRef.current.videoHeight);
               }
             }}
+            onDurationChange={() => {
+              if (videoRef.current && !isNaN(videoRef.current.duration))
+                setDuration(videoRef.current.duration);
+            }}
             onPlay={() => { setPlaying(true); nudgeControls(); }}
             onPause={() => { setPlaying(false); setShowCtrl(true); clearTimeout(hideTimer.current); }}
             onEnded={() => { setPlaying(false); setShowCtrl(true); }}
@@ -248,14 +257,14 @@ const CustomVideoPlayer = ({ src }) => {
 
         {/* ── Controls bar ── */}
         <div style={isFS ? {
-          // Fullscreen: absolute overlay at bottom with gradient, fades on inactivity
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
           zIndex: 20,
-          background: 'linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,.5) 60%, transparent 100%)',
-          padding: '32px 12px 14px',
+          // Solid dark background for the entire controls area
+          background: 'linear-gradient(to top, rgba(0,0,0,.92) 0%, rgba(0,0,0,.88) 70%, rgba(0,0,0,.0) 100%)',
+          paddingTop: 40,   // fade zone above the solid part
           transition: 'opacity .3s ease',
           opacity: showCtrl ? 1 : 0,
           pointerEvents: showCtrl ? 'auto' : 'none',
@@ -263,15 +272,16 @@ const CustomVideoPlayer = ({ src }) => {
           // Normal mode: always visible, static below video
           background: 'linear-gradient(180deg,#050d1e 0%,#060f24 100%)',
           borderTop: '1px solid rgba(59,130,246,.12)',
-          padding: '8px 12px 10px',
         }}>
+          {/* Inner wrapper — carries the actual padding so bg covers all content */}
+          <div style={{ padding: isFS ? '0 14px 16px' : '8px 12px 10px' }}>
 
           {/* ── Seek bar ── */}
           <div style={{ position:'relative', height:20, display:'flex', alignItems:'center', marginBottom:6 }}>
             {/* Track */}
             <div style={{ position:'absolute', left:0, right:0, height:4, borderRadius:4, background:'rgba(255,255,255,.1)' }} />
             {/* Buffered */}
-            <div style={{ position:'absolute', left:0, height:4, borderRadius:4, background:'rgba(96,165,250,.25)', width:`${buf}%`, transition:'width .3s' }} />
+            <div style={{ position:'absolute', left:0, height:4, borderRadius:4, background:'rgba(96,165,250,.25)', width:`${buf}%`, transition:'width .3s linear' }} />
             {/* Played */}
             <div style={{ position:'absolute', left:0, height:4, borderRadius:4, background:'#3b82f6', width:`${pct}%` }} />
             {/* Thumb dot */}
@@ -279,7 +289,8 @@ const CustomVideoPlayer = ({ src }) => {
               position:'absolute', width:14, height:14, borderRadius:'50%',
               background:'#fff', border:'2px solid #60a5fa',
               boxShadow:'0 0 8px rgba(96,165,250,.6)',
-              left:`calc(${pct}% - 7px)`, top:'50%', transform:'translateY(-50%)',
+              left:`clamp(0px, calc(${pct}% - 7px), calc(100% - 14px))`,
+              top:'50%', transform:'translateY(-50%)',
               pointerEvents:'none',
             }} />
             {/* Invisible range input */}
@@ -287,7 +298,7 @@ const CustomVideoPlayer = ({ src }) => {
               type="range" className="vp-seek"
               min={0} max={duration || 0} step={0.01} value={currentTime}
               onChange={handleSeek}
-              style={{ position:'absolute', inset:0, width:'100%', height:'100%', opacity:0, cursor:'pointer', margin:0 }}
+              style={{ position:'absolute', inset:0, width:'100%', height:'100%', opacity:0, cursor:'pointer', margin:0, zIndex:2 }}
             />
           </div>
 
@@ -308,13 +319,13 @@ const CustomVideoPlayer = ({ src }) => {
 
             {/* Skip back */}
             <button onClick={() => doSkip(-1)} title={`-${skipSec}s`}
-              style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.85)', padding:'4px 2px', display:'flex', alignItems:'center', borderRadius:6, flexShrink:0, fontSize:18, fontWeight:700, lineHeight:1 }}>
+              style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:'2px 6px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, flexShrink:0, fontSize:13, fontWeight:700, lineHeight:'18px', height:22, width:22 }}>
               {'<'}
             </button>
 
             {/* Skip forward */}
             <button onClick={() => doSkip(1)} title={`+${skipSec}s`}
-              style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.85)', padding:'4px 2px', display:'flex', alignItems:'center', borderRadius:6, flexShrink:0, fontSize:18, fontWeight:700, lineHeight:1 }}>
+              style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:'2px 6px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, flexShrink:0, fontSize:13, fontWeight:700, lineHeight:'18px', height:22, width:22 }}>
               {'>'}
             </button>
 
@@ -373,9 +384,10 @@ const CustomVideoPlayer = ({ src }) => {
                 style={{
                   background: showSpeed ? 'rgba(59,130,246,.25)' : 'rgba(255,255,255,.06)',
                   border: `1px solid ${showSpeed ? 'rgba(96,165,250,.5)' : 'rgba(255,255,255,.1)'}`,
-                  borderRadius:5, cursor:'pointer', padding:'3px 8px',
+                  borderRadius:5, cursor:'pointer', padding:'3px 0',
                   color: speed !== 1 ? '#93c5fd' : 'rgba(148,163,184,.9)',
                   fontSize:11, fontWeight:700, fontFamily:'monospace', letterSpacing:.3,
+                  width: 38, textAlign:'center', display:'inline-block',
                 }}>
                 {speed === 1 ? '1×' : `${speed}×`}
               </button>
@@ -406,6 +418,7 @@ const CustomVideoPlayer = ({ src }) => {
               {isFS ? <IconFSOut /> : <IconFSIn />}
             </button>
           </div>
+          </div>{/* end inner wrapper */}
         </div>
       </div>
     </>
@@ -513,7 +526,7 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
       <div style={{ padding: '0 20px', marginBottom: 4 }}>
         <div style={{ position:'relative', height:20, display:'flex', alignItems:'center' }}>
           <div style={{ position:'absolute', left:0, right:0, height:3, borderRadius:3, background:'rgba(255,255,255,.08)' }} />
-          <div style={{ position:'absolute', left:0, height:3, borderRadius:3, background:'#3b82f6', width:`${prog}%` }} />
+          <div style={{ position:'absolute', left:0, height:3, borderRadius:3, background:'#3b82f6', width:`${prog}%`, transition:'width .2s linear' }} />
           <div style={{
             position:'absolute', width:13, height:13, borderRadius:'50%',
             background:'#fff', border:'2px solid #60a5fa',
@@ -551,7 +564,7 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
 
         {/* Skip back */}
         <button onClick={() => doSkip(-1)} title={`-${skipSec}s`}
-          style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.8)', padding:'4px 2px', display:'flex', alignItems:'center', borderRadius:6, fontSize:18, fontWeight:700, lineHeight:1 }}>
+          style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:'2px 6px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, fontSize:13, fontWeight:700, lineHeight:'18px', height:22, width:22, flexShrink:0 }}>
           {'<'}
         </button>
 
@@ -575,7 +588,7 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
 
         {/* Skip forward */}
         <button onClick={() => doSkip(1)} title={`+${skipSec}s`}
-          style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.8)', padding:'4px 2px', display:'flex', alignItems:'center', borderRadius:6, fontSize:18, fontWeight:700, lineHeight:1 }}>
+          style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:'2px 6px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, fontSize:13, fontWeight:700, lineHeight:'18px', height:22, width:22, flexShrink:0 }}>
           {'>'}
         </button>
 
@@ -603,7 +616,7 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
         {/* Speed */}
         <div ref={speedRef} style={{ position:'relative', flexShrink:0 }}>
           <button onClick={() => { setShowSpeed(p=>!p); setShowSkipD(false); }}
-            style={{ ...pill, color: speed!==1 ? '#93c5fd' : 'rgba(148,163,184,.9)' }}>
+            style={{ ...pill, color: speed!==1 ? '#93c5fd' : 'rgba(148,163,184,.9)', width:38, textAlign:'center', padding:'3px 0' }}>
             {speed===1?'1×':`${speed}×`}
           </button>
           {showSpeed && (

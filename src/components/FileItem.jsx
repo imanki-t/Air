@@ -9,6 +9,8 @@ const cn = (...classes) => classes.filter(Boolean).join(' ');
 const CustomVideoPlayer = ({ src }) => {
   const videoRef = useRef(null);
   const containerRef = useRef(null);
+  const speedMenuRef = useRef(null);
+  const skipMenuRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -16,7 +18,15 @@ const CustomVideoPlayer = ({ src }) => {
   const [muted, setMuted] = useState(false);
   const [buffered, setBuffered] = useState(0);
   const [showControls, setShowControls] = useState(true);
+  const [speed, setSpeed] = useState(1);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [skipAmount, setSkipAmount] = useState(10);
+  const [showSkipMenu, setShowSkipMenu] = useState(false);
+  const [skipFlash, setSkipFlash] = useState(null); // 'fwd' | 'bwd' | null
   const hideTimer = useRef(null);
+
+  const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
+  const SKIPS = [3, 5, 10, 20, 30];
 
   const resetHideTimer = () => {
     setShowControls(true);
@@ -25,6 +35,16 @@ const CustomVideoPlayer = ({ src }) => {
   };
 
   useEffect(() => () => clearTimeout(hideTimer.current), []);
+
+  // Close menus on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (speedMenuRef.current && !speedMenuRef.current.contains(e.target)) setShowSpeedMenu(false);
+      if (skipMenuRef.current && !skipMenuRef.current.contains(e.target)) setShowSkipMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -37,10 +57,9 @@ const CustomVideoPlayer = ({ src }) => {
       setBuffered(videoRef.current.buffered.end(videoRef.current.buffered.length - 1));
   };
   const handleSeek = (e) => {
-    if (!videoRef.current || !duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    videoRef.current.currentTime = pct * duration;
+    const val = parseFloat(e.target.value);
+    setCurrentTime(val);
+    if (videoRef.current) videoRef.current.currentTime = val;
   };
   const handleVolume = (e) => {
     const val = parseFloat(e.target.value);
@@ -56,12 +75,26 @@ const CustomVideoPlayer = ({ src }) => {
     if (!document.fullscreenElement) containerRef.current?.requestFullscreen?.();
     else document.exitFullscreen?.();
   };
+  const setPlaybackSpeed = (s) => {
+    setSpeed(s);
+    setShowSpeedMenu(false);
+    if (videoRef.current) videoRef.current.playbackRate = s;
+  };
+  const doSkip = (dir) => {
+    if (!videoRef.current || !duration) return;
+    videoRef.current.currentTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + dir * skipAmount));
+    setSkipFlash(dir > 0 ? 'fwd' : 'bwd');
+    setTimeout(() => setSkipFlash(null), 600);
+  };
   const fmtTime = (t) => {
     if (!t || isNaN(t)) return '0:00';
-    return `${Math.floor(t / 60)}:${Math.floor(t % 60).toString().padStart(2, '0')}`;
+    const h = Math.floor(t / 3600);
+    const m = Math.floor((t % 3600) / 60);
+    const s = Math.floor(t % 60).toString().padStart(2, '0');
+    return h > 0 ? `${h}:${m.toString().padStart(2,'0')}:${s}` : `${m}:${s}`;
   };
-  const prog = duration ? (currentTime / duration) * 100 : 0;
-  const buf = duration ? (buffered / duration) * 100 : 0;
+  const prog = duration > 0 ? currentTime : 0;
+  const buf = duration > 0 ? (buffered / duration) * 100 : 0;
 
   return (
     <div ref={containerRef}
@@ -78,6 +111,23 @@ const CustomVideoPlayer = ({ src }) => {
         onEnded={() => { setPlaying(false); setShowControls(true); }}
         onClick={togglePlay} />
 
+      {/* Skip flash overlay */}
+      {skipFlash && (
+        <div className="absolute inset-0 pointer-events-none flex items-center" style={{ paddingBottom: '64px' }}>
+          <div className={`absolute flex flex-col items-center gap-1 transition-opacity ${skipFlash ? 'opacity-100' : 'opacity-0'}`}
+            style={{ [skipFlash === 'fwd' ? 'right' : 'left']: '15%', transform: 'translateX(0)' }}>
+            <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.25)', backdropFilter: 'blur(4px)' }}>
+              {skipFlash === 'fwd'
+                ? <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M18 13c0 3.31-2.69 6-6 6s-6-2.69-6-6 2.69-6 6-6v4l5-5-5-5v4c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8h-2z"/><text x="7.5" y="14.5" fontSize="5" fill="white" fontWeight="bold">{skipAmount}</text></svg>
+                : <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M6 13c0 3.31 2.69 6 6 6s6-2.69 6-6-2.69-6-6-6v4l-5-5 5-5v4c4.42 0 8 3.58 8 8s-3.58 8-8 8-8-3.58-8-8h2z"/><text x="7.5" y="14.5" fontSize="5" fill="white" fontWeight="bold">{skipAmount}</text></svg>}
+            </div>
+            <span className="text-white text-xs font-medium" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+              {skipFlash === 'fwd' ? `+${skipAmount}s` : `-${skipAmount}s`}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Centre play overlay */}
       {!playing && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ paddingBottom: '64px' }}>
@@ -88,40 +138,126 @@ const CustomVideoPlayer = ({ src }) => {
       )}
 
       {/* Controls bar */}
-      <div className={`absolute bottom-0 left-0 right-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
-        style={{ background: 'linear-gradient(to top, rgba(10,15,30,0.98) 0%, rgba(10,15,30,0.6) 70%, transparent 100%)', paddingTop: '40px' }}>
-        {/* Grid overlay on controls */}
-        <div className="absolute inset-0 pointer-events-none" style={{
-          backgroundImage: 'linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px)',
-          backgroundSize: '20px 20px'
-        }} />
-        <div className="relative px-4 pb-3">
-          {/* Seek bar */}
-          <div className="relative h-1 mb-3 rounded-full bg-blue-950/80 cursor-pointer group/seek" onClick={handleSeek}>
-            <div className="absolute inset-y-0 left-0 bg-blue-800/60 rounded-full" style={{ width: `${buf}%` }} />
-            <div className="absolute inset-y-0 left-0 bg-blue-500 rounded-full transition-all" style={{ width: `${prog}%` }} />
-            <div className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full border-2 border-blue-400 opacity-0 group-hover/seek:opacity-100 transition-opacity shadow-lg"
-              style={{ left: `calc(${prog}% - 7px)` }} />
+      <div className={`absolute bottom-0 left-0 right-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        style={{ background: 'linear-gradient(to top, rgba(10,15,30,0.98) 0%, rgba(10,15,30,0.6) 70%, transparent 100%)', paddingTop: '48px' }}>
+        <div className="relative px-3 pb-3">
+
+          {/* ── Seek bar ── */}
+          <div className="relative flex items-center mb-2.5" style={{ height: '16px' }}>
+            {/* Track background */}
+            <div className="absolute inset-x-0 rounded-full pointer-events-none" style={{ height: '4px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(30,58,138,0.6)' }} />
+            {/* Buffered fill */}
+            <div className="absolute rounded-full pointer-events-none" style={{ height: '4px', top: '50%', transform: 'translateY(-50%)', left: 0, width: `${buf}%`, background: 'rgba(59,130,246,0.3)' }} />
+            {/* Played fill */}
+            <div className="absolute rounded-full pointer-events-none" style={{ height: '4px', top: '50%', transform: 'translateY(-50%)', left: 0, width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%', background: '#3b82f6' }} />
+            {/* Thumb dot */}
+            <div className="absolute w-3.5 h-3.5 rounded-full pointer-events-none" style={{
+              top: '50%', transform: 'translate(-50%, -50%)',
+              left: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%',
+              background: '#fff', border: '2px solid #60a5fa',
+              boxShadow: '0 0 6px rgba(96,165,250,0.6)'
+            }} />
+            {/* Invisible range input (handles all interaction) */}
+            <input
+              type="range" min="0" max={duration || 0} step="0.01"
+              value={currentTime}
+              onChange={handleSeek}
+              onMouseDown={resetHideTimer}
+              className="absolute inset-0 w-full opacity-0 cursor-pointer"
+              style={{ height: '100%' }}
+            />
           </div>
-          {/* Buttons row */}
-          <div className="flex items-center gap-3">
-            <button onClick={togglePlay} className="text-white/90 hover:text-white transition-colors">
+
+          {/* ── Buttons row ── */}
+          <div className="flex items-center gap-2">
+
+            {/* Play/Pause */}
+            <button onClick={togglePlay} className="text-white/90 hover:text-white transition-colors flex-shrink-0">
               {playing
                 ? <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                 : <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
             </button>
-            <div className="flex items-center gap-1.5">
+
+            {/* Skip backward */}
+            <button onClick={() => doSkip(-1)} className="text-white/70 hover:text-white transition-colors flex-shrink-0" title={`-${skipAmount}s`}>
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+              </svg>
+            </button>
+
+            {/* Skip forward */}
+            <button onClick={() => doSkip(1)} className="text-white/70 hover:text-white transition-colors flex-shrink-0" title={`+${skipAmount}s`}>
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/>
+              </svg>
+            </button>
+
+            {/* Skip amount selector */}
+            <div className="relative flex-shrink-0" ref={skipMenuRef}>
+              <button
+                onClick={() => { setShowSkipMenu(p => !p); setShowSpeedMenu(false); }}
+                className="text-white/50 hover:text-white/80 transition-colors text-xs font-mono tabular-nums px-1.5 py-0.5 rounded border border-white/10 hover:border-white/25"
+                title="Skip duration"
+              >
+                {skipAmount}s
+              </button>
+              {showSkipMenu && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 rounded-lg overflow-hidden shadow-2xl border border-blue-800/50 flex flex-col"
+                  style={{ background: '#0d1529', minWidth: '52px' }}>
+                  {SKIPS.map(s => (
+                    <button key={s} onClick={() => { setSkipAmount(s); setShowSkipMenu(false); }}
+                      className={`px-3 py-1.5 text-xs font-mono text-left transition-colors ${skipAmount === s ? 'bg-blue-600 text-white' : 'text-white/70 hover:bg-blue-900/50 hover:text-white'}`}>
+                      {s}s
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Volume */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <button onClick={toggleMute} className="text-white/70 hover:text-white transition-colors">
                 {muted || volume === 0
-                  ? <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>
-                  : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M12 6v12m-3-9H4a1 1 0 00-1 1v2a1 1 0 001 1h5l4.707 4.707C14.077 18.337 15 17.891 15 17V7c0-.891-.923-1.337-1.293-.707L9 11z" /></svg>}
+                  ? <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12A4.5 4.5 0 0014 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+                  : volume < 0.5
+                  ? <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.5 12A4.5 4.5 0 0016 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></svg>
+                  : <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>}
               </button>
               <input type="range" min="0" max="1" step="0.05" value={muted ? 0 : volume}
-                onChange={handleVolume} className="w-14 h-1 cursor-pointer" style={{ accentColor: '#3b82f6' }} />
+                onChange={handleVolume} className="w-14 cursor-pointer" style={{ accentColor: '#3b82f6', height: '3px' }} />
             </div>
-            <span className="text-white/60 text-xs font-mono tabular-nums">{fmtTime(currentTime)} / {fmtTime(duration)}</span>
+
+            {/* Time */}
+            <span className="text-white/55 text-xs font-mono tabular-nums flex-shrink-0">
+              {fmtTime(currentTime)} / {fmtTime(duration)}
+            </span>
+
             <div className="flex-grow" />
-            <button onClick={toggleFullscreen} className="text-white/70 hover:text-white transition-colors">
+
+            {/* Speed selector */}
+            <div className="relative flex-shrink-0" ref={speedMenuRef}>
+              <button
+                onClick={() => { setShowSpeedMenu(p => !p); setShowSkipMenu(false); }}
+                className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded border transition-all ${showSpeedMenu ? 'bg-blue-600 border-blue-500 text-white' : 'text-white/70 hover:text-white border-white/15 hover:border-white/30 hover:bg-white/5'}`}
+                title="Playback speed"
+              >
+                {speed === 1 ? '1×' : `${speed}×`}
+              </button>
+              {showSpeedMenu && (
+                <div className="absolute bottom-full right-0 mb-2 rounded-lg overflow-hidden shadow-2xl border border-blue-800/50 flex flex-col"
+                  style={{ background: '#0d1529', minWidth: '60px' }}>
+                  {SPEEDS.map(s => (
+                    <button key={s} onClick={() => setPlaybackSpeed(s)}
+                      className={`px-3 py-1.5 text-xs font-bold text-left transition-colors ${speed === s ? 'bg-blue-600 text-white' : 'text-white/70 hover:bg-blue-900/50 hover:text-white'}`}>
+                      {s === 1 ? '1×' : `${s}×`}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Fullscreen */}
+            <button onClick={toggleFullscreen} className="text-white/70 hover:text-white transition-colors flex-shrink-0">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
             </button>
           </div>

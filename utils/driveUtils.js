@@ -23,8 +23,11 @@ const getFileMapping = async (fileId) => {
 
     const file = await db.collection('drive_mappings').findOne(query);
 
-    // Fallback: try ObjectId lookup if string query returned nothing
-    if (!file && ObjectId.isValid(fileId)) {
+    // [FIX] Fallback: only try ObjectId lookup if the first query was a filename
+    // lookup (i.e. the ObjectId strict-equality check failed). Previously this
+    // fired even when the first query already used _id, causing an identical
+    // redundant DB roundtrip on every miss.
+    if (!file && !(ObjectId.isValid(fileId) && String(new ObjectId(fileId)) === fileId) && ObjectId.isValid(fileId)) {
       return db.collection('drive_mappings').findOne({ _id: new ObjectId(fileId) });
     }
 

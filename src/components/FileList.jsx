@@ -276,7 +276,11 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
   }, [isEditingPage]);
 
   // --- Filtering Logic ---
+  // Exclude files that already belong to a folder
+  const folderFileIds = new Set(folders.flatMap(f => f.fileIds?.map(String) || []));
+
   const visible = files.filter(file => {
+    if (folderFileIds.has(String(file._id))) return false;
     const type = file.metadata?.type || 'other';
     const matchesFilter = filter === 'all' || type === filter;
     const matchesSearch = !searchInput.trim() ||

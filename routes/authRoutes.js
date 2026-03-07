@@ -768,39 +768,44 @@ router.post('/import-data', authLimiter, importUpload.single('exportFile'), asyn
       return res.status(400).json({ error: 'Invalid ZIP file. Please upload a valid Airstream export.' });
     }
 
+    // [FIX] Helper so every validation early-return cleans up the temp file.
+    // Without this, any rejection after the ZIP opens leaks the file on disk.
+    const rejectAndCleanup = (status, message) => {
+      fs.unlink(req.file.path, () => {});
+      return res.status(status).json({ error: message });
+    };
+
     // Parse manifest
     const manifestEntry = zip.getEntry('manifest.json');
     if (!manifestEntry) {
-      return res.status(400).json({ error: 'Invalid Airstream export: manifest.json not found.' });
+      return rejectAndCleanup(400, 'Invalid Airstream export: manifest.json not found.');
     }
 
     let manifest;
     try {
       manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
     } catch {
-      return res.status(400).json({ error: 'Corrupt manifest.json in export file.' });
+      return rejectAndCleanup(400, 'Corrupt manifest.json in export file.');
     }
 
     if (!manifest.airstreamExport) {
-      return res.status(400).json({ error: 'This does not appear to be an Airstream export file.' });
+      return rejectAndCleanup(400, 'This does not appear to be an Airstream export file.');
     }
 
     // [SEC-03] Verify the exportKey embedded in the manifest exists in our DB.
     // This proves the ZIP was produced by this server, not forged externally.
     if (!manifest.exportKey || typeof manifest.exportKey !== 'string' || manifest.exportKey.length !== 96) {
-      return res.status(400).json({ error: 'Invalid export file: missing or malformed security key.' });
+      return rejectAndCleanup(400, 'Invalid export file: missing or malformed security key.');
     }
     const keyRecord = await db.collection('export_tokens').findOne({ exportKey: manifest.exportKey });
     if (!keyRecord) {
-      return res.status(400).json({ error: 'Invalid export file: security key not recognised. Only exports from this Airstream instance can be imported.' });
+      return rejectAndCleanup(400, 'Invalid export file: security key not recognised. Only exports from this Airstream instance can be imported.');
     }
 
     // [HIGH-06] Reject manifests that exceed the file count cap.
     // An unbounded list drives an O(n) background loop and floods the socket room.
     if (!Array.isArray(manifest.files) || manifest.files.length > MAX_IMPORT_FILES) {
-      return res.status(400).json({
-        error: `Import exceeds the maximum of ${MAX_IMPORT_FILES.toLocaleString()} files.`,
-      });
+      return rejectAndCleanup(400, `Import exceeds the maximum of ${MAX_IMPORT_FILES.toLocaleString()} files.`);
     }
 
     const ObjectId = getObjectId();
@@ -816,6 +821,16 @@ router.post('/import-data', authLimiter, importUpload.single('exportFile'), asyn
     (async () => {
       let imported = 0;
       let skipped = 0;
+
+      // [FIX] Compute storage used once before the loop, then update it
+      // incrementally. The original code re-ran this aggregate for every
+      // file — 10 000 files = 10 000 DB round-trips for a max-size import.
+      const PER_FILE_MAX = STORAGE_LIMIT_BYTES; // 5 GB per-file ceiling
+      const usageResult = await db.collection('drive_mappings').aggregate([
+        { $match: { userId, 'metadata.isSharedZip': { $ne: true } } },
+        { $group: { _id: null, total: { $sum: { $toInt: { $ifNull: ['$metadata.size', 0] } } } } },
+      ]).toArray();
+      let usedBytes = usageResult[0]?.total || 0;
 
       for (const fileMeta of manifest.files) {
         const rawFilename = fileMeta.filename || '';
@@ -857,18 +872,13 @@ router.post('/import-data', authLimiter, importUpload.single('exportFile'), asyn
           // Instead, decompress via a stream and track actual bytes in real time.
           // The moment the running total exceeds PER_FILE_MAX, the stream is
           // destroyed and the entry is skipped — no runaway RAM usage possible.
-          const PER_FILE_MAX = STORAGE_LIMIT_BYTES; // 5 GB per-file ceiling
 
           // Pre-check quota using the (untrusted) header size as a fast early-exit
           // for obviously oversized entries. The stream enforces the real limit below.
+          // usedBytes is maintained incrementally — no per-file DB aggregate needed.
           const declaredSize = entry.header?.size ?? 0;
-          const preCheckUsage = await db.collection('drive_mappings').aggregate([
-            { $match: { userId, 'metadata.isSharedZip': { $ne: true } } },
-            { $group: { _id: null, total: { $sum: { $toInt: { $ifNull: ['$metadata.size', 0] } } } } },
-          ]).toArray();
-          const preCheckUsedBytes = preCheckUsage[0]?.total || 0;
-          if (declaredSize > PER_FILE_MAX || preCheckUsedBytes + declaredSize > STORAGE_LIMIT_BYTES) {
-            console.warn(`Import: pre-check rejected entry ${safeFilename} (declared ${declaredSize} bytes, used ${preCheckUsedBytes})`);
+          if (declaredSize > PER_FILE_MAX || usedBytes + declaredSize > STORAGE_LIMIT_BYTES) {
+            console.warn(`Import: pre-check rejected entry ${safeFilename} (declared ${declaredSize} bytes, used ${usedBytes})`);
             skipped += (total - imported - skipped);
             if (io) io.to(userId).emit('importComplete', {
               userId,
@@ -931,6 +941,7 @@ router.post('/import-data', authLimiter, importUpload.single('exportFile'), asyn
           });
 
           imported++;
+          usedBytes += fileBuffer.length; // [FIX] update running total incrementally
 
           if (io) {
             io.to(userId).emit('importProgress', { userId, imported, skipped, total });

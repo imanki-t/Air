@@ -353,7 +353,7 @@ router.post('/export-data', async (req, res) => {
     }
 
     const exportToken = uuidv4();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72 hours
 
     await db.collection('export_tokens').insertOne({
       token: exportToken,
@@ -361,6 +361,7 @@ router.post('/export-data', async (req, res) => {
       email: decoded.email,
       name: decoded.name,
       expiresAt,
+      used: false,
       createdAt: new Date(),
     });
 
@@ -375,7 +376,7 @@ router.post('/export-data', async (req, res) => {
 
     return res.json({
       success: true,
-      message: 'Export link sent! Check your email — the download link expires in 30 days.',
+      message: 'Export link sent! Check your email — the download link expires in 72 hours.',
     });
   } catch (error) {
     console.error('Export data error:', error);
@@ -400,8 +401,16 @@ router.get('/export-download/:token', async (req, res) => {
       return res.status(404).send('Export link not found.');
     }
     if (new Date(exportRecord.expiresAt) < new Date()) {
-      return res.status(410).send('This export link has expired (30-day limit).');
+      return res.status(410).send('This export link has expired (72-hour limit).');
     }
+    if (exportRecord.used) {
+      return res.status(410).send('This export link has already been used. Please request a new one.');
+    }
+    // Mark as used immediately before streaming so concurrent requests can't both succeed
+    await db.collection('export_tokens').updateOne(
+      { token },
+      { $set: { used: true, usedAt: new Date() } }
+    );
 
     const files = await db
       .collection('drive_mappings')

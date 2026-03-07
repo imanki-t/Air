@@ -4,27 +4,33 @@ const router = express.Router();
 const multer = require('multer'); 
 const { Readable } = require('stream'); 
 const controller = require('../controllers/fileController'); 
-const { apiLimiter } = require('../middleware/rateLimitMiddleware'); // Import rate limiter
+const { apiLimiter } = require('../middleware/rateLimitMiddleware');
 
 // Multer config
 const storage = multer.memoryStorage(); 
-const upload = multer({ storage: storage }); // Set limits if needed: limits: { fileSize: ... }
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 * 1024 }, // 5 GB hard cap — rejects before buffering whole file
+});
+
+const zipUpload = multer({
+  storage: storage,
+  limits: { fileSize: 2 * 1024 * 1024 * 1024 }, // 2 GB cap for share-zips
+});
 
 // Upload route (NO rate limiting)
 router.post('/upload', upload.single('file'), (req, res, next) => { 
   if (req.file) {
-      req.file.stream = Readable.from(req.file.buffer); // convert buffer to stream 
+      req.file.stream = Readable.from(req.file.buffer);
   }
   next(); 
 }, controller.uploadFile); 
 
 // Share-zip route (NO rate limiting)
-router.post('/share-zip', upload.single('zipFile'), (req, res, next) => {
-    // Convert buffer to stream, similar to the /upload route
+router.post('/share-zip', zipUpload.single('zipFile'), (req, res, next) => {
     if (req.file) {
         req.file.stream = Readable.from(req.file.buffer);
     } else {
-       // Handle case where no file is received, although multer might handle this
        return res.status(400).send('No zip file attached.');
     }
     next();
@@ -36,7 +42,7 @@ router.get('/', controller.getFiles);
 // Download file route (NO rate limiting)
 router.get('/download/:id', controller.downloadFile); 
 
-// NEW: Preview/Thumbnail file route (NO rate limiting, with 24-hour caching)
+// Preview/Thumbnail file route (NO rate limiting, with 24-hour caching)
 router.get('/preview/:id', controller.previewFile);
 
 // Cleanup route (NO rate limiting)

@@ -118,6 +118,11 @@ const Icon = {
       <polyline points="22,6 12,13 2,6" />
     </svg>
   ),
+  Folder: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
+  ),
 };
 
 // ─── Modal — renders via portal directly on body, bypasses all z-index stacking ──
@@ -166,7 +171,7 @@ const InfoRow = ({ icon: IconComp, text, darkMode }) => (
 );
 
 // ─── Main component ───────────────────────────────────────────────────────────
-const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefresh }) => {
+const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefresh, hideFolderFiles, onHideFolderFilesToggle }) => {
   const [open, setOpen] = useState(false);
   const [stats, setStats] = useState({ fileCount: 0, storageUsed: 0 });
   const [loadingStats, setLoadingStats] = useState(false);
@@ -416,6 +421,24 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
                 </span>
                 <div className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${darkMode ? 'bg-blue-600' : 'bg-gray-300'}`}>
                   <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${darkMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                </div>
+              </button>
+            </div>
+
+            {/* Hide folder files toggle */}
+            <div className={`px-4 py-2.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
+              <button
+                onClick={() => { onHideFolderFilesToggle?.(); }}
+                className={`w-full flex items-center justify-between text-sm transition-colors duration-150 ${
+                  darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Icon.Folder className="w-4 h-4" />
+                  Hide files in folders
+                </span>
+                <div className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${hideFolderFiles ? (darkMode ? 'bg-blue-600' : 'bg-red-500') : 'bg-gray-300'}`}>
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${hideFolderFiles ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </div>
               </button>
             </div>

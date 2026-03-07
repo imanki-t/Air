@@ -125,7 +125,7 @@ const BatchFolderPicker = ({ folders, darkMode, onSelect, loading }) => {
 // NEW PROPS ADDED: folders = [], onFoldersChanged
 // All original code preserved below unchanged except additions marked with NEW
 // ─────────────────────────────────────────────────────────────────────────────
-const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFoldersChanged }) => {
+const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFoldersChanged, hideFolderFiles = false }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   // --- UI State ---
@@ -276,11 +276,13 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
   }, [isEditingPage]);
 
   // --- Filtering Logic ---
-  // Exclude files that already belong to a folder
-  const folderFileIds = new Set(folders.flatMap(f => f.fileIds?.map(String) || []));
+  // Optionally exclude files that already belong to a folder
+  const folderFileIds = hideFolderFiles
+    ? new Set(folders.flatMap(f => f.fileIds?.map(String) || []))
+    : new Set();
 
   const visible = files.filter(file => {
-    if (folderFileIds.has(String(file._id))) return false;
+    if (hideFolderFiles && folderFileIds.has(String(file._id))) return false;
     const type = file.metadata?.type || 'other';
     const matchesFilter = filter === 'all' || type === filter;
     const matchesSearch = !searchInput.trim() ||

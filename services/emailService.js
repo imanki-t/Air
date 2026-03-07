@@ -106,11 +106,9 @@ const sendEmail = async ({ to, subject, html }) => {
 
 const logoSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 500 500">
   <rect width="500" height="500" rx="80" fill="#dc2626"/>
-  <ellipse cx="250" cy="210" rx="130" ry="80" fill="#ffffff"/>
-  <ellipse cx="170" cy="230" rx="75" ry="60" fill="#ffffff"/>
-  <ellipse cx="330" cy="230" rx="75" ry="60" fill="#ffffff"/>
-  <rect x="120" y="220" width="260" height="70" fill="#ffffff"/>
-  <polyline points="155,288 250,330 345,288" fill="none" stroke="#dc2626" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="250" cy="250" r="170" fill="none" stroke="#ffffff" stroke-width="36"/>
+  <circle cx="250" cy="172" r="26" fill="#ffffff"/>
+  <polyline points="155,218 250,330 345,218" fill="none" stroke="#ffffff" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 
 const svg = {
@@ -184,7 +182,8 @@ const shell = ({ subtitle, accentColor = '#dc2626', accentDark = '#b91c1c', body
     .info-grid { background: #0f172a; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 6px 0; margin: 16px 0 20px; }
     .info-row { display: flex; align-items: flex-start; gap: 12px; padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); }
     .info-row:last-child { border-bottom: none; }
-    .info-icon { flex-shrink: 0; width: 28px; height: 28px; border-radius: 7px; background: rgba(220,38,38,0.12); display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+    .info-icon { flex-shrink: 0; width: 28px; height: 28px; border-radius: 7px; background: rgba(220,38,38,0.12); text-align: center; line-height: 28px; margin-top: 1px; }
+    .info-icon svg { display: inline-block; vertical-align: middle; width: 16px; height: 16px; }
     .info-text { color: #94a3b8; font-size: 13.5px; line-height: 1.55; padding-top: 5px; }
     .info-text strong { color: #e2e8f0; }
     .btn-wrap { text-align: center; margin: 24px 0 8px; }
@@ -251,12 +250,12 @@ const sendWelcomeEmail = (user) =>
         <p>Welcome aboard. Your Airstream account is ready — start uploading, organising, and sharing your files right away.</p>
         <p class="section-label">What is included</p>
         <div class="info-grid">
-          ${infoRow(svg.storage, '<strong>5 GB</strong> of free storage — no credit card required')}
+          ${infoRow(svg.storage, '<strong>Your Google Drive storage</strong> — uses your own Drive account, no extra limits')}
           ${infoRow(svg.link,    '<strong>Shareable links</strong> for any file, instantly')}
           ${infoRow(svg.folder,  '<strong>Folder organisation</strong> with custom colours')}
           ${infoRow(svg.export,  '<strong>Export and import</strong> your data any time')}
         </div>
-        <p>If you have any questions, simply reply to this email.</p>
+        <p>If you have any questions, simply reply to this email or visit our <a href="https://quickwitty.onrender.com/contacts" style="color:#dc2626;text-decoration:none;font-weight:600;">contact page</a>.</p>
         <p style="color:#475569;font-size:14px;">— The Airstream Team</p>
         <div class="divider"></div>
         <div class="footer">

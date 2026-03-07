@@ -16,12 +16,14 @@ const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 const [isActionLoading, setIsActionLoading] = useState(false); // Loading state for item-specific actions (download, share, delete)
 const [showMenu, setShowMenu] = useState(false);
 const [downloadProgress, setDownloadProgress] = useState(0);
+const [showViewer, setShowViewer] = useState(false);
 
 // --- Refs ---
 const menuRef = useRef(null);
 const shareModalRef = useRef(null);
 const deleteModalRef = useRef(null);
 const shareLinkInputRef = useRef(null); // Ref for the share link input
+const viewerModalRef = useRef(null);
 
 // --- Effects ---
 // Close menu/modals on outside click
@@ -42,34 +44,38 @@ const handleOutsideClick = (event) => {
   if (deleteModalRef.current && !deleteModalRef.current.contains(event.target)) {
      setShowDeleteConfirm(false);
   }
+  if (viewerModalRef.current && !viewerModalRef.current.contains(event.target)) {
+     setShowViewer(false);
+  }
 };
 
-if (showMenu || showShare || showDeleteConfirm) {
+if (showMenu || showShare || showDeleteConfirm || showViewer) {
    document.addEventListener('mousedown', handleOutsideClick);
 }
 
 return () => {
   document.removeEventListener('mousedown', handleOutsideClick);
 };
-}, [showMenu, showShare, showDeleteConfirm]);
+}, [showMenu, showShare, showDeleteConfirm, showViewer]);
 
 // Close modals on Escape key
 const handleKeyDown = useCallback((e) => {
   if (e.key === 'Escape') {
+    if (showViewer) { setShowViewer(false); return; }
     if (showShare) setShowShare(false);
     if (showDeleteConfirm) setShowDeleteConfirm(false);
     if (showMenu) setShowMenu(false);
   }
-}, [showShare, showDeleteConfirm, showMenu]);
+}, [showShare, showDeleteConfirm, showMenu, showViewer]);
 
 useEffect(() => {
-if (showShare || showDeleteConfirm || showMenu) {
+if (showShare || showDeleteConfirm || showMenu || showViewer) {
   window.addEventListener('keydown', handleKeyDown);
 } else {
   window.removeEventListener('keydown', handleKeyDown);
 }
 return () => window.removeEventListener('keydown', handleKeyDown);
-}, [showShare, showDeleteConfirm, showMenu, handleKeyDown]);
+}, [showShare, showDeleteConfirm, showMenu, showViewer, handleKeyDown]);
 
 // --- Actions ---
 const download = async () => {
@@ -156,6 +162,11 @@ const copyToClipboard = async (link) => {
     console.error('Failed to copy text: ', err);
   }
 };
+
+const openViewer = () => {
+  setShowMenu(false);
+  setShowViewer(true);
+};
   
 
 // --- Helpers ---
@@ -199,7 +210,9 @@ const FileTypeIcon = ({ type, darkMode, size = "h-10 w-10" }) => {
 
 // Preview logic based on metadata type and viewType
 const renderPreview = (isListView) => {
-const url = `${backendUrl}/api/files/download/${file._id}`;
+// Use the /preview/ endpoint: sets correct Content-Type, has 24hr browser cache,
+// and does NOT force Content-Disposition: attachment like /download/ does.
+const previewUrl = `${backendUrl}/api/files/preview/${file._id}`;
 const type = file.metadata?.type || 'other';
 
 // Classes for image/video previews
@@ -217,7 +230,15 @@ if (isListView) {
 if (type === 'image') {
   return (
     <div className={containerBaseClasses}>
-      <img src={url} alt={`Preview of ${file.filename}`} className={imageVideoPreviewClasses} loading="lazy" />
+      {/* crossOrigin="use-credentials" sends the httpOnly auth cookie cross-origin;
+          works because the server has cors({ credentials: true }) + crossOriginResourcePolicy: cross-origin */}
+      <img
+        src={previewUrl}
+        crossOrigin="use-credentials"
+        alt={`Preview of ${file.filename}`}
+        className={imageVideoPreviewClasses}
+        loading="lazy"
+      />
       <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
     </div>
   );
@@ -226,7 +247,13 @@ if (type === 'image') {
 if (type === 'video') {
   return (
     <div className={containerBaseClasses}>
-      <video src={`${url}#t=0.5`} preload="metadata" className={`${imageVideoPreviewClasses} bg-black`} />
+      {/* crossOrigin="use-credentials" sends auth cookie so the video thumbnail loads */}
+      <video
+        src={`${previewUrl}#t=0.5`}
+        crossOrigin="use-credentials"
+        preload="metadata"
+        className={`${imageVideoPreviewClasses} bg-black`}
+      />
       <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all duration-300">
          <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white/70 drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8.118v3.764a1 1 0 001.555.832l3.197-1.882a1 1 0 000-1.664l-3.197-1.882z" clipRule="evenodd" />
@@ -369,26 +396,43 @@ return (
                       )}
                       role="menu"
                     >
+                      {/* View Button — only for image / video / audio */}
+                      {(file.metadata?.type === 'image' || file.metadata?.type === 'video' || file.metadata?.type === 'audio') && (
+                        <>
+                          <button onClick={openViewer} className={cn(
+                            'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
+                            darkMode ? 'text-white' : 'text-gray-700'
+                          )} role="menuitem">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            View
+                          </button>
+                          <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`}></div>
+                        </>
+                      )}
+
                       {/* Download Button (No Hover) */}
                       <button onClick={download} className={cn(
-          'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
-          darkMode ? 'text-white' : 'text-gray-700'
-        )} role="menuitem">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-current opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
-          </svg>
-          Get
-        </button>
+                        'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
+                        darkMode ? 'text-white' : 'text-gray-700'
+                      )} role="menuitem">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-current opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+                        </svg>
+                        Get
+                      </button>
 
                       {/* Divider between Download and Share */}
-                       <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`}></div>
+                      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`}></div>
 
                       {/* Share Button (No Hover) */}
                       <button onClick={share} className={cn(
                         'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
-                        darkMode ? 'text-white' : 'text-gray-700' // Default text color
+                        darkMode ? 'text-white' : 'text-gray-700'
                       )} role="menuitem">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> Share
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> Share
                       </button>
 
                       {/* Divider before Delete */}
@@ -397,9 +441,9 @@ return (
                       {/* Delete Button (No Hover, retains color) */}
                       <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }} className={cn(
                         'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
-                        darkMode ? 'text-red-400' : 'text-red-600' // Keep delete color indication
+                        darkMode ? 'text-red-400' : 'text-red-600'
                       )} role="menuitem">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
                       </button>
                     </div>
                   )}
@@ -495,6 +539,23 @@ return (
                         )}
                         role="menu"
                       >
+                        {/* View Button — only for image / video / audio */}
+                        {(file.metadata?.type === 'image' || file.metadata?.type === 'video' || file.metadata?.type === 'audio') && (
+                          <>
+                            <button onClick={openViewer} className={cn(
+                              'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
+                              darkMode ? 'text-white' : 'text-gray-700'
+                            )} role="menuitem">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              View
+                            </button>
+                            <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`}></div>
+                          </>
+                        )}
+
                         {/* Download Button (No Hover) */}
                         <button onClick={download} className={cn(
             'w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5',
@@ -694,12 +755,115 @@ return (
     </div>
   )}
 
+  {/* Media Viewer Modal — image / video / audio only */}
+  {showViewer && (file.metadata?.type === 'image' || file.metadata?.type === 'video' || file.metadata?.type === 'audio') && (() => {
+    const type = file.metadata.type;
+    const previewUrl = `${backendUrl}/api/files/preview/${file._id}`;
+    return (
+      <div
+        className="fixed inset-0 z-[60] flex flex-col bg-black/90 backdrop-blur-md animate-fadeIn"
+        onClick={(e) => { if (e.target === e.currentTarget) setShowViewer(false); }}
+        role="dialog" aria-modal="true" aria-label={`Viewing ${file.filename}`}
+      >
+        {/* Header Bar */}
+        <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-black/40 border-b border-white/10">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Type badge */}
+            <span className={cn(
+              'flex-shrink-0 text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded',
+              type === 'image' ? 'bg-blue-600/80 text-blue-100' :
+              type === 'video' ? 'bg-purple-600/80 text-purple-100' :
+              'bg-green-600/80 text-green-100'
+            )}>
+              {type}
+            </span>
+            <h2 className="text-white text-sm font-medium truncate" title={file.filename}>
+              {file.filename}
+            </h2>
+          </div>
+          {/* Close button */}
+          <button
+            onClick={() => setShowViewer(false)}
+            className="flex-shrink-0 ml-3 p-1.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            aria-label="Close viewer"
+            title="Close (Esc)"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Media Content Area */}
+        <div
+          ref={viewerModalRef}
+          className="flex-1 flex items-center justify-center overflow-hidden p-4 animate-viewerIn"
+        >
+          {type === 'image' && (
+            <img
+              src={previewUrl}
+              crossOrigin="use-credentials"
+              alt={file.filename}
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl select-none"
+              draggable={false}
+            />
+          )}
+
+          {type === 'video' && (
+            <video
+              src={previewUrl}
+              crossOrigin="use-credentials"
+              controls
+              autoPlay
+              className="max-w-full max-h-full rounded-lg shadow-2xl bg-black"
+              style={{ maxHeight: 'calc(100vh - 120px)' }}
+            >
+              Your browser does not support the video tag.
+            </video>
+          )}
+
+          {type === 'audio' && (
+            <div className="flex flex-col items-center gap-6 p-8 rounded-2xl border border-white/10 bg-white/5 max-w-sm w-full">
+              {/* Big audio icon */}
+              <div className="w-24 h-24 rounded-full bg-green-600/20 border border-green-500/30 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+                </svg>
+              </div>
+              <p className="text-white/80 text-sm font-medium text-center truncate w-full" title={file.filename}>
+                {file.filename}
+              </p>
+              <audio
+                src={previewUrl}
+                crossOrigin="use-credentials"
+                controls
+                autoPlay
+                className="w-full"
+                style={{ accentColor: '#22c55e' }}
+              >
+                Your browser does not support the audio tag.
+              </audio>
+              <p className="text-white/40 text-xs">{formatSize(file.length)}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer hint */}
+        <div className="flex-shrink-0 pb-3 text-center">
+          <p className="text-white/30 text-xs">Press Esc or click outside to close</p>
+        </div>
+      </div>
+    );
+  })()}
+
    {/* CSS Animations (shared with FileList, could be moved to a global CSS file) */}
     <style jsx>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .animate-fadeIn { animation: fadeIn 0.2s ease-in-out; }
         @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
         .animate-modalIn { animation: modalIn 0.25s ease-out; }
+        @keyframes viewerIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+        .animate-viewerIn { animation: viewerIn 0.2s ease-out; }
     `}</style>
 </>
 );

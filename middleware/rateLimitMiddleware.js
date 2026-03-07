@@ -1,32 +1,87 @@
 // middleware/rateLimitMiddleware.js
 const rateLimit = require('express-rate-limit');
+const jwt = require('jsonwebtoken');
+const cookie = require('cookie');
 
-// Create a rate limiter that limits each IP to 30 requests per minute
-const apiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 30, // limit each IP to 30 requests per windowMs
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  message: {
-    error: 'Too many requests from this IP, please try again after a minute'
-  },
-  // Skip rate limiting for trusted sources like internal services if needed
-  // skipSuccessfulRequests: false, // counts all requests against the limit
-  // skip: (req) => req.ip === '127.0.0.1', // example of skipping localhost
-});
+// ─────────────────────────────────────────────────────────────────────────────
+// Key generator: identify by userId from JWT cookie, fall back to IP.
+// This means limits are per-user rather than per-IP.
+// ─────────────────────────────────────────────────────────────────────────────
+const userKeyGenerator = (req) => {
+  try {
+    const raw = req.headers.cookie || '';
+    const parsed = cookie.parse(raw);
+    const token = parsed.airstream_session;
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+      if (decoded?.userId) return `user_${decoded.userId}`;
+    }
+  } catch (_) {}
+  return req.ip; // fallback for unauthenticated routes (share links etc.)
+};
 
-// Create a more strict limiter for authentication routes if you add any
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 login attempts per windowMs
+// ─────────────────────────────────────────────────────────────────────────────
+// Upload — generous since it's a personal project
+// ─────────────────────────────────────────────────────────────────────────────
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 500,
+  keyGenerator: userKeyGenerator,
   standardHeaders: true,
   legacyHeaders: false,
-  message: {
-    error: 'Too many login attempts from this IP, please try again after 15 minutes'
-  }
+  message: { error: 'Upload limit reached. Try again later.' },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Download / Preview
+// ─────────────────────────────────────────────────────────────────────────────
+const downloadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 1000,
+  keyGenerator: userKeyGenerator,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Download limit reached. Try again later.' },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// General API (list files, delete, share generation, folders, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 300,
+  keyGenerator: userKeyGenerator,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down.' },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth (login attempts) — tighter, IP-based since no session yet
+// ─────────────────────────────────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public share link access — IP-based since no auth
+// ─────────────────────────────────────────────────────────────────────────────
+const shareLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests for this share link.' },
 });
 
 module.exports = {
   apiLimiter,
-  authLimiter
+  authLimiter,
+  uploadLimiter,
+  downloadLimiter,
+  shareLimiter,
 };

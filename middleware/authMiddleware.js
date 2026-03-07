@@ -9,15 +9,21 @@
 
 const jwt = require('jsonwebtoken');
 
+// Explicit localhost origins allowed in development — never a blanket NODE_ENV bypass
+const DEV_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:4173',
+];
+
 const protectRoute = (req, res, next) => {
   const origin = req.headers.origin;
   const referer = req.headers.referer;
   const frontendURL = process.env.FRONTEND_URL;
 
   const isFromAuthorizedOrigin =
-    (origin && origin === frontendURL) ||
-    (referer && referer.startsWith(frontendURL)) ||
-    process.env.NODE_ENV === 'development';
+    (origin && (origin === frontendURL || DEV_ORIGINS.includes(origin))) ||
+    (referer && (referer.startsWith(frontendURL) || DEV_ORIGINS.some(o => referer.startsWith(o))));
 
   // ─── 1. Always allow public shared-file GET routes ────────────────────────
   if (req.method === 'GET' && (req.path.includes('/share/') || req.path.includes('/s/'))) {
@@ -30,7 +36,6 @@ const protectRoute = (req, res, next) => {
   }
 
   // ─── 3. Auth routes: only require valid origin (no JWT needed yet) ────────
-  //    e.g. POST /api/auth/google, GET /api/auth/me, POST /api/auth/logout
   if (req.path.startsWith('/auth/')) {
     if (!isFromAuthorizedOrigin) {
       console.log(`Auth route blocked – origin: ${origin}, referer: ${referer}`);
@@ -51,7 +56,8 @@ const protectRoute = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Algorithm pinned to HS256 to prevent algorithm-confusion attacks (LOW-01)
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
     req.user = decoded; // { userId, googleId, email, name, picture, iat, exp }
     next();
   } catch (err) {

@@ -424,7 +424,13 @@ router.post('/refresh', authLimiter, async (req, res) => {
       tokenVersion: user.tokenVersion ?? 0,
     };
     const newJwt = jwt.sign(newTokenPayload, process.env.JWT_SECRET, { expiresIn: '15m' });
-    res.cookie('airstream_session', newJwt, cookieOptions(false));
+
+    // Infer rememberMe from the original refresh token's expiry — if it's more
+    // than 24 h from now it was a 30-day session, so preserve the maxAge on the
+    // re-issued cookies so the browser doesn't drop them on close.
+    const remainingMs = new Date(record.expiresAt).getTime() - Date.now();
+    const wasRememberMe = remainingMs > 24 * 60 * 60 * 1000;
+    res.cookie('airstream_session', newJwt, cookieOptions(wasRememberMe));
 
     // Issue new refresh token — preserve the original expiry window so sessions
     // don't extend indefinitely just from activity
@@ -436,7 +442,7 @@ router.post('/refresh', authLimiter, async (req, res) => {
       expiresAt: new Date(record.expiresAt), // same deadline as the original login
       used: false,
     });
-    res.cookie('airstream_refresh', newRefreshValue, cookieOptions(false));
+    res.cookie('airstream_refresh', newRefreshValue, cookieOptions(wasRememberMe));
 
     return res.json({ success: true });
   } catch (error) {
@@ -984,6 +990,7 @@ router.post('/delete-account', async (req, res) => {
     // [MED-02] Use clearCookieOptions() to ensure sameSite: 'strict' matches the
     // value used when the cookie was originally set.
     res.clearCookie('airstream_session', clearCookieOptions());
+    res.clearCookie('airstream_refresh', clearCookieOptions());
 
     return res.json({
       success: true,

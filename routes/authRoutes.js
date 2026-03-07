@@ -36,7 +36,7 @@ const getDb = () => mongoose.connection;
 const cookieOptions = (rememberMe = false) => ({
   httpOnly: true,
   secure: true,
-  sameSite: 'lax',
+  sameSite: 'strict', // upgraded from 'lax' to prevent CSRF on logout/preferences (HIGH-03)
   path: '/',
   ...(rememberMe && { maxAge: 30 * 24 * 60 * 60 * 1000 }),
 });
@@ -45,7 +45,7 @@ const getObjectId = () => mongoose.Types.ObjectId;
 
 const getToken = (req) => req.cookies && req.cookies.airstream_session;
 
-const verifyToken = (token) => jwt.verify(token, process.env.JWT_SECRET);
+const verifyToken = (token) => jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
 
 // Multer for import uploads — memory storage, 6 GB limit
 const importUpload = multer({
@@ -78,7 +78,9 @@ router.post('/google', authLimiter, async (req, res) => {
           return res.status(400).json({ error: 'Security check failed. Please try again.' });
         }
       } catch (rcErr) {
-        console.warn('reCAPTCHA verification error (non-blocking):', rcErr.message);
+        // If the reCAPTCHA service itself is unreachable, block rather than silently pass (LOW-04)
+        console.error('reCAPTCHA verification error (blocking):', rcErr.message);
+        return res.status(400).json({ error: 'Security check could not be completed. Please try again.' });
       }
     }
 
@@ -549,6 +551,21 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
 
         try {
           const fileBuffer = entry.getData();
+
+          // ── Storage quota check before writing (MED-03) ──────────────────
+          const currentUsage = await db.collection('drive_mappings').aggregate([
+            { $match: { userId, 'metadata.isSharedZip': { $ne: true } } },
+            { $group: { _id: null, total: { $sum: { $toInt: { $ifNull: ['$metadata.size', 0] } } } } },
+          ]).toArray();
+          const usedBytes = currentUsage[0]?.total || 0;
+          if (usedBytes + fileBuffer.length > STORAGE_LIMIT_BYTES) {
+            console.warn(`Import: storage limit reached for user ${userId}, skipping remaining files`);
+            skipped += (total - imported - skipped);
+            if (io) io.emit('importComplete', { userId, imported, skipped, message: `Storage limit reached. Imported ${imported} file${imported !== 1 ? 's' : ''}, ${skipped} skipped.` });
+            return;
+          }
+          // ─────────────────────────────────────────────────────────────────
+
           const mongoId = new ObjectId();
 
           const uploadStream = bucket.openUploadStream(fileMeta.filename, {

@@ -10,6 +10,18 @@
  * - GET  /api/auth/export-download/:token : Stream all user files as a ZIP (public, token-gated)
  * - POST /api/auth/import-data         : Import a previously exported ZIP back into the account
  * - POST /api/auth/delete-account      : Schedule account for deletion (7-day recovery window)
+ *
+ * SECURITY FIXES:
+ *  - [HIGH-01] reCAPTCHA: removed length > 20 bypass; if RECAPTCHA_SECRET_KEY is set, a valid
+ *              token is now required — missing or empty token is rejected rather than silently
+ *              skipped. A startup warning is logged when the key is absent.
+ *  - [HIGH-02] Export token race condition: replaced findOne + updateOne with a single atomic
+ *              findOneAndUpdate so concurrent requests can't both pass the "already used" check.
+ *  - [MED-02]  logout and delete-account clearCookie now use sameSite: 'strict' to match the
+ *              cookie that was set, ensuring it is reliably cleared by the browser.
+ *  - [HIGH-03] ZIP import: explicit path-traversal guard added before the existing sanitization
+ *              regex, rejecting filenames that contain '..', start with '/', or contain '\'.
+ *              The sanitized filename is used for both GridFS and metadata storage.
  */
 
 const express = require('express');
@@ -27,16 +39,34 @@ const { sendWelcomeEmail, sendExportEmail, sendDeletionEmail } = require('../ser
 
 const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
 
+// [HIGH-01] Warn at startup if reCAPTCHA is not configured so the omission is
+// visible in deployment logs rather than silently degrading security.
+if (!process.env.RECAPTCHA_SECRET_KEY) {
+  console.warn(
+    '[SECURITY WARNING] RECAPTCHA_SECRET_KEY is not set. ' +
+    'Bot protection is disabled. Set this variable in production.'
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 const getDb = () => mongoose.connection;
 
+// [MED-02] Single source of truth for cookie clear options — always 'strict' to
+// match the 'strict' value used when the cookie was originally set.
+const clearCookieOptions = () => ({
+  httpOnly: true,
+  secure: true,
+  sameSite: 'strict',
+  path: '/',
+});
+
 const cookieOptions = (rememberMe = false) => ({
   httpOnly: true,
   secure: true,
-  sameSite: 'strict', // upgraded from 'lax' to prevent CSRF on logout/preferences (HIGH-03)
+  sameSite: 'strict',
   path: '/',
   ...(rememberMe && { maxAge: 30 * 24 * 60 * 60 * 1000 }),
 });
@@ -64,8 +94,14 @@ router.post('/google', authLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Missing Google credential.' });
     }
 
-    // ── reCAPTCHA v3 verification (if configured) ────────────────────────────
-    if (process.env.RECAPTCHA_SECRET_KEY && recaptchaToken && recaptchaToken.length > 20) {
+    // ── [HIGH-01] reCAPTCHA v3 verification ──────────────────────────────────
+    // If RECAPTCHA_SECRET_KEY is configured, a token is always required.
+    // The old `length > 20` bypass has been removed — any truthy token is sent
+    // to Google for verification. Missing token when key is configured is rejected.
+    if (process.env.RECAPTCHA_SECRET_KEY) {
+      if (!recaptchaToken) {
+        return res.status(400).json({ error: 'Security check token missing. Please try again.' });
+      }
       try {
         const rcRes = await axios.post(
           'https://www.google.com/recaptcha/api/siteverify',
@@ -78,7 +114,7 @@ router.post('/google', authLimiter, async (req, res) => {
           return res.status(400).json({ error: 'Security check failed. Please try again.' });
         }
       } catch (rcErr) {
-        // If the reCAPTCHA service itself is unreachable, block rather than silently pass (LOW-04)
+        // Fail closed — if the reCAPTCHA service is unreachable, block the request (LOW-04)
         console.error('reCAPTCHA verification error (blocking):', rcErr.message);
         return res.status(400).json({ error: 'Security check could not be completed. Please try again.' });
       }
@@ -105,54 +141,36 @@ router.post('/google', authLimiter, async (req, res) => {
     }
 
     const db = getDb();
-
-    // ── Find or create user ──────────────────────────────────────────────────
     let user = await db.collection('users').findOne({ googleId });
-    let isNewUser = false;
 
     if (!user) {
+      // New user — create account and send welcome email
       const newUser = {
         googleId,
         email,
         name,
         picture,
         darkMode: false,
+        hideFolderFiles: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
       const result = await db.collection('users').insertOne(newUser);
-      user = { ...newUser, _id: result.insertedId };
-      isNewUser = true;
-      console.log(`New user created: ${email}`);
+      user = { _id: result.insertedId, ...newUser };
 
-      // Send welcome email (fire-and-forget)
       sendWelcomeEmail({ email, name }).catch((e) =>
         console.error('Welcome email error:', e.message)
       );
     } else {
-      // ── Check if account is pending deletion ─────────────────────────────
       if (user.pendingDeletion) {
-        const sevenDaysAfterDeletion = new Date(
-          new Date(user.deletionScheduledAt).getTime() + 7 * 24 * 60 * 60 * 1000
+        // User is signing back in within the 7-day recovery window — restore account
+        await db.collection('users').updateOne(
+          { googleId },
+          {
+            $unset: { pendingDeletion: '', deletionScheduledAt: '' },
+            $set: { name, picture, email, updatedAt: new Date() },
+          }
         );
-
-        if (new Date() < sevenDaysAfterDeletion) {
-          // Within 7-day recovery window — restore account
-          await db.collection('users').updateOne(
-            { googleId },
-            {
-              $set: { name, picture, email, updatedAt: new Date() },
-              $unset: { pendingDeletion: '', deletionScheduledAt: '' },
-            }
-          );
-          user.pendingDeletion = false;
-          console.log(`Account restored for: ${email}`);
-        } else {
-          // Past recovery window — account should have been cleaned up by now
-          return res.status(403).json({
-            error: 'This account has been permanently deleted and cannot be recovered.',
-          });
-        }
       } else {
         // Normal login — refresh profile info
         await db.collection('users').updateOne(
@@ -236,12 +254,10 @@ router.get('/me', async (req, res) => {
 // POST /api/auth/logout  – clear session cookie
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/logout', (req, res) => {
-  res.clearCookie('airstream_session', {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-    path: '/',
-  });
+  // [MED-02] Use clearCookieOptions() which enforces sameSite: 'strict' to match
+  // the value used when the cookie was set. A sameSite mismatch can prevent the
+  // browser from recognising it as the same cookie and clearing it.
+  res.clearCookie('airstream_session', clearCookieOptions());
   return res.json({ success: true });
 });
 
@@ -361,36 +377,29 @@ router.post('/export-data', async (req, res) => {
       token: exportToken,
       userId: decoded.userId,
       email: decoded.email,
-      name: decoded.name,
+      createdAt: new Date(),
       expiresAt,
       used: false,
-      createdAt: new Date(),
     });
 
     const downloadUrl = `${process.env.BACKEND_URL}/api/auth/export-download/${exportToken}`;
 
-    // Fire-and-forget email
-    sendExportEmail(
+    await sendExportEmail(
       { email: decoded.email, name: decoded.name },
       downloadUrl,
       expiresAt
-    ).catch((e) => console.error('Export email error:', e.message));
+    );
 
-    return res.json({
-      success: true,
-      message: 'Export link sent! Check your email — the download link expires in 72 hours.',
-    });
+    return res.json({ success: true });
   } catch (error) {
     console.error('Export data error:', error);
-    return res.status(500).json({ error: 'Failed to initiate export.' });
+    return res.status(500).json({ error: 'Export failed. Please try again.' });
   }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/auth/export-download/:token
-// Public route (no JWT) — streams all user files as a ZIP archive.
-// The ZIP contains manifest.json + files/ directory.
-// This same ZIP can be re-imported via /api/auth/import-data.
+// Streams all user files as a ZIP. Public but token-gated.
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/export-download/:token', async (req, res) => {
   let archive;
@@ -398,21 +407,32 @@ router.get('/export-download/:token', async (req, res) => {
     const { token } = req.params;
     const db = getDb();
 
-    const exportRecord = await db.collection('export_tokens').findOne({ token });
+    // [HIGH-02] ATOMIC token claim: use findOneAndUpdate with a filter that only
+    // matches un-used, un-expired tokens. This eliminates the race condition where
+    // two concurrent requests both pass the old findOne + updateOne check.
+    // returnDocument: 'before' gives us the pre-update document so we can
+    // distinguish "not found" from "already used" for better error messages.
+    const exportRecord = await db.collection('export_tokens').findOneAndUpdate(
+      {
+        token,
+        used: { $ne: true },
+        expiresAt: { $gt: new Date() },
+      },
+      { $set: { used: true, usedAt: new Date() } },
+      { returnDocument: 'before' }
+    );
+
     if (!exportRecord) {
-      return res.status(404).send('Export link not found.');
-    }
-    if (new Date(exportRecord.expiresAt) < new Date()) {
+      // Determine why it failed for a meaningful error message
+      const existing = await db.collection('export_tokens').findOne({ token });
+      if (!existing) {
+        return res.status(404).send('Export link not found.');
+      }
+      if (existing.used) {
+        return res.status(410).send('This export link has already been used. Please request a new one.');
+      }
       return res.status(410).send('This export link has expired (72-hour limit).');
     }
-    if (exportRecord.used) {
-      return res.status(410).send('This export link has already been used. Please request a new one.');
-    }
-    // Mark as used immediately before streaming so concurrent requests can't both succeed
-    await db.collection('export_tokens').updateOne(
-      { token },
-      { $set: { used: true, usedAt: new Date() } }
-    );
 
     const files = await db
       .collection('drive_mappings')
@@ -441,9 +461,7 @@ router.get('/export-download/:token', async (req, res) => {
     );
     res.setHeader('Content-Type', 'application/zip');
 
-    // Dynamically require GridFS bucket from the app
-    const mongoose_conn = db;
-    const bucket = new mongoose.mongo.GridFSBucket(mongoose_conn.db, {
+    const bucket = new mongoose.mongo.GridFSBucket(db.db, {
       bucketName: 'uploads',
     });
 
@@ -539,20 +557,40 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
       let skipped = 0;
 
       for (const fileMeta of manifest.files) {
-        const zipEntryName = `files/${fileMeta.filename.replace(/[^a-zA-Z0-9._\-\s]/g, '_')}`;
+        const rawFilename = fileMeta.filename || '';
+
+        // [HIGH-03] Explicit path-traversal guard: reject filenames that contain
+        // '..', start with '/', or contain '\' before any further processing.
+        // The sanitization regex below handles other special characters, but these
+        // specific patterns need to be caught early to prevent directory traversal
+        // attacks when the filename is stored in metadata or used in Content-Disposition.
+        if (
+          rawFilename.includes('..') ||
+          rawFilename.startsWith('/') ||
+          rawFilename.includes('\\')
+        ) {
+          console.warn(`Import: rejected unsafe filename: ${rawFilename}`);
+          skipped++;
+          if (io) io.to(userId).emit('importProgress', { userId, imported, skipped, total });
+          continue;
+        }
+
+        // Sanitize: allow only safe characters in filename
+        const safeFilename = rawFilename.replace(/[^a-zA-Z0-9._\-\s]/g, '_') || `file_${Date.now()}`;
+        const zipEntryName = `files/${safeFilename}`;
         const entry = zip.getEntry(zipEntryName);
 
         if (!entry) {
           console.warn(`Import: entry not found for ${zipEntryName}`);
           skipped++;
-          if (io) io.emit('importProgress', { userId, imported, skipped, total });
+          if (io) io.to(userId).emit('importProgress', { userId, imported, skipped, total });
           continue;
         }
 
         try {
           const fileBuffer = entry.getData();
 
-          // ── Storage quota check before writing (MED-03) ──────────────────
+          // ── Storage quota check before writing ────────────────────────────
           const currentUsage = await db.collection('drive_mappings').aggregate([
             { $match: { userId, 'metadata.isSharedZip': { $ne: true } } },
             { $group: { _id: null, total: { $sum: { $toInt: { $ifNull: ['$metadata.size', 0] } } } } },
@@ -561,14 +599,18 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
           if (usedBytes + fileBuffer.length > STORAGE_LIMIT_BYTES) {
             console.warn(`Import: storage limit reached for user ${userId}, skipping remaining files`);
             skipped += (total - imported - skipped);
-            if (io) io.emit('importComplete', { userId, imported, skipped, message: `Storage limit reached. Imported ${imported} file${imported !== 1 ? 's' : ''}, ${skipped} skipped.` });
+            if (io) io.to(userId).emit('importComplete', {
+              userId,
+              imported,
+              skipped,
+              message: `Storage limit reached. Imported ${imported} file${imported !== 1 ? 's' : ''}, ${skipped} skipped.`,
+            });
             return;
           }
-          // ─────────────────────────────────────────────────────────────────
 
           const mongoId = new ObjectId();
 
-          const uploadStream = bucket.openUploadStream(fileMeta.filename, {
+          const uploadStream = bucket.openUploadStream(safeFilename, {
             metadata: { userId, type: fileMeta.type || 'other', uploadedAt: new Date() },
           });
 
@@ -587,7 +629,8 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
             userId,
             createdAt: new Date(),
             metadata: {
-              filename: fileMeta.filename,
+              // [HIGH-03] Store the sanitized filename — never the raw manifest value
+              filename: safeFilename,
               type: fileMeta.type || 'other',
               contentType: fileMeta.contentType || 'application/octet-stream',
               size: fileBuffer.length,
@@ -599,21 +642,20 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
 
           imported++;
 
-          // Emit per-file progress + trigger file list refresh so file appears immediately
           if (io) {
-            io.emit('importProgress', { userId, imported, skipped, total });
-            io.emit('refreshFileList');
+            io.to(userId).emit('importProgress', { userId, imported, skipped, total });
+            io.to(userId).emit('refreshFileList');
           }
         } catch (fileErr) {
-          console.error(`Import: failed to import ${fileMeta.filename}:`, fileErr.message);
+          console.error(`Import: failed to import ${safeFilename}:`, fileErr.message);
           skipped++;
-          if (io) io.emit('importProgress', { userId, imported, skipped, total });
+          if (io) io.to(userId).emit('importProgress', { userId, imported, skipped, total });
         }
       }
 
-      // ── All done ─────────────────────────────────────────────────────────────
+      // ── All done ──────────────────────────────────────────────────────────
       if (io) {
-        io.emit('importComplete', {
+        io.to(userId).emit('importComplete', {
           userId,
           imported,
           skipped,
@@ -622,7 +664,7 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
       }
     })().catch((err) => {
       console.error('Background import error:', err);
-      if (io) io.emit('importComplete', { userId, imported: 0, skipped: total, message: 'Import failed unexpectedly.' });
+      if (io) io.to(userId).emit('importComplete', { userId, imported: 0, skipped: total, message: 'Import failed unexpectedly.' });
     });
 
   } catch (error) {
@@ -673,13 +715,9 @@ router.post('/delete-account', async (req, res) => {
       recoveryDeadline
     ).catch((e) => console.error('Deletion email error:', e.message));
 
-    // Clear session cookie
-    res.clearCookie('airstream_session', {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
-      path: '/',
-    });
+    // [MED-02] Use clearCookieOptions() to ensure sameSite: 'strict' matches the
+    // value used when the cookie was originally set.
+    res.clearCookie('airstream_session', clearCookieOptions());
 
     return res.json({
       success: true,

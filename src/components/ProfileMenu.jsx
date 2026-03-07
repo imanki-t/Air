@@ -635,13 +635,13 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
             <button
               onClick={() => setShowImportModal(false)}
               disabled={importLoading}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              className={`${(!importResult && !importLoading && !importInProgress) ? 'flex-1' : 'px-6'} py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 darkMode ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
               } disabled:opacity-50`}
             >
               {importResult ? 'Close' : importInProgress ? 'Close' : 'Cancel'}
             </button>
-            {!importResult && !importLoading && (
+            {!importResult && !importLoading && !importInProgress && (
               <button
                 onClick={() => importInputRef.current?.click()}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors ${

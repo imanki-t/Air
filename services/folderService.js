@@ -45,7 +45,7 @@ const getFolders = async (req, res) => {
     res.json(folders);
   } catch (err) {
     console.error('getFolders error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred.' });
   }
 };
 
@@ -83,7 +83,7 @@ const createFolder = async (req, res) => {
     res.status(201).json(folder);
   } catch (err) {
     console.error('createFolder error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred.' });
   }
 };
 
@@ -129,7 +129,7 @@ const updateFolder = async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('updateFolder error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred.' });
   }
 };
 
@@ -154,12 +154,14 @@ const deleteFolder = async (req, res) => {
     res.json({ message: 'Folder deleted successfully. Your files are unaffected.' });
   } catch (err) {
     console.error('deleteFolder error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred.' });
   }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/folders/:id/files  — add file IDs to a folder { fileIds: string[] }
+// fileIds are stored as strings (matching drive_mappings _id.toString()) for
+// consistent querying across the app (LOW-06).
 // ─────────────────────────────────────────────────────────────────────────────
 const addFilesToFolder = async (req, res) => {
   try {
@@ -174,9 +176,10 @@ const addFilesToFolder = async (req, res) => {
       return res.status(400).json({ error: 'fileIds must be a non-empty array.' });
     }
 
-    // Sanitize fileIds — only strings
+    // Normalise to trimmed strings; validate each is a valid ObjectId string
+    const ObjectId = getObjectId();
     const cleanFileIds = fileIds
-      .filter((id) => typeof id === 'string' && id.trim().length > 0)
+      .filter((id) => typeof id === 'string' && ObjectId.isValid(id.trim()))
       .map((id) => id.trim());
 
     if (cleanFileIds.length === 0) {
@@ -200,7 +203,7 @@ const addFilesToFolder = async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('addFilesToFolder error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to add files to folder.' });
   }
 };
 
@@ -235,22 +238,24 @@ const removeFileFromFolder = async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('removeFileFromFolder error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred.' });
   }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/folders/cleanup  — remove deleted file IDs from all user's folders
-// This is called internally after a file is deleted, to keep folders clean
+// This is called internally after a file is deleted, to keep folders clean.
+// Matches by string ID (normalised form stored in fileIds).
 // ─────────────────────────────────────────────────────────────────────────────
 const cleanupFileFromFolders = async (userId, fileId) => {
   try {
     if (!userId || !fileId) return;
     const db = getDb();
+    const fileIdStr = fileId.toString();
     await db.collection('user_folders').updateMany(
-      { userId, fileIds: fileId },
+      { userId, fileIds: fileIdStr },
       {
-        $pull: { fileIds: fileId },
+        $pull: { fileIds: fileIdStr },
         $set: { updatedAt: new Date() },
       }
     );

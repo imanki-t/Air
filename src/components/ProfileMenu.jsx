@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const STORAGE_LIMIT = 5 * 1024 * 1024 * 1024;
@@ -188,6 +189,9 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [importError, setImportError] = useState('');
+  const [importProgress, setImportProgress] = useState(0);   // files done
+  const [importTotal, setImportTotal] = useState(0);         // total files
+  const [importInProgress, setImportInProgress] = useState(false); // background running
 
   // Delete
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -248,26 +252,64 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
   };
 
   const handleOpenImport = () => {
-    setOpen(false); setImportResult(null); setImportError(''); setShowImportModal(true);
+    setOpen(false);
+    setImportResult(null);
+    setImportError('');
+    setImportProgress(0);
+    setImportTotal(0);
+    setImportInProgress(false);
+    setShowImportModal(true);
   };
+
   const handleImportFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-    setImportLoading(true); setImportError('');
+    setImportLoading(true);
+    setImportError('');
+    setImportProgress(0);
+    setImportTotal(0);
+    setImportInProgress(false);
+
     try {
       const formData = new FormData();
       formData.append('exportFile', file);
+
+      // Upload ZIP — backend responds immediately with { total }
       const res = await axios.post(`${backendUrl}/api/auth/import-data`, formData, {
         withCredentials: true,
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setImportResult(res.data);
-      onFilesRefresh?.();
-    } catch (err) {
-      setImportError(err.response?.data?.error || 'Import failed. Please try again.');
-    } finally {
+
+      // Switch from spinner to live progress bar
       setImportLoading(false);
+      setImportTotal(res.data.total);
+      setImportInProgress(true);
+
+      // Connect socket and listen for per-file progress
+      const socket = io(backendUrl, { withCredentials: true });
+
+      socket.on('importProgress', (data) => {
+        if (data.userId !== res.data.userId) return;
+        setImportProgress(data.imported + data.skipped);
+      });
+
+      socket.on('importComplete', (data) => {
+        socket.disconnect();
+        setImportInProgress(false);
+        setImportResult(data);
+        onFilesRefresh?.();
+      });
+
+      // Safety timeout — treat as done after 10 min regardless
+      setTimeout(() => {
+        socket.disconnect();
+        setImportInProgress(false);
+      }, 10 * 60 * 1000);
+
+    } catch (err) {
+      setImportLoading(false);
+      setImportError(err.response?.data?.error || 'Import failed. Please try again.');
     }
   };
 
@@ -541,10 +583,30 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
 
         <div className={`px-6 py-5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
           {importLoading ? (
+            // Phase 1 — uploading the ZIP
             <div className="text-center py-8">
               <div className={`w-9 h-9 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-3 ${darkMode ? 'border-blue-400' : 'border-red-500'}`} />
-              <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Importing your files…</p>
-              <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>This may take a moment.</p>
+              <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Uploading ZIP…</p>
+              <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Preparing your files for import.</p>
+            </div>
+          ) : importInProgress ? (
+            // Phase 2 — background processing with live progress bar
+            <div className="py-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Importing files…</p>
+                <p className={`text-sm font-semibold ${darkMode ? 'text-blue-400' : 'text-red-600'}`}>
+                  {importProgress} / {importTotal}
+                </p>
+              </div>
+              <div className={`h-2.5 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${darkMode ? 'bg-blue-500' : 'bg-red-500'}`}
+                  style={{ width: importTotal > 0 ? `${Math.round((importProgress / importTotal) * 100)}%` : '0%' }}
+                />
+              </div>
+              <p className={`text-xs mt-2 text-center ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Files are appearing in your dashboard as they import. You can close this.
+              </p>
             </div>
           ) : importResult ? (
             <div className={`rounded-xl p-4 flex items-start gap-3 ${darkMode ? 'bg-green-900/20 border border-green-800/40' : 'bg-green-50 border border-green-200'}`}>
@@ -577,7 +639,7 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
                 darkMode ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
               } disabled:opacity-50`}
             >
-              {importResult ? 'Close' : 'Cancel'}
+              {importResult ? 'Close' : importInProgress ? 'Close' : 'Cancel'}
             </button>
             {!importResult && !importLoading && (
               <button

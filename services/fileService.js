@@ -167,7 +167,7 @@ const uploadFile = async (req, res) => {
     });
   } catch (error) {
     console.error('Upload error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Upload failed. Please try again.' });
   }
 };
 
@@ -200,7 +200,7 @@ const getFiles = async (req, res) => {
     res.json(formattedFiles);
   } catch (error) {
     console.error('Error retrieving files:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Failed to retrieve files.' });
   }
 };
 
@@ -238,7 +238,7 @@ const deleteFile = async (req, res) => {
     res.json({ message: 'File deleted' });
   } catch (error) {
     console.error('Delete error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Delete failed. Please try again.' });
   }
 };
 
@@ -275,13 +275,20 @@ const downloadFile = async (req, res) => {
     downloadStream.pipe(res);
   } catch (error) {
     console.error('Download error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Download failed. Please try again.' });
   }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Preview / Thumbnail — inline with 24h caching
+// Only safe content types are served inline; everything else forces attachment
+// to prevent browsers rendering active content (MED-04).
+// SVG excluded intentionally — it can contain embedded scripts.
 // ─────────────────────────────────────────────────────────────────────────────
+const SAFE_INLINE_TYPES = new Set([
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'application/pdf',
+]);
+
 const previewFile = async (req, res) => {
   try {
     const ObjectId = getObjectId();
@@ -306,12 +313,13 @@ const previewFile = async (req, res) => {
     }
 
     const cacheMaxAge = 86400;
-    res.setHeader('Cache-Control', `public, max-age=${cacheMaxAge}`);
+    res.setHeader('Cache-Control', `private, max-age=${cacheMaxAge}`);
     res.setHeader('Expires', new Date(Date.now() + cacheMaxAge * 1000).toUTCString());
     res.setHeader('Content-Type', contentType);
 
     const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
-    res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
+    const disposition = SAFE_INLINE_TYPES.has(contentType) ? 'inline' : 'attachment';
+    res.setHeader('Content-Disposition', `${disposition}; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
     res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
 
@@ -323,7 +331,7 @@ const previewFile = async (req, res) => {
     downloadStream.pipe(res);
   } catch (error) {
     console.error('Preview error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Preview failed. Please try again.' });
   }
 };
 
@@ -360,7 +368,7 @@ const generateShareLink = async (req, res) => {
     res.json({ url: shareURL, expires: expirationDate });
   } catch (error) {
     console.error('Share link error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Failed to generate share link.' });
   }
 };
 
@@ -407,7 +415,7 @@ const accessSharedFile = async (req, res) => {
     downloadStream.pipe(res);
   } catch (error) {
     console.error('Access shared file error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Failed to access shared file.' });
   }
 };
 
@@ -452,7 +460,7 @@ const cleanupIncompleteUpload = async (req, res) => {
     res.json({ message: 'Incomplete upload cleaned up' });
   } catch (error) {
     console.error('Cleanup error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Cleanup failed.' });
   }
 };
 
@@ -511,7 +519,7 @@ const uploadAndShareZip = async (req, res) => {
     res.status(201).json({ url: shareURL, expires: expirationDate });
   } catch (error) {
     console.error('Error uploading and sharing zip:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Upload and share failed.' });
   }
 };
 

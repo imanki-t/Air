@@ -625,7 +625,11 @@ router.get('/export-download/:token', async (req, res) => {
       { returnDocument: 'before' }
     );
 
-    if (!exportRecord) {
+    // [FIX] MongoDB driver < 4 wraps the result as { value: document }.
+    // Driver >= 4 returns the document directly. Unwrap safely for both.
+    const exportDoc = exportRecord?.value ?? exportRecord;
+
+    if (!exportDoc) {
       // Determine why it failed for a meaningful error message
       const existing = await db.collection('export_tokens').findOne({ token });
       if (!existing) {
@@ -639,11 +643,9 @@ router.get('/export-download/:token', async (req, res) => {
 
     const ObjectId = getObjectId();
 
-    // [FIX] Use $or to match userId as either a string or ObjectId — guards
-    // against type mismatch between export_tokens (string) and drive_mappings
-    // (may be ObjectId in older documents), which previously caused files to
-    // return empty and produce a manifest-only ZIP.
-    const userIdStr = String(exportRecord.userId);
+    // [FIX] Use $or to match userId as either string or ObjectId — guards against
+    // type mismatch between export_tokens and drive_mappings documents.
+    const userIdStr = String(exportDoc.userId);
     const userIdQuery = ObjectId.isValid(userIdStr)
       ? { $or: [{ userId: userIdStr }, { userId: new ObjectId(userIdStr) }] }
       : { userId: userIdStr };
@@ -653,13 +655,6 @@ router.get('/export-download/:token', async (req, res) => {
       .find({ ...userIdQuery, 'metadata.isSharedZip': { $ne: true } })
       .toArray();
 
-    // Debug logging — remove once confirmed working
-    console.log(`[EXPORT] userId=${userIdStr} | drive_mappings found=${files.length}`);
-    if (files.length > 0) {
-      const s = files[0];
-      console.log(`[EXPORT] sample: userId type=${typeof s.userId} val=${s.userId} | driveId=${s.driveId}`);
-    }
-
     const bucket = new mongoose.mongo.GridFSBucket(db.db, { bucketName: 'uploads' });
 
     // [FIX] Pre-filter: exclude any drive_mappings document whose driveId is
@@ -667,7 +662,6 @@ router.get('/export-download/:token', async (req, res) => {
     // Without this, new ObjectId(undefined) throws in the loop and every file
     // gets skipped, producing a manifest-only ZIP.
     const validFiles = files.filter((f) => f.driveId && safeObjectId(String(f.driveId)));
-    console.log(`[EXPORT] validFiles after driveId filter=${validFiles.length}`);
 
     const usedZipEntries = new Set();
     const manifestFiles = validFiles.map((f) => {
@@ -700,8 +694,8 @@ router.get('/export-download/:token', async (req, res) => {
       airstreamExport: true,
       version:    '1.1',
       exportedAt: new Date().toISOString(),
-      userId:     exportRecord.userId,
-      exportKey:  exportRecord.exportKey,
+      userId:     exportDoc.userId,
+      exportKey:  exportDoc.exportKey,
       files: manifestFiles.map(({ filename, zipEntry, contentType, size, uploadDate, type }) => ({
         filename, zipEntry, contentType, size, uploadDate, type,
       })),
@@ -742,7 +736,7 @@ router.get('/export-download/:token', async (req, res) => {
         });
         archive.append(fileBuffer, { name: `files/${fileMeta.zipEntry}` });
       } catch (fileErr) {
-        console.error(`[EXPORT] FAILED file ${fileMeta._id} driveId=${fileMeta._driveId}:`, fileErr.message);
+        console.warn(`Export: skipping file ${fileMeta._id}:`, fileErr.message);
       }
     }
 

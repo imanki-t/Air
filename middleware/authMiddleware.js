@@ -26,7 +26,7 @@ const DEV_ORIGINS =
       ]
     : [];
 
-const protectRoute = (req, res, next) => {
+const protectRoute = async (req, res, next) => {
   const origin = req.headers.origin;
   const frontendURL = process.env.FRONTEND_URL;
 
@@ -70,7 +70,24 @@ const protectRoute = (req, res, next) => {
   try {
     // Algorithm pinned to HS256 to prevent algorithm-confusion attacks (LOW-01)
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-    req.user = decoded; // { userId, googleId, email, name, picture, iat, exp }
+
+    // [SEC-02] DB lookup to verify tokenVersion — enables instant session revocation.
+    // If tokenVersion was incremented (logout, delete-account, stolen-token replay),
+    // every existing JWT is rejected here even if the signature is still valid.
+    const mongoose = require('mongoose');
+    const db = mongoose.connection;
+    const user = await db.collection('users').findOne(
+      { _id: new mongoose.Types.ObjectId(decoded.userId) },
+      { projection: { tokenVersion: 1, pendingDeletion: 1 } }
+    );
+    if (!user || (decoded.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
+      return res.status(401).json({ error: 'Session revoked. Please sign in again.' });
+    }
+    if (user.pendingDeletion) {
+      return res.status(403).json({ error: 'Account is pending deletion.' });
+    }
+
+    req.user = decoded; // { userId, googleId, email, name, picture, tokenVersion, iat, exp }
     next();
   } catch (err) {
     console.log('JWT verification failed:', err.message);

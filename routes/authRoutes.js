@@ -736,7 +736,6 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
       });
     }
 
-    const db = getDb();
     const ObjectId = getObjectId();
     const bucket = new mongoose.mongo.GridFSBucket(db.db, { bucketName: 'uploads' });
     const userId = decoded.userId;

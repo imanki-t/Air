@@ -45,7 +45,7 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
   const [phaseVisible, setPhaseVisible] = useState(false);
   const [phaseOpacity, setPhaseOpacity] = useState(0);
   const [showPhases, setShowPhases] = useState(false);
-  const [typedQuote, setTypedQuote] = useState('');
+  const [typedQuote, setTypedQuote] = useState(''); // kept for cleanup safety
   const loginBoxRef = useRef(null);
   const googleBtnRef = useRef(null);
   const googleInitialized = useRef(false);
@@ -278,11 +278,10 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
     });
   };
 
-  const mobileMarginBottom = loading ? 'mb-0' : 'mb-20';
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-700 ease-in-out overflow-hidden ${
+      className={`fixed inset-0 z-50 flex flex-col transition-all duration-700 ease-in-out overflow-hidden ${
         fadeOut ? 'opacity-0' : 'opacity-100'
       }`}
       style={{ background: darkMode ? '#0f172a' : '#ffffff' }}
@@ -304,7 +303,7 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
       </div>
 
       {/* Header inside gate */}
-      <header className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-6 py-4">
+      <header className="relative z-10 flex items-center justify-between px-6 py-4 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div
             className={`w-12 h-12 flex items-center justify-center rounded-xl shadow-lg ${
@@ -330,8 +329,9 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
       </header>
 
       {/* Main content */}
+      <div className="relative z-10 flex-1 flex items-center justify-center w-full px-4 py-4">
       <div
-        className={`relative z-10 w-full max-w-md mx-auto px-4 mt-24 sm:mt-28 ${mobileMarginBottom}`}
+        className="w-full max-w-md mx-auto"
         ref={loginBoxRef}
       >
         {loading ? (
@@ -486,52 +486,45 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
                   </div>
                 </div>
 
-                {/* Footer quote */}
+                {/* reCAPTCHA notice — inside card footer */}
                 <div
-                  className={`p-4 border-t ${
+                  className={`px-6 py-3 border-t ${
                     darkMode ? 'border-gray-700 bg-gray-800/50' : 'border-gray-100 bg-gray-50/80'
                   }`}
                 >
-                  <p
-                    className={`text-xs italic text-center min-h-[1.2rem] ${
-                      darkMode ? 'text-gray-500' : 'text-gray-400'
-                    }`}
-                  >
-                    &ldquo;{typedQuote}&rdquo;
+                  <p className={`text-xs text-center leading-relaxed ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    This site is protected by reCAPTCHA and the Google{' '}
+                    <a
+                      href="https://policies.google.com/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`underline underline-offset-2 transition-colors ${darkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}
+                    >
+                      Privacy Policy
+                    </a>
+                    {' '}and{' '}
+                    <a
+                      href="https://policies.google.com/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`underline underline-offset-2 transition-colors ${darkMode ? 'hover:text-gray-300' : 'hover:text-gray-600'}`}
+                    >
+                      Terms of Service
+                    </a>
+                    {' '}apply.
                   </p>
                 </div>
               </div>
-
-              {/* reCAPTCHA notice */}
-              {RECAPTCHA_SITE_KEY && (
-                <p className={`text-center text-xs mt-3 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                  Protected by reCAPTCHA —{' '}
-                  <a
-                    href="https://policies.google.com/privacy"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`underline ${darkMode ? 'hover:text-gray-400' : 'hover:text-gray-500'}`}
-                  >
-                    Privacy
-                  </a>{' '}
-                  &{' '}
-                  <a
-                    href="https://policies.google.com/terms"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`underline ${darkMode ? 'hover:text-gray-400' : 'hover:text-gray-500'}`}
-                  >
-                    Terms
-                  </a>
-                </p>
-              )}
             </div>
           </div>
         )}
 
+      </div>{/* end max-w-md */}
+      </div>{/* end flex-1 centered */}
+
         {/* ── Page Footer ── */}
         {!loading && (
-          <footer className="absolute bottom-0 left-0 right-0 z-10 px-4 py-3">
+          <footer className="relative z-10 flex-shrink-0 px-4 py-3">
             <div className={`border-t pt-3 ${darkMode ? 'border-gray-800' : 'border-gray-200/60'}`}>
               <div className="flex flex-col sm:flex-row items-center justify-between gap-2 max-w-sm mx-auto sm:max-w-none sm:px-6">
                 {/* Brand */}
@@ -543,6 +536,33 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
                   </svg>
                   <span className={`text-xs font-semibold tracking-widest uppercase ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
                     Airstream
+                  </span>
+                </div>
+
+                {/* Desktop trust badges — hidden on mobile */}
+                <div className="hidden sm:flex items-center gap-4">
+                  <span className={`flex items-center gap-1.5 text-xs ${darkMode ? 'text-gray-700' : 'text-gray-350'}`}
+                    style={{ color: darkMode ? '#374151' : '#c4c9d0' }}>
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    End-to-end secure
+                  </span>
+                  <span style={{ color: darkMode ? '#374151' : '#c4c9d0' }} className="text-xs opacity-60">·</span>
+                  <span className={`flex items-center gap-1.5 text-xs`}
+                    style={{ color: darkMode ? '#374151' : '#c4c9d0' }}>
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Fast transfers
+                  </span>
+                  <span style={{ color: darkMode ? '#374151' : '#c4c9d0' }} className="text-xs opacity-60">·</span>
+                  <span className={`flex items-center gap-1.5 text-xs`}
+                    style={{ color: darkMode ? '#374151' : '#c4c9d0' }}>
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    Privacy first
                   </span>
                 </div>
 
@@ -572,7 +592,6 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
             </div>
           </footer>
         )}
-      </div>
     </div>
   );
 };

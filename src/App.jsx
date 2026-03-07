@@ -72,7 +72,7 @@ function App() {
   const [error, setError] = useState(null);
   const [files, setFiles] = useState([]);
   const [folders, setFolders] = useState([]);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);

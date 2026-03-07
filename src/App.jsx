@@ -195,7 +195,7 @@ function App() {
   // ─── Loading splash ──────────────────────────────────────────────────────────
   if (!authChecked) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
+      <div className={`fixed inset-0 z-50 flex items-center justify-center ${darkMode ? 'bg-gray-950' : 'bg-white'}`}>
         <div className="flex flex-col items-center gap-3">
           <svg
             className={`animate-spin h-8 w-8 ${darkMode ? 'text-blue-400' : 'text-red-500'}`}

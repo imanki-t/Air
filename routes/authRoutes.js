@@ -637,15 +637,29 @@ router.get('/export-download/:token', async (req, res) => {
       return res.status(410).send('This export link has expired (72-hour limit).');
     }
 
+    const ObjectId = getObjectId();
+
+    // [FIX] Use $or to match userId as either a string or ObjectId — guards
+    // against type mismatch between export_tokens (string) and drive_mappings
+    // (may be ObjectId in older documents), which previously caused files to
+    // return empty and produce a manifest-only ZIP.
+    const userIdStr = String(exportRecord.userId);
+    const userIdQuery = ObjectId.isValid(userIdStr)
+      ? { $or: [{ userId: userIdStr }, { userId: new ObjectId(userIdStr) }] }
+      : { userId: userIdStr };
+
     const files = await db
       .collection('drive_mappings')
-      .find({ userId: exportRecord.userId, 'metadata.isSharedZip': { $ne: true } })
+      .find({ ...userIdQuery, 'metadata.isSharedZip': { $ne: true } })
       .toArray();
 
-    // [FIX] Compute stable, de-duplicated zipEntry names first so manifest and
-    // ZIP always agree on filenames — fixes the 'entry not found' mismatch that
-    // caused 0 imported / N skipped on every import.
-    const ObjectId = getObjectId();
+    // Debug logging — remove once confirmed working
+    console.log(`[EXPORT] userId=${userIdStr} | drive_mappings found=${files.length}`);
+    if (files.length > 0) {
+      const s = files[0];
+      console.log(`[EXPORT] sample: userId type=${typeof s.userId} val=${s.userId} | driveId=${s.driveId}`);
+    }
+
     const bucket = new mongoose.mongo.GridFSBucket(db.db, { bucketName: 'uploads' });
 
     // [FIX] Pre-filter: exclude any drive_mappings document whose driveId is
@@ -653,6 +667,7 @@ router.get('/export-download/:token', async (req, res) => {
     // Without this, new ObjectId(undefined) throws in the loop and every file
     // gets skipped, producing a manifest-only ZIP.
     const validFiles = files.filter((f) => f.driveId && safeObjectId(String(f.driveId)));
+    console.log(`[EXPORT] validFiles after driveId filter=${validFiles.length}`);
 
     const usedZipEntries = new Set();
     const manifestFiles = validFiles.map((f) => {
@@ -727,7 +742,7 @@ router.get('/export-download/:token', async (req, res) => {
         });
         archive.append(fileBuffer, { name: `files/${fileMeta.zipEntry}` });
       } catch (fileErr) {
-        console.warn(`Export: skipping file ${fileMeta._id}:`, fileErr.message);
+        console.error(`[EXPORT] FAILED file ${fileMeta._id} driveId=${fileMeta._driveId}:`, fileErr.message);
       }
     }
 

@@ -103,7 +103,7 @@ const getToken = (req) => req.cookies?.airstream_session || null;
 
 // Signature-only verify (used in logout where DB may be inaccessible)
 const verifyToken = (token) =>
-  jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+  jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'], clockTolerance: 30 });
 
 // [HIGH-05] Signature + tokenVersion DB check — used on all authenticated routes
 const verifyTokenAndCheckRevocation = async (token, db) => {

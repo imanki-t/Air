@@ -149,6 +149,22 @@ const downloadFileStreamFromDrive = async (userId, driveFileId) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Download a byte range from Drive — returns a readable stream.
+// Used for HTTP 206 Partial Content responses (video/audio seeking on mobile).
+// The `Range: bytes=start-end` header is forwarded directly to the Drive API
+// so we never buffer more than the requested slice in memory.
+// ─────────────────────────────────────────────────────────────────────────────
+const downloadFileStreamFromDriveRange = async (userId, driveFileId, start, end) => {
+  const auth  = await getUserDriveClient(userId);
+  const drive = google.drive({ version: 'v3', auth });
+  const response = await drive.files.get(
+    { fileId: driveFileId, alt: 'media' },
+    { responseType: 'stream', headers: { Range: `bytes=${start}-${end}` } },
+  );
+  return response.data; // Node.js readable stream of the requested slice
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Download a file from Drive — returns a Buffer.
 // Used for ZIP packaging (export, batch-share).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -203,6 +219,7 @@ const getDriveStorageQuota = async (userId) => {
 module.exports = {
   uploadFileToDrive,
   downloadFileStreamFromDrive,
+  downloadFileStreamFromDriveRange,
   downloadFileBufferFromDrive,
   deleteFileFromDrive,
   getDriveStorageQuota,

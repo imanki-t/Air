@@ -20,6 +20,7 @@ const { cleanupFileFromFolders } = require('./folderService');
 const {
   uploadFileToDrive,
   downloadFileStreamFromDrive,
+  downloadFileStreamFromDriveRange,
   downloadFileBufferFromDrive,
   deleteFileFromDrive,
   getDriveStorageQuota,
@@ -282,6 +283,10 @@ const downloadFile = async (req, res) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Preview a file (inline, with caching) — streams from Google Drive
+// Supports HTTP Range requests (206 Partial Content) so that mobile browsers
+// (Chrome/Safari) can seek video/audio and receive the correct total duration.
+// Without proper Range support the browser calculates duration from the first
+// chunk only, producing the "5s → 10s → ..." stepping bug.
 // ─────────────────────────────────────────────────────────────────────────────
 const previewFile = async (req, res) => {
   try {
@@ -293,31 +298,79 @@ const previewFile = async (req, res) => {
     if (!allowed) return res.status(403).json({ error: 'Access denied.' });
 
     if (!fileMapping.driveId) return res.status(500).json({ error: 'File record is corrupt (missing storage ID).' });
+
     const storedContentType = fileMapping.metadata?.contentType || 'application/octet-stream';
 
     // [HIGH-04] Prevent stored XSS: force unsafe types to download as opaque binary.
     const isUnsafe = isUnsafePreviewType(storedContentType);
     const servedContentType = isUnsafe ? 'application/octet-stream' : storedContentType;
-    const filename = fileMapping.metadata?.filename || 'preview';
+    const filename   = fileMapping.metadata?.filename || 'preview';
     const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
+    const fileSize   = fileMapping.metadata?.size ? parseInt(fileMapping.metadata.size, 10) : null;
 
+    // ── Shared security headers ─────────────────────────────────────────────
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Security-Policy', 'sandbox');
 
     if (isUnsafe) {
       res.setHeader('Content-Type', 'application/octet-stream');
       res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
-    } else {
-      res.setHeader('Content-Type', servedContentType);
-      res.setHeader('Cache-Control', 'private, max-age=86400');
+      const stream = await downloadFileStreamFromDrive(userId, fileMapping.driveId);
+      stream.on('error', (err) => { console.error('Drive preview stream error:', err); if (!res.headersSent) res.status(404).json({ error: 'File not found.' }); });
+      return stream.pipe(res);
     }
 
-    const downloadStream = await downloadFileStreamFromDrive(userId, fileMapping.driveId);
-    downloadStream.on('error', (err) => {
+    res.setHeader('Content-Type', servedContentType);
+    res.setHeader('Cache-Control', 'private, max-age=86400');
+
+    // ── HTTP Range request handling (required for video/audio on mobile) ────
+    // Always advertise range support so the browser knows it can seek.
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    const rangeHeader = req.headers['range'];
+
+    if (rangeHeader && fileSize) {
+      // Parse "bytes=start-end" — end is optional (means "to EOF")
+      const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+      if (!match) {
+        res.setHeader('Content-Range', `bytes */${fileSize}`);
+        return res.status(416).end(); // Range Not Satisfiable
+      }
+
+      const start = parseInt(match[1], 10);
+      const end   = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+
+      // Clamp to valid bounds
+      const clampedEnd = Math.min(end, fileSize - 1);
+
+      if (start > clampedEnd || start < 0) {
+        res.setHeader('Content-Range', `bytes */${fileSize}`);
+        return res.status(416).end();
+      }
+
+      const chunkSize = clampedEnd - start + 1;
+
+      res.status(206);
+      res.setHeader('Content-Range',  `bytes ${start}-${clampedEnd}/${fileSize}`);
+      res.setHeader('Content-Length', chunkSize);
+
+      const rangeStream = await downloadFileStreamFromDriveRange(userId, fileMapping.driveId, start, clampedEnd);
+      rangeStream.on('error', (err) => {
+        console.error('Drive range stream error:', err);
+        if (!res.headersSent) res.status(404).json({ error: 'File not found.' });
+      });
+      return rangeStream.pipe(res);
+    }
+
+    // ── Full file (no Range header, or fileSize unknown) ────────────────────
+    if (fileSize) res.setHeader('Content-Length', fileSize);
+
+    const fullStream = await downloadFileStreamFromDrive(userId, fileMapping.driveId);
+    fullStream.on('error', (err) => {
       console.error('Drive preview stream error:', err);
       if (!res.headersSent) res.status(404).json({ error: 'File not found.' });
     });
-    downloadStream.pipe(res);
+    fullStream.pipe(res);
   } catch (error) {
     console.error('Preview file error:', error);
     res.status(500).json({ error: 'Failed to preview file.' });

@@ -263,7 +263,7 @@ router.post('/google', authLimiter, async (req, res) => {
     };
 
     const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '15m' });
-    res.cookie('airstream_session', token, cookieOptions(false));
+    res.cookie('airstream_session', token, cookieOptions(rememberMe));
 
     // Issue refresh token — stored in DB and sent as a second httpOnly cookie.
     // Expiry mirrors the old session length: 30 days if rememberMe, else 24 h.

@@ -47,7 +47,10 @@ function AppContent() {
     );
   }
 
+  const showFooter = ['dashboard', 'signup'].some(p => location.pathname.includes(p));
+
   return (
+    <>
     <Routes>
       {/* Public Routes */}
       <Route path="/" element={<Homepage />} />
@@ -75,6 +78,13 @@ function AppContent() {
       {/* Catch all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    {showFooter && (
+      <footer style={{ textAlign: 'center', padding: '16px', fontSize: '14px', color: theme === 'dark' ? '#9ca3af' : '#6b7280', borderTop: `1px solid ${theme === 'dark' ? '#1f2937' : '#e5e7eb'}` }}>
+        © Airstream &nbsp;|&nbsp;{' '}
+        <a href="https://quickwitty.onrender.com/contacts" style={{ color: '#3b82f6', textDecoration: 'none' }}>Contact Us</a>
+      </footer>
+    )}
+    </>
   );
 }
 

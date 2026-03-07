@@ -230,7 +230,10 @@ const deleteFile = async (req, res) => {
     await cleanupFileFromFolders(userId, fileId);
 
     const io = req.app.get('io');
-    if (io) io.emit('refreshFileList');
+    if (io) {
+      io.emit('refreshFileList');
+      io.emit('refreshFolderList');
+    }
 
     res.json({ message: 'File deleted' });
   } catch (error) {

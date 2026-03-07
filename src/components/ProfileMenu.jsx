@@ -176,12 +176,9 @@ const InfoRow = ({ icon: IconComp, text, darkMode }) => (
 );
 
 // ─── Main component ───────────────────────────────────────────────────────────
-const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefresh, hideFolderFiles, onHideFolderFilesToggle }) => {
+const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, onLogout, onFilesRefresh, hideFolderFiles, onHideFolderFilesToggle }) => {
   const [open, setOpen] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
-  const [themeMode, setThemeMode] = useState(() => {
-    return localStorage.getItem('airstream-theme') || 'system';
-  });
   const [stats, setStats] = useState({ fileCount: 0, storageUsed: 0, storageLimit: 0, driveQuota: null });
   const [loadingStats, setLoadingStats] = useState(false);
 
@@ -253,12 +250,7 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
 
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleThemeChange = (mode) => {
-    setThemeMode(mode);
-    localStorage.setItem('airstream-theme', mode);
-    let isDark;
-    if (mode === 'system') isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    else isDark = mode === 'dark';
-    if (isDark !== darkMode) onDarkModeToggle?.();
+    onThemeModeChange?.(mode);
     setOpen(false);
     setShowThemeMenu(false);
   };

@@ -41,15 +41,9 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
   useEffect(() => {
     rememberMeRef.current = rememberMe;
   }, [rememberMe]);
-  const [currentPhase, setCurrentPhase] = useState(0);
-  const [phaseVisible, setPhaseVisible] = useState(false);
-  const [phaseOpacity, setPhaseOpacity] = useState(0);
-  const [showPhases, setShowPhases] = useState(false);
   const loginBoxRef = useRef(null);
   const googleBtnRef = useRef(null);
   const googleInitialized = useRef(false);
-
-  const phases = ['Encrypting', 'Securing', 'Connecting', 'Verifying'];
 
   // ── Sync dark mode from parent ──────────────────────────────────────────
   useEffect(() => {
@@ -67,8 +61,7 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
     };
     mq.addEventListener('change', handleChange);
 
-    // Show phases immediately, end loading after 2 seconds total
-    setShowPhases(true);
+    // End loading after 2 seconds
     const loadingEndTimer = setTimeout(() => setLoading(false), 2000);
 
     return () => {
@@ -76,43 +69,6 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
       mq.removeEventListener('change', handleChange);
     };
   }, []); // eslint-disable-line
-
-  // ── Phase animation ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!loading || !showPhases) return;
-
-    setPhaseVisible(true);
-    setPhaseOpacity(0);
-
-    let step = 0;
-    const fadeIn = setInterval(() => {
-      step++;
-      setPhaseOpacity(step / 10);
-      if (step >= 10) clearInterval(fadeIn);
-    }, 30);
-
-    const fadeOutTimer = setTimeout(() => {
-      let outStep = 0;
-      const fadeOut = setInterval(() => {
-        outStep++;
-        setPhaseOpacity(1 - outStep / 8);
-        if (outStep >= 8) {
-          clearInterval(fadeOut);
-          setPhaseVisible(false);
-        }
-      }, 37);
-    }, 600);
-
-    const nextTimer = setTimeout(() => {
-      if (currentPhase < phases.length - 1) setCurrentPhase((p) => p + 1);
-    }, 450);
-
-    return () => {
-      clearInterval(fadeIn);
-      clearTimeout(fadeOutTimer);
-      clearTimeout(nextTimer);
-    };
-  }, [currentPhase, loading, showPhases]); // eslint-disable-line
 
   // ── Auto-clear error ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -332,18 +288,6 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
                   style={{ animationDuration: '2s' }}
                 />
               </div>
-              {showPhases && phaseVisible && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span
-                    className={`text-xl md:text-2xl font-bold uppercase ${
-                      darkMode ? 'text-gray-300' : 'text-black'
-                    }`}
-                    style={{ opacity: phaseOpacity, transition: 'opacity 100ms ease-in-out' }}
-                  >
-                    {phases[currentPhase]}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
         ) : (

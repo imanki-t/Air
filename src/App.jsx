@@ -21,7 +21,8 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false); // prevent flash
+  const [authChecked, setAuthChecked] = useState(false);
+  const [hideFolderFiles, setHideFolderFiles] = useState(false);
 
   const location = useLocation();
   const hideHeader = location.pathname === '/' || location.pathname === '/signup';
@@ -41,8 +42,8 @@ function App() {
         const userData = res.data;
         setUser(userData);
         setIsLoggedIn(true);
-        // Apply saved dark mode preference
         setDarkMode(userData.darkMode ?? false);
+        setHideFolderFiles(userData.hideFolderFiles ?? false);
       } catch (err) {
         setIsLoggedIn(false);
         setUser(null);
@@ -91,6 +92,7 @@ function App() {
     setUser(userData);
     setIsLoggedIn(true);
     setDarkMode(userData.darkMode ?? false);
+    setHideFolderFiles(userData.hideFolderFiles ?? false);
   }, []);
 
   const handleLogout = useCallback(async () => {
@@ -111,12 +113,18 @@ function App() {
     } catch (_) {}
   }, [darkMode]);
 
+  const handleHideFolderFilesToggle = useCallback(async () => {
+    const next = !hideFolderFiles;
+    setHideFolderFiles(next);
+    try {
+      await axios.patch(`${BACKEND_URL}/api/auth/preferences`, { hideFolderFiles: next });
+    } catch (_) {}
+  }, [hideFolderFiles]);
+
   // ─── Loading splash ──────────────────────────────────────────────────────────
   if (!authChecked) {
     return (
-      <div
-        className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-white'}`}
-      >
+      <div className={`min-h-screen flex items-center justify-center ${darkMode ? 'bg-gray-900' : 'bg-white'}`}>
         <div className="flex flex-col items-center gap-3">
           <svg
             className={`animate-spin h-8 w-8 ${darkMode ? 'text-blue-400' : 'text-red-500'}`}
@@ -134,72 +142,42 @@ function App() {
 
   // ─── Footer ──────────────────────────────────────────────────────────────────
   const renderFooter = () => (
-    <footer
-      className={`py-4 text-center text-xs border-t ${
-        darkMode ? 'text-gray-500 border-gray-800' : 'text-gray-400 border-gray-200'
-      }`}
-    >
+    <footer className={`py-4 text-center text-xs border-t ${darkMode ? 'text-gray-500 border-gray-800' : 'text-gray-400 border-gray-200'}`}>
       Airstream &copy; {new Date().getFullYear()}
     </footer>
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div
-      className={`min-h-screen flex flex-col relative ${darkMode ? 'dark bg-gray-950 text-white' : 'bg-white text-gray-900'}`}
-    >
+    <div className={`min-h-screen flex flex-col relative ${darkMode ? 'dark bg-gray-950 text-white' : 'bg-white text-gray-900'}`}>
       {/* Header */}
       {!hideHeader && (
-        <header
-          className={`sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 py-3 border-b backdrop-blur-md ${
-            darkMode
-              ? 'bg-gray-900/90 border-gray-800 text-white'
-              : 'bg-white/90 border-gray-200 text-gray-900'
-          }`}
-        >
+        <header className={`sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 py-3 border-b backdrop-blur-md ${
+          darkMode ? 'bg-gray-900/90 border-gray-800 text-white' : 'bg-white/90 border-gray-200 text-gray-900'
+        }`}>
           <div className="flex items-center gap-2.5">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 500 500"
-              className="h-8 w-8 select-none flex-shrink-0"
-              aria-label="Airstream logo"
-            >
-              {/* Outer circle */}
-              <circle
-                cx="250" cy="250" r="210"
-                fill="none"
-                stroke={darkMode ? '#ffffff' : '#000000'}
-                strokeWidth="36"
-              />
-              {/* Dot */}
-              <circle
-                cx="250" cy="172"
-                r="30"
-                fill={darkMode ? '#ffffff' : '#000000'}
-              />
-              {/* Chevron / V shape */}
-              <polyline
-                points="155,218 250,330 345,218"
-                fill="none"
-                stroke={darkMode ? '#ffffff' : '#000000'}
-                strokeWidth="36"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" className="h-8 w-8 select-none flex-shrink-0" aria-label="Airstream logo">
+              <circle cx="250" cy="250" r="210" fill="none" stroke={darkMode ? '#ffffff' : '#000000'} strokeWidth="36" />
+              <circle cx="250" cy="172" r="30" fill={darkMode ? '#ffffff' : '#000000'} />
+              <polyline points="155,218 250,330 345,218" fill="none" stroke={darkMode ? '#ffffff' : '#000000'} strokeWidth="36" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <span
-              className={`text-2xl font-black tracking-widest select-none uppercase ${
-                darkMode
-                  ? 'text-white'
-                  : 'bg-gradient-to-r from-red-600 to-red-400 bg-clip-text text-transparent'
-              }`}
-            >
+            <span className={`text-2xl font-black tracking-widest select-none uppercase ${
+              darkMode ? 'text-white' : 'bg-gradient-to-r from-red-600 to-red-400 bg-clip-text text-transparent'
+            }`}>
               AIRSTREAM
             </span>
           </div>
           <div className="flex items-center gap-2">
             {isLoggedIn && (
-              <ProfileMenu user={user} darkMode={darkMode} onLogout={handleLogout} onDarkModeToggle={handleDarkModeToggle} onFilesRefresh={fetchFiles} />
+              <ProfileMenu
+                user={user}
+                darkMode={darkMode}
+                onLogout={handleLogout}
+                onDarkModeToggle={handleDarkModeToggle}
+                onFilesRefresh={fetchFiles}
+                hideFolderFiles={hideFolderFiles}
+                onHideFolderFilesToggle={handleHideFolderFilesToggle}
+              />
             )}
           </div>
         </header>
@@ -207,78 +185,42 @@ function App() {
 
       {/* Grid background */}
       {darkMode && (
-        <div
-          className="fixed inset-0 pointer-events-none"
-          style={{
-            backgroundImage: `linear-gradient(to right, rgba(66,135,245,0.2) 1px, transparent 1px),
-                   linear-gradient(to bottom, rgba(66,135,245,0.2) 1px, transparent 1px)`,
-            backgroundSize: '30px 30px',
-            backgroundColor: '#0f172a',
-            zIndex: 0,
-          }}
-        />
+        <div className="fixed inset-0 pointer-events-none" style={{
+          backgroundImage: `linear-gradient(to right, rgba(66,135,245,0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(66,135,245,0.2) 1px, transparent 1px)`,
+          backgroundSize: '30px 30px', backgroundColor: '#0f172a', zIndex: 0,
+        }} />
       )}
       {!darkMode && (
-        <div
-          className="fixed inset-0 pointer-events-none"
-          style={{
-            backgroundImage: `linear-gradient(to right, rgba(139,0,0,0.3) 1px, transparent 1px),
-                   linear-gradient(to bottom, rgba(139,0,0,0.3) 1px, transparent 1px)`,
-            backgroundSize: '30px 30px',
-            backgroundColor: '#ffffff',
-            zIndex: 0,
-          }}
-        />
+        <div className="fixed inset-0 pointer-events-none" style={{
+          backgroundImage: `linear-gradient(to right, rgba(139,0,0,0.3) 1px, transparent 1px), linear-gradient(to bottom, rgba(139,0,0,0.3) 1px, transparent 1px)`,
+          backgroundSize: '30px 30px', backgroundColor: '#ffffff', zIndex: 0,
+        }} />
       )}
 
       <main className={`flex-grow relative z-10 pb-4 ${hideHeader ? '' : 'px-2 sm:px-4'}`}>
         <Routes>
-          {/* Home — always accessible; Homepage receives isLoggedIn to show "Go to Dashboard" */}
-          <Route
-            path="/"
-            element={<Homepage isLoggedIn={isLoggedIn} />}
-          />
-
-          {/* Login */}
+          <Route path="/" element={<Homepage isLoggedIn={isLoggedIn} />} />
           <Route
             path="/signup"
-            element={
-              isLoggedIn ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <SignUp onAccessGranted={handleAccessGranted} darkMode={darkMode} />
-              )
-            }
+            element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <SignUp onAccessGranted={handleAccessGranted} darkMode={darkMode} />}
           />
-
-          {/* Dashboard (protected) */}
           <Route
             path="/dashboard"
             element={
               isLoggedIn ? (
                 <div className="relative z-10 flex flex-col h-full">
                   {error && error.includes('Failed to load files') && (
-                    <div
-                      className={`mb-4 p-3 rounded-md text-sm ${
-                        darkMode ? 'bg-red-900/50 text-red-300' : 'bg-red-100 text-red-700'
-                      }`}
-                    >
+                    <div className={`mb-4 p-3 rounded-md text-sm ${darkMode ? 'bg-red-900/50 text-red-300' : 'bg-red-100 text-red-700'}`}>
                       {error}
                     </div>
                   )}
-
-                  {/* Upload bar */}
                   <UploadForm refresh={fetchFiles} darkMode={darkMode} />
-
-                  {/* Folder section — sits between upload bar and file list */}
                   <FolderList
                     darkMode={darkMode}
                     files={files}
                     folders={folders}
                     onFoldersChanged={fetchFolders}
                   />
-
-                  {/* File list */}
                   <div className={`flex-grow ${files.length === 0 ? 'flex justify-center items-center' : ''}`}>
                     <FileList
                       files={files}
@@ -287,6 +229,7 @@ function App() {
                       isLoading={false}
                       folders={folders}
                       onFoldersChanged={fetchFolders}
+                      hideFolderFiles={hideFolderFiles}
                     />
                   </div>
                 </div>
@@ -295,8 +238,6 @@ function App() {
               )
             }
           />
-
-          {/* Catch-all */}
           <Route path="*" element={<Navigate to={isLoggedIn ? '/dashboard' : '/'} replace />} />
         </Routes>
       </main>

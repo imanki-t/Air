@@ -41,6 +41,18 @@ const getOAuth2Client = () => {
 const encodeSubject = (text) =>
   `=?UTF-8?B?${Buffer.from(text, 'utf8').toString('base64')}?=`;
 
+// ─── HTML escape helper ─────────────────────────────────────────────────────
+// user.name and user.email come from Google OAuth, but we defensively escape
+// them before inserting into HTML to prevent any injection if Google's payload
+// ever contains special characters or if the values are changed in the DB.
+const escHtml = (str) =>
+  String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 // ─── Core send ────────────────────────────────────────────────────────────────
 const sendEmail = async ({ to, subject, html }) => {
   if (!GMAIL_ENABLED) {
@@ -235,7 +247,7 @@ const sendWelcomeEmail = (user) =>
     html: shell({
       subtitle: 'Your personal cloud storage',
       body: `
-        <p>Hey <strong>${user.name || 'there'}</strong>,</p>
+        <p>Hey <strong>${escHtml(user.name) || 'there'}</strong>,</p>
         <p>Welcome aboard. Your Airstream account is ready — start uploading, organising, and sharing your files right away.</p>
         <p class="section-label">What is included</p>
         <div class="info-grid">
@@ -248,7 +260,7 @@ const sendWelcomeEmail = (user) =>
         <p style="color:#475569;font-size:14px;">— The Airstream Team</p>
         <div class="divider"></div>
         <div class="footer">
-          <p>You received this because you created an account with <strong style="color:#64748b;">${user.email}</strong>.</p>
+          <p>You received this because you created an account with <strong style="color:#64748b;">${escHtml(user.email)}</strong>.</p>
         </div>
       `,
     }),
@@ -268,7 +280,7 @@ const sendExportEmail = (user, downloadUrl, expiresAt) => {
     html: shell({
       subtitle: 'Data export ready',
       body: `
-        <p>Hey <strong>${user.name || 'there'}</strong>,</p>
+        <p>Hey <strong>${escHtml(user.name) || 'there'}</strong>,</p>
         <p>Your Airstream data export has been prepared. Click the button below to download a ZIP archive of all your files.</p>
         <div class="btn-wrap">
           <a href="${downloadUrl}" class="btn">Download Your Data</a>
@@ -287,7 +299,7 @@ const sendExportEmail = (user, downloadUrl, expiresAt) => {
         <p style="color:#64748b;font-size:13.5px;">If you did not request this export, you can safely ignore this email — your account is untouched.</p>
         <div class="divider"></div>
         <div class="footer">
-          <p>Requested for account: <strong style="color:#64748b;">${user.email}</strong></p>
+          <p>Requested for account: <strong style="color:#64748b;">${escHtml(user.email)}</strong></p>
         </div>
       `,
     }),
@@ -310,7 +322,7 @@ const sendDeletionEmail = (user, recoveryDeadline) => {
       accentColor: '#991b1b',
       accentDark: '#7f1d1d',
       body: `
-        <p>Hey <strong>${user.name || 'there'}</strong>,</p>
+        <p>Hey <strong>${escHtml(user.name) || 'there'}</strong>,</p>
         <p>We received a request to permanently delete your Airstream account. Your account has been scheduled for deletion.</p>
         <div class="banner banner-danger">
           <div class="bicon">${svg.warning}</div>
@@ -327,7 +339,7 @@ const sendDeletionEmail = (user, recoveryDeadline) => {
         <p style="color:#64748b;font-size:13.5px;">If you did not request this deletion, sign in immediately — your account will be automatically restored.</p>
         <div class="divider"></div>
         <div class="footer">
-          <p>Account: <strong style="color:#64748b;">${user.email}</strong> &nbsp;&middot;&nbsp; Deletion date: <strong style="color:#64748b;">${deadlineStr}</strong></p>
+          <p>Account: <strong style="color:#64748b;">${escHtml(user.email)}</strong> &nbsp;&middot;&nbsp; Deletion date: <strong style="color:#64748b;">${deadlineStr}</strong></p>
         </div>
       `,
     }),

@@ -45,31 +45,18 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
   const [phaseVisible, setPhaseVisible] = useState(false);
   const [phaseOpacity, setPhaseOpacity] = useState(0);
   const [showPhases, setShowPhases] = useState(false);
-  const [typedQuote, setTypedQuote] = useState(''); // kept for cleanup safety
   const loginBoxRef = useRef(null);
   const googleBtnRef = useRef(null);
   const googleInitialized = useRef(false);
 
   const phases = ['Encrypting', 'Securing', 'Connecting', 'Verifying'];
-  const quotes = [
-    'Diamond hoe? In a locked chest. Respect it.',
-    'Built a dirt house for the nostalgia. Would die for it.',
-    'Trust issues? I cover my redstone with obsidian.',
-    'History will remember me as the dirt block king.',
-    'My realm, my rules.',
-    'I craft, therefore I am.',
-    'Home is where the respawn point is.',
-    'Redstone is just digital wizardry.',
-    'In the beginning, there was wood.',
-    'The cake is a lie… but I still bake it.',
-  ];
 
   // ── Sync dark mode from parent ──────────────────────────────────────────
   useEffect(() => {
     if (parentDarkMode !== undefined) setDarkMode(parentDarkMode);
   }, [parentDarkMode]);
 
-  // ── System dark mode fallback ────────────────────────────────────────────
+  // ── System dark mode fallback + loading timer ────────────────────────────
   useEffect(() => {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     if (parentDarkMode === undefined) setDarkMode(prefersDark);
@@ -80,28 +67,11 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
     };
     mq.addEventListener('change', handleChange);
 
-    // Typewriter effect for quote
-    const quote = quotes[Math.floor(Math.random() * quotes.length)];
-    let index = 0;
-    setTypedQuote('');
-    const typeInterval = setInterval(() => {
-      index++;
-      setTypedQuote(quote.slice(0, index));
-      if (index >= quote.length) clearInterval(typeInterval);
-    }, 50);
-
-    // Loading phase animation
-    const initialDelay = 3000;
-    const phaseShowTimer = setTimeout(() => setShowPhases(true), initialDelay);
-    const phaseDuration = 1000;
-    const loadingEndTimer = setTimeout(
-      () => setLoading(false),
-      initialDelay + phases.length * phaseDuration
-    );
+    // Show phases immediately, end loading after 2 seconds total
+    setShowPhases(true);
+    const loadingEndTimer = setTimeout(() => setLoading(false), 2000);
 
     return () => {
-      clearInterval(typeInterval);
-      clearTimeout(phaseShowTimer);
       clearTimeout(loadingEndTimer);
       mq.removeEventListener('change', handleChange);
     };
@@ -135,7 +105,7 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
 
     const nextTimer = setTimeout(() => {
       if (currentPhase < phases.length - 1) setCurrentPhase((p) => p + 1);
-    }, 1000);
+    }, 450);
 
     return () => {
       clearInterval(fadeIn);
@@ -184,31 +154,36 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
   }, [darkMode]); // eslint-disable-line
 
   useEffect(() => {
-    if (loading) return;
+    // Start loading GIS script immediately — don't wait for the spinner to finish.
+    // By the time 2s elapses the script will almost certainly be ready.
+    const scriptId = 'gis-script';
+    if (window.google?.accounts?.id) {
+      // Already loaded (e.g. hot reload)
+      if (!loading) initGoogleSignIn();
+    } else if (!document.getElementById(scriptId)) {
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => { if (!loading) initGoogleSignIn(); };
+      document.head.appendChild(script);
+    }
+  }, []); // eslint-disable-line
 
-    // GIS script might load after component mounts
+  // Once loading finishes, init Google button (GIS may already be loaded by now)
+  useEffect(() => {
+    if (loading) return;
     if (window.google?.accounts?.id) {
       initGoogleSignIn();
     } else {
-      const scriptId = 'gis-script';
-      if (!document.getElementById(scriptId)) {
-        const script = document.createElement('script');
-        script.id = scriptId;
-        script.src = 'https://accounts.google.com/gsi/client';
-        script.async = true;
-        script.defer = true;
-        script.onload = initGoogleSignIn;
-        document.head.appendChild(script);
-      } else {
-        // Script already in DOM, wait for it
-        const interval = setInterval(() => {
-          if (window.google?.accounts?.id) {
-            clearInterval(interval);
-            initGoogleSignIn();
-          }
-        }, 200);
-        return () => clearInterval(interval);
-      }
+      const interval = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          clearInterval(interval);
+          initGoogleSignIn();
+        }
+      }, 100);
+      return () => clearInterval(interval);
     }
   }, [loading, initGoogleSignIn]);
 
@@ -523,51 +498,22 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
       </div>{/* end flex-1 centered */}
 
         {/* ── Page Footer ── */}
-        {!loading && (
-          <footer className="relative z-10 flex-shrink-0 px-4 py-3">
-            <div className={`border-t pt-3 ${darkMode ? 'border-gray-800' : 'border-gray-200/60'}`}>
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 max-w-sm mx-auto sm:max-w-none sm:px-6">
+          <footer className={`relative z-10 flex-shrink-0 px-4 py-4 border-t ${darkMode ? 'border-gray-800 bg-gray-950' : 'border-gray-200 bg-white'}`}>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:px-6">
                 {/* Brand */}
-                <div className="flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" className="h-4 w-4 flex-shrink-0" aria-label="Airstream logo">
+                <div className="flex items-center gap-2.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" className="h-5 w-5 flex-shrink-0" aria-label="Airstream logo">
                     <circle cx="250" cy="250" r="210" fill="none" stroke={darkMode ? '#6b7280' : '#9ca3af'} strokeWidth="36" />
                     <circle cx="250" cy="172" r="30" fill={darkMode ? '#6b7280' : '#9ca3af'} />
                     <polyline points="155,218 250,330 345,218" fill="none" stroke={darkMode ? '#6b7280' : '#9ca3af'} strokeWidth="36" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span className={`text-xs font-semibold tracking-widest uppercase ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                  <span className={`text-sm font-bold tracking-widest uppercase ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                     Airstream
                   </span>
                 </div>
 
-                {/* Desktop trust badges — hidden on mobile */}
-                <div className="hidden sm:flex items-center gap-4">
-                  <span className={`flex items-center gap-1.5 text-xs ${darkMode ? 'text-gray-700' : 'text-gray-350'}`}
-                    style={{ color: darkMode ? '#374151' : '#c4c9d0' }}>
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    End-to-end secure
-                  </span>
-                  <span style={{ color: darkMode ? '#374151' : '#c4c9d0' }} className="text-xs opacity-60">·</span>
-                  <span className={`flex items-center gap-1.5 text-xs`}
-                    style={{ color: darkMode ? '#374151' : '#c4c9d0' }}>
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    Fast transfers
-                  </span>
-                  <span style={{ color: darkMode ? '#374151' : '#c4c9d0' }} className="text-xs opacity-60">·</span>
-                  <span className={`flex items-center gap-1.5 text-xs`}
-                    style={{ color: darkMode ? '#374151' : '#c4c9d0' }}>
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                    Privacy first
-                  </span>
-                </div>
-
                 {/* Links */}
-                <div className={`flex items-center gap-3 text-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                <div className={`flex items-center gap-4 text-sm ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
                   <a
                     href="https://quickwitty.onrender.com/contacts"
                     target="_blank"
@@ -589,9 +535,7 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
                   <span>© {new Date().getFullYear()}</span>
                 </div>
               </div>
-            </div>
           </footer>
-        )}
     </div>
   );
 };

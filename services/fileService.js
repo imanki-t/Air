@@ -13,6 +13,11 @@
 //                  record instead of merely $unsetting the share metadata fields.
 //                  Regular (non-ZIP) share links continue to have metadata unset
 //                  (the file itself is kept; only the share link is removed).
+//  - [HIGH-04]     previewFile no longer serves HTML, SVG, XML, or JavaScript
+//                  content inline. These types are forced to attachment with a
+//                  sanitized Content-Type, preventing stored-XSS execution. A
+//                  Content-Security-Policy: sandbox header is also added to every
+//                  preview response as a second layer of defence.
 
 const mongoose = require('mongoose');
 const crypto = require('crypto');
@@ -53,6 +58,29 @@ const getBucket = () => {
 const db = mongoose.connection;
 
 const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [HIGH-04] MIME types that must never be served inline — they would be
+// executed by the browser as code, enabling stored XSS.
+// Any content-type that starts with one of these prefixes is treated as unsafe.
+// ─────────────────────────────────────────────────────────────────────────────
+const UNSAFE_PREVIEW_MIME_PREFIXES = [
+  'text/html',
+  'text/xml',
+  'application/xml',
+  'application/xhtml',
+  'application/javascript',
+  'text/javascript',
+  'application/x-javascript',
+  'image/svg+xml',
+  'text/x-javascript',
+  'module',
+];
+
+const isUnsafePreviewType = (mimeType) => {
+  const lower = (mimeType || '').toLowerCase().split(';')[0].trim();
+  return UNSAFE_PREVIEW_MIME_PREFIXES.some((prefix) => lower.startsWith(prefix));
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [LOW-03] Generate a short share ID — upgraded to 8 bytes (64-bit entropy).
@@ -308,10 +336,27 @@ const previewFile = async (req, res) => {
     }
 
     const gridFSId = new ObjectId(fileMapping.driveId);
-    const contentType = fileMapping.metadata?.contentType || 'application/octet-stream';
+    const storedContentType = fileMapping.metadata?.contentType || 'application/octet-stream';
 
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'private, max-age=86400'); // 24-hour browser cache
+    // [HIGH-04] Prevent stored XSS: HTML, SVG, XML, and JavaScript must never
+    // be rendered inline by the browser. Force them to download as opaque binary.
+    // Defence-in-depth: also add CSP sandbox + nosniff on every preview response.
+    const isUnsafe = isUnsafePreviewType(storedContentType);
+    const servedContentType = isUnsafe ? 'application/octet-stream' : storedContentType;
+    const filename = fileMapping.metadata?.filename || 'preview';
+    const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
+
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', 'sandbox');
+
+    if (isUnsafe) {
+      // Force download so the browser never renders the content
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
+    } else {
+      res.setHeader('Content-Type', servedContentType);
+      res.setHeader('Cache-Control', 'private, max-age=86400'); // 24-hour browser cache
+    }
 
     const downloadStream = getBucket().openDownloadStream(gridFSId);
     downloadStream.on('error', (err) => {

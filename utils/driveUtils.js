@@ -59,11 +59,13 @@ const storeDriveMapping = async (mongoId, driveId, metadata, extraFields = {}) =
     }
 
     await db.collection('drive_mappings').insertOne({
+      // [FIX] extraFields spread first so caller-supplied fields (e.g. userId) can't
+      // accidentally overwrite the core _id, driveId, metadata, or createdAt fields.
+      ...extraFields,
       _id: validMongoId,
       driveId,
       metadata,
       createdAt: new Date(),
-      ...extraFields,
     });
 
     return validMongoId;

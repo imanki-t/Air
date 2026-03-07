@@ -7,6 +7,8 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const mongoose = require('mongoose');
 const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
+const cookie = require('cookie');
 
 const connectDB = require('./config/db');
 const fileRoutes = require('./routes/fileRoutes');
@@ -70,19 +72,43 @@ app.use('/api/folders', folderRoutes);
 
 // ── WebSocket ─────────────────────────────────────────────────────────────────
 
+io.use((socket, next) => {
+  // Verify the JWT cookie on every new Socket.IO connection.
+  // Unauthenticated connections are rejected before they can receive any events.
+  try {
+    const rawCookies = socket.handshake.headers.cookie || '';
+    const parsed = cookie.parse(rawCookies);
+    const token = parsed.airstream_session;
+
+    if (!token) {
+      return next(new Error('Not authenticated'));
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.userId; // attach userId to the socket for room use
+    next();
+  } catch (err) {
+    next(new Error('Invalid or expired session'));
+  }
+});
+
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  // Join a private room for this user so events are scoped per-user
+  const userId = socket.userId;
+  socket.join(userId);
+  console.log(`Client connected: ${socket.id} (user: ${userId})`);
 
   socket.on('fileUploaded', () => {
-    socket.broadcast.emit('refreshFileList');
+    // Emit only to this user's room, not all connected clients
+    io.to(userId).emit('refreshFileList');
   });
 
   socket.on('folderUpdated', () => {
-    socket.broadcast.emit('refreshFolderList');
+    io.to(userId).emit('refreshFolderList');
   });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    console.log(`Client disconnected: ${socket.id} (user: ${userId})`);
   });
 });
 
@@ -104,58 +130,34 @@ const runAndLogCleanup = async (context = 'Periodic') => {
 
 // ── Pending account deletion cleanup ─────────────────────────────────────────
 // Permanently deletes accounts where pendingDeletion=true and 7 days have passed.
-// FIX: use mongoose.connection.db (the actual Db object) — not mongoose.connection
-// (the Connection object), which does not expose .find().toArray() directly.
 const cleanupPendingDeletions = async () => {
   try {
-    const db = mongoose.connection.db; // ← correct: the native Db instance
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
+    const db = mongoose.connection.db;
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const usersToDelete = await db.collection('users').find({
       pendingDeletion: true,
-      deletionScheduledAt: { $lt: sevenDaysAgo },
+      deletionScheduledAt: { $lt: cutoff },
     }).toArray();
 
-    if (usersToDelete.length === 0) return;
-
-    console.log(`Deletion cleanup: permanently deleting ${usersToDelete.length} account(s)...`);
-
-    // FIX: pass db directly (not db.db) since db is already the native Db instance
-    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: 'uploads' });
-
     for (const user of usersToDelete) {
-      const userId = user._id.toString();
       try {
-        // Get all files for this user
-        const fileMappings = await db.collection('drive_mappings')
-          .find({ userId })
-          .toArray();
-
-        // Delete each file from GridFS
-        for (const mapping of fileMappings) {
+        const userId = user._id.toString();
+        const mappings = await db.collection('drive_mappings').find({ userId }).toArray();
+        const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: 'uploads' });
+        for (const mapping of mappings) {
           try {
-            const gridFSId = new mongoose.Types.ObjectId(mapping.driveId);
-            await bucket.delete(gridFSId);
-          } catch (gfsErr) {
-            console.warn(`Deletion cleanup: GridFS delete failed for ${mapping.driveId}:`, gfsErr.message);
+            await bucket.delete(new mongoose.Types.ObjectId(mapping.driveId));
+          } catch (e) {
+            console.warn(`GridFS delete warning for user ${userId}:`, e.message);
           }
         }
-
-        // Delete all drive_mappings
         await db.collection('drive_mappings').deleteMany({ userId });
-
-        // Delete all folders
-        await db.collection('folders').deleteMany({ userId });
-
-        // Delete all export tokens
+        await db.collection('user_folders').deleteMany({ userId });
         await db.collection('export_tokens').deleteMany({ userId });
-
-        // Delete the user record
         await db.collection('users').deleteOne({ _id: user._id });
-
-        console.log(`Deletion cleanup: permanently deleted account ${user.email} (${userId})`);
+        console.log(`Permanently deleted account for user ${userId}`);
       } catch (userErr) {
-        console.error(`Deletion cleanup: failed to delete account ${user.email}:`, userErr.message);
+        console.error(`Error deleting user ${user._id}:`, userErr);
       }
     }
   } catch (error) {
@@ -163,11 +165,10 @@ const cleanupPendingDeletions = async () => {
   }
 };
 
-// ── Expired export tokens cleanup ─────────────────────────────────────────────
 // FIX: same as above — use mongoose.connection.db
 const cleanupExpiredExportTokens = async () => {
   try {
-    const db = mongoose.connection.db; // ← correct: the native Db instance
+    const db = mongoose.connection.db;
     const result = await db.collection('export_tokens').deleteMany({
       expiresAt: { $lt: new Date() },
     });

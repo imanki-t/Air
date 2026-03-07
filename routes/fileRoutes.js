@@ -1,38 +1,48 @@
 // routes/fileRoutes.js
 const express = require('express'); 
 const router = express.Router(); 
-const multer = require('multer'); 
-const { Readable } = require('stream'); 
+const multer = require('multer');
+const os = require('os');
+const fs = require('fs');
 const controller = require('../controllers/fileController'); 
 const { uploadLimiter, downloadLimiter, apiLimiter, shareLimiter } = require('../middleware/rateLimitMiddleware');
 
-// Multer config
-const storage = multer.memoryStorage(); 
+// [FIX] Use diskStorage instead of memoryStorage for uploads.
+// memoryStorage() holds the entire file in RAM — a single 5 GB upload would
+// exhaust Node's heap and crash the process. diskStorage() writes to a temp
+// file so RAM usage stays flat regardless of file size.
+// fileService.uploadFile reads req.file.stream, so we open a ReadStream from
+// the temp path instead of building one from req.file.buffer.
+const diskStorage = multer.diskStorage({ destination: os.tmpdir() });
+
 const upload = multer({
-  storage: storage,
+  storage: diskStorage,
   limits: { fileSize: 5 * 1024 * 1024 * 1024 }, // 5 GB hard cap
 });
 
 const zipUpload = multer({
-  storage: storage,
+  storage: diskStorage,
   limits: { fileSize: 2 * 1024 * 1024 * 1024 }, // 2 GB cap for share-zips
 });
 
+// Helper: open a ReadStream from the temp file path and clean it up after the
+// response finishes so the temp file is never left on disk.
+const attachStreamAndCleanup = (req, res, next) => {
+  if (!req.file) return next();
+  req.file.stream = fs.createReadStream(req.file.path);
+  res.on('finish', () => fs.unlink(req.file.path, () => {}));
+  res.on('close',  () => fs.unlink(req.file.path, () => {}));
+  next();
+};
+
 // Upload
-router.post('/upload', uploadLimiter, upload.single('file'), (req, res, next) => { 
-  if (req.file) req.file.stream = Readable.from(req.file.buffer);
-  next(); 
-}, controller.uploadFile); 
+router.post('/upload', uploadLimiter, upload.single('file'), attachStreamAndCleanup, controller.uploadFile); 
 
 // Share-zip upload
 router.post('/share-zip', uploadLimiter, zipUpload.single('zipFile'), (req, res, next) => {
-  if (req.file) {
-    req.file.stream = Readable.from(req.file.buffer);
-  } else {
-    return res.status(400).send('No zip file attached.');
-  }
+  if (!req.file) return res.status(400).send('No zip file attached.');
   next();
-}, controller.uploadAndShareZip);
+}, attachStreamAndCleanup, controller.uploadAndShareZip);
 
 // List files
 router.get('/', apiLimiter, controller.getFiles); 

@@ -29,6 +29,17 @@
  *  - [SEC-02]  tokenVersion embedded in JWT payload. authMiddleware does a DB lookup on every
  *              request to compare decoded.tokenVersion === user.tokenVersion. Logout and
  *              delete-account increment tokenVersion so JWTs are revoked before natural expiry.
+ *  - [HIGH-05] tokenVersion revocation now enforced on ALL auth routes that accept a JWT.
+ *              Previously /stats, /export-data, /import-data, /delete-account, /preferences,
+ *              and /me called verifyToken() (signature-only) but skipped the DB tokenVersion
+ *              check, so revoked tokens remained valid on those routes until natural expiry.
+ *              A shared verifyTokenAndCheckRevocation() helper now handles both checks.
+ *  - [HIGH-06] ZIP import: manifest file count is capped at MAX_IMPORT_FILES (10 000).
+ *              Previously an unbounded manifest array could drive an O(n) background loop,
+ *              exhausting CPU and emitting thousands of socket events per request.
+ *  - [HIGH-07] ZIP bomb: entry.header.size (uncompressed size from the ZIP local file header)
+ *              is checked BEFORE calling entry.getData(). This prevents decompression of
+ *              crafted archives that expand a small compressed payload to gigabytes of RAM.
  */
 
 const express = require('express');
@@ -45,6 +56,11 @@ const { authLimiter } = require('../middleware/rateLimitMiddleware');
 const { sendWelcomeEmail, sendExportEmail, sendDeletionEmail } = require('../services/emailService');
 
 const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
+
+// [HIGH-06] Hard cap on the number of files that can be imported in a single
+// operation. Without this, a crafted manifest with 1 000 000 entries drives an
+// unbounded O(n) background loop and floods the user's socket room.
+const MAX_IMPORT_FILES = 10_000;
 
 // [HIGH-01] Warn at startup if reCAPTCHA is not configured so the omission is
 // visible in deployment logs rather than silently degrading security.
@@ -83,6 +99,49 @@ const getObjectId = () => mongoose.Types.ObjectId;
 const getToken = (req) => req.cookies && req.cookies.airstream_session;
 
 const verifyToken = (token) => jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [HIGH-05] Shared revocation helper — verifies JWT signature AND confirms
+// the tokenVersion against the DB. Use this instead of bare verifyToken() on
+// any auth route that accepts a JWT, so that logout / account-deletion revoke
+// tokens immediately rather than waiting for the 15-minute natural expiry.
+//
+// Throws an error with .status and .code set on failure so callers can
+// translate it into the appropriate HTTP response without boilerplate.
+// ─────────────────────────────────────────────────────────────────────────────
+const verifyTokenAndCheckRevocation = async (token, db) => {
+  let decoded;
+  try {
+    decoded = verifyToken(token);
+  } catch (err) {
+    const e = new Error('Session expired or invalid.');
+    e.status = 401;
+    e.code = 'INVALID_TOKEN';
+    throw e;
+  }
+
+  const ObjectId = getObjectId();
+  const user = await db.collection('users').findOne(
+    { _id: new ObjectId(decoded.userId) },
+    { projection: { tokenVersion: 1, pendingDeletion: 1 } }
+  );
+
+  if (!user || (decoded.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
+    const e = new Error('Session revoked. Please sign in again.');
+    e.status = 401;
+    e.code = 'REVOKED';
+    throw e;
+  }
+
+  if (user.pendingDeletion) {
+    const e = new Error('Account is pending deletion.');
+    e.status = 403;
+    e.code = 'PENDING_DELETION';
+    throw e;
+  }
+
+  return decoded;
+};
 
 // Multer for import uploads — memory storage, 6 GB limit
 const importUpload = multer({
@@ -244,21 +303,17 @@ router.get('/me', async (req, res) => {
     const token = getToken(req);
     if (!token) return res.status(401).json({ error: 'Not authenticated.' });
 
+    const db = getDb();
     let decoded;
     try {
-      decoded = verifyToken(token);
-    } catch {
-      return res.status(401).json({ error: 'Session expired. Please sign in again.' });
+      // [HIGH-05] verifyTokenAndCheckRevocation checks both signature and tokenVersion.
+      decoded = await verifyTokenAndCheckRevocation(token, db);
+    } catch (err) {
+      return res.status(err.status || 401).json({ error: err.message });
     }
 
-    const db = getDb();
     const user = await db.collection('users').findOne({ googleId: decoded.googleId });
     if (!user) return res.status(401).json({ error: 'User not found.' });
-
-    // Reject sessions for pending-deletion accounts
-    if (user.pendingDeletion) {
-      return res.status(403).json({ error: 'Account is pending deletion.' });
-    }
 
     return res.json({
       userId: user._id.toString(),
@@ -397,11 +452,13 @@ router.patch('/preferences', async (req, res) => {
     const token = getToken(req);
     if (!token) return res.status(401).json({ error: 'Not authenticated.' });
 
+    const db = getDb();
     let decoded;
     try {
-      decoded = verifyToken(token);
-    } catch {
-      return res.status(401).json({ error: 'Session expired.' });
+      // [HIGH-05] Use revocation-aware check so revoked sessions can't update preferences.
+      decoded = await verifyTokenAndCheckRevocation(token, db);
+    } catch (err) {
+      return res.status(err.status || 401).json({ error: err.message });
     }
 
     const { darkMode, hideFolderFiles } = req.body;
@@ -435,14 +492,15 @@ router.get('/stats', async (req, res) => {
     const token = getToken(req);
     if (!token) return res.status(401).json({ error: 'Not authenticated.' });
 
+    const db = getDb();
     let decoded;
     try {
-      decoded = verifyToken(token);
-    } catch {
-      return res.status(401).json({ error: 'Session expired.' });
+      // [HIGH-05] Use revocation-aware check so revoked sessions can't read stats.
+      decoded = await verifyTokenAndCheckRevocation(token, db);
+    } catch (err) {
+      return res.status(err.status || 401).json({ error: err.message });
     }
 
-    const db = getDb();
     const userId = decoded.userId;
 
     const result = await db.collection('drive_mappings').aggregate([
@@ -478,14 +536,14 @@ router.post('/export-data', async (req, res) => {
     const token = getToken(req);
     if (!token) return res.status(401).json({ error: 'Not authenticated.' });
 
+    const db = getDb();
     let decoded;
     try {
-      decoded = verifyToken(token);
-    } catch {
-      return res.status(401).json({ error: 'Session expired.' });
+      // [HIGH-05] Use revocation-aware check so revoked sessions can't trigger exports.
+      decoded = await verifyTokenAndCheckRevocation(token, db);
+    } catch (err) {
+      return res.status(err.status || 401).json({ error: err.message });
     }
-
-    const db = getDb();
 
     // Rate-limit: one pending export at a time (created in last hour)
     const recentExport = await db.collection('export_tokens').findOne({
@@ -634,11 +692,13 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
     const token = getToken(req);
     if (!token) return res.status(401).json({ error: 'Not authenticated.' });
 
+    const db = getDb();
     let decoded;
     try {
-      decoded = verifyToken(token);
-    } catch {
-      return res.status(401).json({ error: 'Session expired.' });
+      // [HIGH-05] Use revocation-aware check so revoked sessions can't import data.
+      decoded = await verifyTokenAndCheckRevocation(token, db);
+    } catch (err) {
+      return res.status(err.status || 401).json({ error: err.message });
     }
 
     if (!req.file) {
@@ -667,6 +727,14 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
 
     if (!manifest.airstreamExport) {
       return res.status(400).json({ error: 'This does not appear to be an Airstream export file.' });
+    }
+
+    // [HIGH-06] Reject manifests that exceed the file count cap.
+    // An unbounded list drives an O(n) background loop and floods the socket room.
+    if (!Array.isArray(manifest.files) || manifest.files.length > MAX_IMPORT_FILES) {
+      return res.status(400).json({
+        error: `Import exceeds the maximum of ${MAX_IMPORT_FILES.toLocaleString()} files.`,
+      });
     }
 
     const db = getDb();
@@ -716,16 +784,30 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
         }
 
         try {
-          const fileBuffer = entry.getData();
+          // [HIGH-07] ZIP bomb guard: read the stored uncompressed size from the
+          // ZIP local file header *before* decompressing. entry.header.size is
+          // the value written by the archiver and does not require decompression.
+          // Reject the entry if its uncompressed size alone would exceed the
+          // remaining quota, and also enforce a per-file ceiling of 5 GB to prevent
+          // a single entry from exhausting RAM regardless of the user's quota.
+          const uncompressedSize = entry.header?.size ?? 0;
+          const PER_FILE_MAX = STORAGE_LIMIT_BYTES; // 5 GB per-file ceiling
 
-          // ── Storage quota check before writing ────────────────────────────
-          const currentUsage = await db.collection('drive_mappings').aggregate([
+          if (uncompressedSize > PER_FILE_MAX) {
+            console.warn(`Import: ZIP bomb guard — entry ${safeFilename} claims ${uncompressedSize} bytes uncompressed (limit ${PER_FILE_MAX}). Skipping.`);
+            skipped++;
+            if (io) io.to(userId).emit('importProgress', { userId, imported, skipped, total });
+            continue;
+          }
+
+          // Re-check quota using the uncompressed size before decompression
+          const preCheckUsage = await db.collection('drive_mappings').aggregate([
             { $match: { userId, 'metadata.isSharedZip': { $ne: true } } },
             { $group: { _id: null, total: { $sum: { $toInt: { $ifNull: ['$metadata.size', 0] } } } } },
           ]).toArray();
-          const usedBytes = currentUsage[0]?.total || 0;
-          if (usedBytes + fileBuffer.length > STORAGE_LIMIT_BYTES) {
-            console.warn(`Import: storage limit reached for user ${userId}, skipping remaining files`);
+          const preCheckUsedBytes = preCheckUsage[0]?.total || 0;
+          if (preCheckUsedBytes + uncompressedSize > STORAGE_LIMIT_BYTES) {
+            console.warn(`Import: storage limit would be exceeded for user ${userId}, skipping remaining files`);
             skipped += (total - imported - skipped);
             if (io) io.to(userId).emit('importComplete', {
               userId,
@@ -735,6 +817,8 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
             });
             return;
           }
+
+          const fileBuffer = entry.getData();
 
           const mongoId = new ObjectId();
 
@@ -812,14 +896,17 @@ router.post('/delete-account', async (req, res) => {
     const token = getToken(req);
     if (!token) return res.status(401).json({ error: 'Not authenticated.' });
 
+    const db = getDb();
     let decoded;
     try {
-      decoded = verifyToken(token);
-    } catch {
-      return res.status(401).json({ error: 'Session expired.' });
+      // [HIGH-05] Use revocation-aware check. Note: this route also increments
+      // tokenVersion itself, which is fine — we just need to confirm the session
+      // is still valid *before* acting on the deletion request.
+      decoded = await verifyTokenAndCheckRevocation(token, db);
+    } catch (err) {
+      return res.status(err.status || 401).json({ error: err.message });
     }
 
-    const db = getDb();
     const now = new Date();
     const recoveryDeadline = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 

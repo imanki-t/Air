@@ -80,7 +80,7 @@ function App() {
 
   const location = useLocation();
   const hideHeader = location.pathname === '/' || location.pathname === '/signup';
-  const showFooter = location.pathname === '/dashboard' || location.pathname === '/signup';
+  const showFooter = location.pathname === '/dashboard';
 
   // ─── Check existing session on mount ────────────────────────────────────────
   useEffect(() => {
@@ -214,7 +214,7 @@ function App() {
   // ─── Footer ──────────────────────────────────────────────────────────────────
   const renderFooter = () => (
     <footer className={`relative z-10 border-t mt-auto ${darkMode ? 'border-gray-800 bg-gray-950/80' : 'border-gray-200 bg-white/80'} backdrop-blur-sm`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+      <div className="w-full px-4 sm:px-6 py-4">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
 
           {/* Brand */}
@@ -263,7 +263,7 @@ function App() {
       {/* Header */}
       {!hideHeader && (
         <header className={`sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 py-3 border-b backdrop-blur-md ${
-          darkMode ? 'bg-gray-950/80 border-gray-800 text-white' : 'bg-white/80 border-gray-200 text-gray-900'
+          darkMode ? 'bg-gray-900/90 border-gray-800 text-white' : 'bg-white/90 border-gray-200 text-gray-900'
         }`}>
           <div className="flex items-center gap-2.5">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" className="h-8 w-8 select-none flex-shrink-0" aria-label="Airstream logo">

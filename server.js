@@ -245,12 +245,7 @@ setInterval(() => runAllCleanup('Periodic'), ONE_HOUR_IN_MS);
 mongoose.connection.once('open', () => {
   runAllCleanup('Startup');
 
-  // [FIX] TTL index on refresh_tokens.expiresAt — MongoDB automatically removes
-  // expired documents so used/expired refresh tokens don't accumulate forever.
-  mongoose.connection.db.collection('refresh_tokens').createIndex(
-    { expiresAt: 1 },
-    { expireAfterSeconds: 0, background: true }
-  ).catch((err) => console.warn('refresh_tokens TTL index warning:', err.message));
+  // TTL indexes are created in config/db.js on connect — no need to recreate here.
 });
 
 // ── Start ─────────────────────────────────────────────────────────────────────

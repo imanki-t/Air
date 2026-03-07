@@ -528,6 +528,50 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
             </div>
           </div>
         )}
+
+        {/* ── Page Footer ── */}
+        {!loading && (
+          <footer className="absolute bottom-0 left-0 right-0 z-10 px-4 py-3">
+            <div className={`border-t pt-3 ${darkMode ? 'border-gray-800' : 'border-gray-200/60'}`}>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 max-w-sm mx-auto sm:max-w-none sm:px-6">
+                {/* Brand */}
+                <div className="flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" className="h-4 w-4 flex-shrink-0" aria-label="Airstream logo">
+                    <circle cx="250" cy="250" r="210" fill="none" stroke={darkMode ? '#6b7280' : '#9ca3af'} strokeWidth="36" />
+                    <circle cx="250" cy="172" r="30" fill={darkMode ? '#6b7280' : '#9ca3af'} />
+                    <polyline points="155,218 250,330 345,218" fill="none" stroke={darkMode ? '#6b7280' : '#9ca3af'} strokeWidth="36" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className={`text-xs font-semibold tracking-widest uppercase ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                    Airstream
+                  </span>
+                </div>
+
+                {/* Links */}
+                <div className={`flex items-center gap-3 text-xs ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                  <a
+                    href="https://quickwitty.onrender.com/contacts"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`transition-colors ${darkMode ? 'hover:text-gray-400' : 'hover:text-gray-600'}`}
+                  >
+                    Contact
+                  </a>
+                  <span className="opacity-40">·</span>
+                  <a
+                    href="https://policies.google.com/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`transition-colors ${darkMode ? 'hover:text-gray-400' : 'hover:text-gray-600'}`}
+                  >
+                    Privacy
+                  </a>
+                  <span className="opacity-40">·</span>
+                  <span>© {new Date().getFullYear()}</span>
+                </div>
+              </div>
+            </div>
+          </footer>
+        )}
       </div>
     </div>
   );

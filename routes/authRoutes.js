@@ -82,14 +82,14 @@ const getDb = () => mongoose.connection;
 const clearCookieOptions = () => ({
   httpOnly: true,
   secure: true,
-  sameSite: 'strict',
+  sameSite: 'none', // 'strict' breaks cross-site cookie sending on Render subdomains
   path: '/',
 });
 
 const cookieOptions = (rememberMe = false) => ({
   httpOnly: true,
   secure: true,
-  sameSite: 'strict',
+  sameSite: 'none', // 'strict' blocks cookies on cross-site XHR (frontend/backend on different Render subdomains)
   path: '/',
   ...(rememberMe && { maxAge: 30 * 24 * 60 * 60 * 1000 }),
 });

@@ -398,6 +398,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
         axios.delete(`${backendUrl}/api/files/${id}`)
       ));
       refresh();
+      onFoldersChanged?.();
       setShowDeleteConfirmModal(false);
       setSelectionMode(false);
     } catch (err) {

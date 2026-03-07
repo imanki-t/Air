@@ -11,6 +11,9 @@
  *             Referer is spoofable and not a reliable security boundary.
  *  - [LOW-04] DEV_ORIGINS are now gated behind NODE_ENV !== 'production' so localhost
  *             origins are never accepted in a production deployment.
+ *  - [FIX]    clockTolerance: 30 added to jwt.verify — Render free-tier servers can have
+ *             clock skew of a few seconds, causing freshly-issued JWTs to appear already
+ *             expired on the first request after login.
  */
 
 const jwt = require('jsonwebtoken');
@@ -31,9 +34,6 @@ const protectRoute = async (req, res, next) => {
   const frontendURL = process.env.FRONTEND_URL;
 
   // [MED-01] Only check the Origin header — Referer is no longer used.
-  // Origin is sent by browsers for all cross-origin requests and cannot be
-  // forged by a page-level script. Referer can be omitted or faked by
-  // server-side callers and is not a trustworthy security signal.
   const isFromAuthorizedOrigin =
     origin && (origin === frontendURL || DEV_ORIGINS.includes(origin));
 
@@ -68,8 +68,13 @@ const protectRoute = async (req, res, next) => {
   }
 
   try {
-    // Algorithm pinned to HS256 to prevent algorithm-confusion attacks (LOW-01)
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    // Algorithm pinned to HS256 to prevent algorithm-confusion attacks (LOW-01).
+    // clockTolerance: 30 absorbs up to 30 s of server clock skew (common on Render
+    // free tier) so freshly-issued JWTs are never rejected immediately after login.
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ['HS256'],
+      clockTolerance: 30,
+    });
 
     // [SEC-02] DB lookup to verify tokenVersion — enables instant session revocation.
     // If tokenVersion was incremented (logout, delete-account, stolen-token replay),

@@ -62,6 +62,11 @@ const storeDriveMapping = async (mongoId, driveId, metadata, extraFields = {}) =
       // [FIX] extraFields spread first so caller-supplied fields (e.g. userId) can't
       // accidentally overwrite the core _id, driveId, metadata, or createdAt fields.
       ...extraFields,
+      // [FIX] Always coerce userId to a string so it matches exportRecord.userId
+      // (which comes from decoded.userId = user._id.toString()). Without this,
+      // userId could be stored as a BSON ObjectId, causing the export query to
+      // return zero documents and producing a manifest-only ZIP.
+      ...(extraFields.userId && { userId: String(extraFields.userId) }),
       _id: validMongoId,
       driveId,
       metadata,

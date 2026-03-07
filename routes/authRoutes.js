@@ -10,6 +10,7 @@
  * - GET  /api/auth/export-download/:token : Stream all user files as a ZIP (public, token-gated)
  * - POST /api/auth/import-data         : Import a previously exported ZIP back into the account
  * - POST /api/auth/delete-account      : Schedule account for deletion (7-day recovery window)
+ * - POST /api/auth/refresh             : Exchange a valid refresh token for a new JWT + refresh token
  *
  * SECURITY FIXES:
  *  - [HIGH-01] reCAPTCHA: removed length > 20 bypass; if RECAPTCHA_SECRET_KEY is set, a valid
@@ -22,6 +23,12 @@
  *  - [HIGH-03] ZIP import: explicit path-traversal guard added before the existing sanitization
  *              regex, rejecting filenames that contain '..', start with '/', or contain '\'.
  *              The sanitized filename is used for both GridFS and metadata storage.
+ *  - [SEC-01]  Short-lived JWT (15 min) + rotating refresh tokens in a second httpOnly cookie.
+ *              Replay detection: a reused refresh token means theft — tokenVersion is incremented
+ *              to immediately kill all sessions for the affected user.
+ *  - [SEC-02]  tokenVersion embedded in JWT payload. authMiddleware does a DB lookup on every
+ *              request to compare decoded.tokenVersion === user.tokenVersion. Logout and
+ *              delete-account increment tokenVersion so JWTs are revoked before natural expiry.
  */
 
 const express = require('express');
@@ -152,6 +159,7 @@ router.post('/google', authLimiter, async (req, res) => {
         picture,
         darkMode: false,
         hideFolderFiles: false,
+        tokenVersion: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -183,18 +191,34 @@ router.post('/google', authLimiter, async (req, res) => {
       user.email = email;
     }
 
-    // ── Issue JWT ────────────────────────────────────────────────────────────
+    // ── Issue short-lived JWT (15 min) + rotating refresh token ─────────────
+    const currentTokenVersion = user.tokenVersion ?? 0;
     const tokenPayload = {
       userId: user._id.toString(),
       googleId,
       email,
       name,
       picture,
+      tokenVersion: currentTokenVersion,
     };
 
-    const expiresIn = rememberMe ? '30d' : '24h';
-    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn });
-    res.cookie('airstream_session', token, cookieOptions(rememberMe));
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '15m' });
+    res.cookie('airstream_session', token, cookieOptions(false));
+
+    // Issue refresh token — stored in DB and sent as a second httpOnly cookie.
+    // Expiry mirrors the old session length: 30 days if rememberMe, else 24 h.
+    const refreshTokenValue = uuidv4();
+    const refreshExpiresAt = new Date(
+      Date.now() + (rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000)
+    );
+    await db.collection('refresh_tokens').insertOne({
+      token: refreshTokenValue,
+      userId: user._id.toString(),
+      createdAt: new Date(),
+      expiresAt: refreshExpiresAt,
+      used: false,
+    });
+    res.cookie('airstream_refresh', refreshTokenValue, cookieOptions(rememberMe));
 
     return res.json({
       success: true,
@@ -253,12 +277,116 @@ router.get('/me', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/auth/logout  – clear session cookie
 // ─────────────────────────────────────────────────────────────────────────────
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
   // [MED-02] Use clearCookieOptions() which enforces sameSite: 'strict' to match
-  // the value used when the cookie was set. A sameSite mismatch can prevent the
-  // browser from recognising it as the same cookie and clearing it.
+  // the value used when the cookie was set.
+  // [SEC-02] Increment tokenVersion so the outgoing JWT is immediately dead,
+  // fixing the bug where the JWT stayed valid until its 15-min expiry after logout.
+  try {
+    const token = getToken(req);
+    if (token) {
+      try {
+        const decoded = verifyToken(token);
+        if (decoded?.userId) {
+          const db = getDb();
+          await db.collection('users').updateOne(
+            { _id: new (getObjectId())(decoded.userId) },
+            { $inc: { tokenVersion: 1 } }
+          );
+        }
+      } catch (_) { /* token may already be expired — proceed with logout */ }
+    }
+  } catch (_) {}
   res.clearCookie('airstream_session', clearCookieOptions());
+  res.clearCookie('airstream_refresh', clearCookieOptions());
   return res.json({ success: true });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/auth/refresh  – rotate refresh token, issue new short-lived JWT
+//
+// Flow:
+//   1. Read airstream_refresh cookie.
+//   2. Atomically mark it used: true (findOneAndUpdate with used:false filter).
+//   3. If the token was already used → replay attack detected:
+//      • $inc tokenVersion to kill every session for this user instantly.
+//      • Clear both cookies and return 401.
+//   4. Otherwise issue a new 15-min JWT + a new refresh token.
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/refresh', authLimiter, async (req, res) => {
+  try {
+    const incomingRefresh = req.cookies && req.cookies.airstream_refresh;
+    if (!incomingRefresh) {
+      return res.status(401).json({ error: 'No refresh token.' });
+    }
+
+    const db = getDb();
+
+    // Atomically claim the token — only matches if unused and not expired
+    const record = await db.collection('refresh_tokens').findOneAndUpdate(
+      { token: incomingRefresh, used: false, expiresAt: { $gt: new Date() } },
+      { $set: { used: true, usedAt: new Date() } },
+      { returnDocument: 'before' }
+    );
+
+    if (!record) {
+      // Check whether this token exists but was already used → stolen token replayed
+      const stolen = await db.collection('refresh_tokens').findOne({
+        token: incomingRefresh,
+        used: true,
+      });
+      if (stolen) {
+        // [SEC-01] Kill all sessions for this user immediately
+        await db.collection('users').updateOne(
+          { _id: new (getObjectId())(stolen.userId) },
+          { $inc: { tokenVersion: 1 } }
+        );
+        console.warn(`[SECURITY] Refresh token replay detected for userId=${stolen.userId}. All sessions invalidated.`);
+        res.clearCookie('airstream_session', clearCookieOptions());
+        res.clearCookie('airstream_refresh', clearCookieOptions());
+        return res.status(401).json({
+          error: 'Security alert: this session was compromised. Please sign in again.',
+        });
+      }
+      // Token not found or expired — normal expiry
+      return res.status(401).json({ error: 'Refresh token invalid or expired.' });
+    }
+
+    // Load current user to get fresh tokenVersion
+    const ObjectId = getObjectId();
+    const user = await db.collection('users').findOne({ _id: new ObjectId(record.userId) });
+    if (!user) return res.status(401).json({ error: 'User not found.' });
+    if (user.pendingDeletion) return res.status(403).json({ error: 'Account is pending deletion.' });
+
+    // Issue new JWT (15 min) with current tokenVersion
+    const newTokenPayload = {
+      userId: user._id.toString(),
+      googleId: user.googleId,
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+      tokenVersion: user.tokenVersion ?? 0,
+    };
+    const newJwt = jwt.sign(newTokenPayload, process.env.JWT_SECRET, { expiresIn: '15m' });
+    res.cookie('airstream_session', newJwt, cookieOptions(false));
+
+    // Issue new refresh token — preserve the original expiry window so sessions
+    // don't extend indefinitely just from activity
+    const newRefreshValue = uuidv4();
+    await db.collection('refresh_tokens').insertOne({
+      token: newRefreshValue,
+      userId: user._id.toString(),
+      createdAt: new Date(),
+      expiresAt: new Date(record.expiresAt), // same deadline as the original login
+      used: false,
+    });
+    res.cookie('airstream_refresh', newRefreshValue, cookieOptions(false));
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    return res.status(500).json({ error: 'Token refresh failed.' });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -708,6 +836,12 @@ router.post('/delete-account', async (req, res) => {
 
     // Revoke all export tokens for this user
     await db.collection('export_tokens').deleteMany({ userId: decoded.userId });
+
+    // [SEC-02] Increment tokenVersion to immediately invalidate all JWTs for this user
+    await db.collection('users').updateOne(
+      { googleId: decoded.googleId },
+      { $inc: { tokenVersion: 1 } }
+    );
 
     // Send deletion email (fire-and-forget)
     sendDeletionEmail(

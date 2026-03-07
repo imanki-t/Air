@@ -846,30 +846,23 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
         }
 
         try {
-          // [HIGH-07] ZIP bomb guard: read the stored uncompressed size from the
-          // ZIP local file header *before* decompressing. entry.header.size is
-          // the value written by the archiver and does not require decompression.
-          // Reject the entry if its uncompressed size alone would exceed the
-          // remaining quota, and also enforce a per-file ceiling of 5 GB to prevent
-          // a single entry from exhausting RAM regardless of the user's quota.
-          const uncompressedSize = entry.header?.size ?? 0;
+          // [HIGH-07] ZIP bomb guard: the declared header.size cannot be trusted
+          // because a crafted ZIP can set it to 0 while expanding to gigabytes.
+          // Instead, decompress via a stream and track actual bytes in real time.
+          // The moment the running total exceeds PER_FILE_MAX, the stream is
+          // destroyed and the entry is skipped — no runaway RAM usage possible.
           const PER_FILE_MAX = STORAGE_LIMIT_BYTES; // 5 GB per-file ceiling
 
-          if (uncompressedSize > PER_FILE_MAX) {
-            console.warn(`Import: ZIP bomb guard — entry ${safeFilename} claims ${uncompressedSize} bytes uncompressed (limit ${PER_FILE_MAX}). Skipping.`);
-            skipped++;
-            if (io) io.to(userId).emit('importProgress', { userId, imported, skipped, total });
-            continue;
-          }
-
-          // Re-check quota using the uncompressed size before decompression
+          // Pre-check quota using the (untrusted) header size as a fast early-exit
+          // for obviously oversized entries. The stream enforces the real limit below.
+          const declaredSize = entry.header?.size ?? 0;
           const preCheckUsage = await db.collection('drive_mappings').aggregate([
             { $match: { userId, 'metadata.isSharedZip': { $ne: true } } },
             { $group: { _id: null, total: { $sum: { $toInt: { $ifNull: ['$metadata.size', 0] } } } } },
           ]).toArray();
           const preCheckUsedBytes = preCheckUsage[0]?.total || 0;
-          if (preCheckUsedBytes + uncompressedSize > STORAGE_LIMIT_BYTES) {
-            console.warn(`Import: storage limit would be exceeded for user ${userId}, skipping remaining files`);
+          if (declaredSize > PER_FILE_MAX || preCheckUsedBytes + declaredSize > STORAGE_LIMIT_BYTES) {
+            console.warn(`Import: pre-check rejected entry ${safeFilename} (declared ${declaredSize} bytes, used ${preCheckUsedBytes})`);
             skipped += (total - imported - skipped);
             if (io) io.to(userId).emit('importComplete', {
               userId,
@@ -880,7 +873,24 @@ router.post('/import-data', importUpload.single('exportFile'), async (req, res) 
             return;
           }
 
-          const fileBuffer = entry.getData();
+          // [HIGH-07] Real enforcement: stream decompression and count actual bytes.
+          // If the real decompressed size exceeds the limit, destroy immediately.
+          const fileBuffer = await new Promise((resolve, reject) => {
+            const chunks = [];
+            let totalBytes = 0;
+            const stream = entry.getDataAsStream();
+            stream.on('data', (chunk) => {
+              totalBytes += chunk.length;
+              if (totalBytes > PER_FILE_MAX) {
+                stream.destroy();
+                reject(new Error(`ZIP bomb guard: entry ${safeFilename} exceeded ${PER_FILE_MAX} bytes during decompression`));
+                return;
+              }
+              chunks.push(chunk);
+            });
+            stream.on('end', () => resolve(Buffer.concat(chunks)));
+            stream.on('error', reject);
+          });
 
           const mongoId = new ObjectId();
 

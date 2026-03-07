@@ -5,6 +5,255 @@ import { QRCodeSVG } from 'qrcode.react';
 // Utility for conditional class names
 const cn = (...classes) => classes.filter(Boolean).join(' ');
 
+// ─── Custom themed video player ───────────────────────────────────────────────
+const CustomVideoPlayer = ({ src }) => {
+  const videoRef = useRef(null);
+  const containerRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
+  const [buffered, setBuffered] = useState(0);
+  const [showControls, setShowControls] = useState(true);
+  const hideTimer = useRef(null);
+
+  const resetHideTimer = () => {
+    setShowControls(true);
+    clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => { if (playing) setShowControls(false); }, 2500);
+  };
+
+  useEffect(() => () => clearTimeout(hideTimer.current), []);
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) { videoRef.current.play(); } else { videoRef.current.pause(); }
+  };
+  const handleTimeUpdate = () => {
+    if (!videoRef.current) return;
+    setCurrentTime(videoRef.current.currentTime);
+    if (videoRef.current.buffered.length > 0)
+      setBuffered(videoRef.current.buffered.end(videoRef.current.buffered.length - 1));
+  };
+  const handleSeek = (e) => {
+    if (!videoRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    videoRef.current.currentTime = pct * duration;
+  };
+  const handleVolume = (e) => {
+    const val = parseFloat(e.target.value);
+    setVolume(val); setMuted(val === 0);
+    if (videoRef.current) { videoRef.current.volume = val; videoRef.current.muted = val === 0; }
+  };
+  const toggleMute = () => {
+    if (!videoRef.current) return;
+    const next = !muted; setMuted(next);
+    videoRef.current.muted = next;
+  };
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) containerRef.current?.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  };
+  const fmtTime = (t) => {
+    if (!t || isNaN(t)) return '0:00';
+    return `${Math.floor(t / 60)}:${Math.floor(t % 60).toString().padStart(2, '0')}`;
+  };
+  const prog = duration ? (currentTime / duration) * 100 : 0;
+  const buf = duration ? (buffered / duration) * 100 : 0;
+
+  return (
+    <div ref={containerRef}
+      className="relative rounded-xl overflow-hidden shadow-2xl border border-blue-900/40 w-full max-w-3xl"
+      style={{ background: '#0a0f1e' }}
+      onMouseMove={resetHideTimer} onMouseLeave={() => playing && setShowControls(false)}>
+      {/* Video */}
+      <video ref={videoRef} src={src} crossOrigin="use-credentials"
+        className="w-full block" style={{ maxHeight: 'calc(100vh - 200px)', background: '#000', display: 'block' }}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={() => { if (videoRef.current) setDuration(videoRef.current.duration); }}
+        onPlay={() => { setPlaying(true); resetHideTimer(); }}
+        onPause={() => { setPlaying(false); setShowControls(true); clearTimeout(hideTimer.current); }}
+        onEnded={() => { setPlaying(false); setShowControls(true); }}
+        onClick={togglePlay} />
+
+      {/* Centre play overlay */}
+      {!playing && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ paddingBottom: '64px' }}>
+          <div className="w-16 h-16 rounded-full bg-blue-600/80 backdrop-blur-sm border border-blue-400/40 flex items-center justify-center shadow-xl shadow-blue-900/60">
+            <svg className="w-7 h-7 text-white ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          </div>
+        </div>
+      )}
+
+      {/* Controls bar */}
+      <div className={`absolute bottom-0 left-0 right-0 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}
+        style={{ background: 'linear-gradient(to top, rgba(10,15,30,0.98) 0%, rgba(10,15,30,0.6) 70%, transparent 100%)', paddingTop: '40px' }}>
+        {/* Grid overlay on controls */}
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundImage: 'linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px)',
+          backgroundSize: '20px 20px'
+        }} />
+        <div className="relative px-4 pb-3">
+          {/* Seek bar */}
+          <div className="relative h-1 mb-3 rounded-full bg-blue-950/80 cursor-pointer group/seek" onClick={handleSeek}>
+            <div className="absolute inset-y-0 left-0 bg-blue-800/60 rounded-full" style={{ width: `${buf}%` }} />
+            <div className="absolute inset-y-0 left-0 bg-blue-500 rounded-full transition-all" style={{ width: `${prog}%` }} />
+            <div className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full border-2 border-blue-400 opacity-0 group-hover/seek:opacity-100 transition-opacity shadow-lg"
+              style={{ left: `calc(${prog}% - 7px)` }} />
+          </div>
+          {/* Buttons row */}
+          <div className="flex items-center gap-3">
+            <button onClick={togglePlay} className="text-white/90 hover:text-white transition-colors">
+              {playing
+                ? <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                : <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+            </button>
+            <div className="flex items-center gap-1.5">
+              <button onClick={toggleMute} className="text-white/70 hover:text-white transition-colors">
+                {muted || volume === 0
+                  ? <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>
+                  : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M12 6v12m-3-9H4a1 1 0 00-1 1v2a1 1 0 001 1h5l4.707 4.707C14.077 18.337 15 17.891 15 17V7c0-.891-.923-1.337-1.293-.707L9 11z" /></svg>}
+              </button>
+              <input type="range" min="0" max="1" step="0.05" value={muted ? 0 : volume}
+                onChange={handleVolume} className="w-14 h-1 cursor-pointer" style={{ accentColor: '#3b82f6' }} />
+            </div>
+            <span className="text-white/60 text-xs font-mono tabular-nums">{fmtTime(currentTime)} / {fmtTime(duration)}</span>
+            <div className="flex-grow" />
+            <button onClick={toggleFullscreen} className="text-white/70 hover:text-white transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Custom themed audio player ───────────────────────────────────────────────
+const CustomAudioPlayer = ({ src, filename, fileSize }) => {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (audioRef.current.paused) audioRef.current.play(); else audioRef.current.pause();
+  };
+  const handleSeek = (e) => {
+    if (!audioRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audioRef.current.currentTime = pct * duration;
+  };
+  const handleVolume = (e) => {
+    const val = parseFloat(e.target.value);
+    setVolume(val); setMuted(val === 0);
+    if (audioRef.current) { audioRef.current.volume = val; audioRef.current.muted = val === 0; }
+  };
+  const toggleMute = () => {
+    if (!audioRef.current) return;
+    const next = !muted; setMuted(next); audioRef.current.muted = next;
+  };
+  const fmtSize = (bytes) => {
+    if (!bytes || bytes === 0) return '';
+    const k = 1024, sizes = ['B','KB','MB','GB'], i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+  const fmtTime = (t) => {
+    if (!t || isNaN(t)) return '0:00';
+    return `${Math.floor(t / 60)}:${Math.floor(t % 60).toString().padStart(2, '0')}`;
+  };
+  const prog = duration ? (currentTime / duration) * 100 : 0;
+  // Decorative waveform bars — heights driven by sine so they look alive
+  const bars = Array.from({ length: 36 }, (_, i) => i);
+
+  return (
+    <div className="w-full max-w-sm rounded-2xl overflow-hidden border border-blue-900/40 shadow-2xl shadow-blue-950/60" style={{
+      background: '#080e1c',
+      backgroundImage: 'linear-gradient(rgba(59,130,246,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.07) 1px, transparent 1px)',
+      backgroundSize: '22px 22px',
+    }}>
+      {/* Album art area */}
+      <div className="px-6 pt-7 pb-4 flex flex-col items-center">
+        <div className="w-20 h-20 rounded-2xl flex items-center justify-center border border-blue-500/25 shadow-xl shadow-blue-950/60 mb-4"
+          style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #2563eb 100%)' }}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+          </svg>
+        </div>
+        <p className="text-white text-sm font-semibold text-center truncate w-full mb-0.5" title={filename}>{filename}</p>
+        {fileSize > 0 && <p className="text-blue-400/60 text-xs">{fmtSize(fileSize)}</p>}
+      </div>
+
+      {/* Waveform visualizer (decorative) */}
+      <div className="px-6 mb-3 flex items-end justify-center gap-0.5 h-10">
+        {bars.map((i) => {
+          const rawH = Math.sin(i * 0.72 + currentTime * 6) * 0.5 + 0.5;
+          const h = playing ? Math.max(0.15, rawH) : 0.18 + (Math.sin(i * 0.5) * 0.05);
+          const played = (i / bars.length) * 100 < prog;
+          return (
+            <div key={i} className="w-1 rounded-sm transition-all duration-75" style={{
+              height: `${Math.round(h * 100)}%`,
+              backgroundColor: played ? '#3b82f6' : '#1e3a5f',
+              opacity: played ? 1 : 0.55,
+            }} />
+          );
+        })}
+      </div>
+
+      {/* Seek bar */}
+      <div className="px-6 mb-1">
+        <div className="relative h-1 rounded-full cursor-pointer" style={{ background: '#0f1e3a' }} onClick={handleSeek}>
+          <div className="absolute inset-y-0 left-0 bg-blue-500 rounded-full" style={{ width: `${prog}%` }} />
+          <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full border-2 border-blue-400 shadow"
+            style={{ left: `calc(${prog}% - 6px)` }} />
+        </div>
+        <div className="flex justify-between mt-1.5">
+          <span className="text-blue-400/60 text-xs font-mono">{fmtTime(currentTime)}</span>
+          <span className="text-blue-400/60 text-xs font-mono">{fmtTime(duration)}</span>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="px-6 pb-6 flex items-center">
+        {/* Volume group */}
+        <div className="flex items-center gap-1.5 flex-1">
+          <button onClick={toggleMute} className="text-blue-400/70 hover:text-blue-300 transition-colors">
+            {muted || volume === 0
+              ? <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/></svg>
+              : <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M12 6v12m-3-9H4a1 1 0 00-1 1v2a1 1 0 001 1h5l4.707 4.707C14.077 18.337 15 17.891 15 17V7c0-.891-.923-1.337-1.293-.707L9 11z"/></svg>}
+          </button>
+          <input type="range" min="0" max="1" step="0.05" value={muted ? 0 : volume}
+            onChange={handleVolume} className="w-16 h-1 cursor-pointer" style={{ accentColor: '#3b82f6' }} />
+        </div>
+
+        {/* Play/Pause — centre */}
+        <button onClick={togglePlay}
+          className="w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90 border border-blue-400/30 shadow-lg shadow-blue-950/60"
+          style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}>
+          {playing
+            ? <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            : <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
+        </button>
+
+        {/* Right spacer to balance volume group */}
+        <div className="flex-1" />
+      </div>
+
+      {/* Hidden audio element */}
+      <audio ref={audioRef} src={src} crossOrigin="use-credentials"
+        onTimeUpdate={() => { if (audioRef.current) setCurrentTime(audioRef.current.currentTime); }}
+        onLoadedMetadata={() => { if (audioRef.current) setDuration(audioRef.current.duration); }}
+        onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
+    </div>
+  );
+};
+
 const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, selectionMode, viewType }) => {
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
@@ -43,9 +292,6 @@ const handleOutsideClick = (event) => {
   }
   if (deleteModalRef.current && !deleteModalRef.current.contains(event.target)) {
      setShowDeleteConfirm(false);
-  }
-  if (viewerModalRef.current && !viewerModalRef.current.contains(event.target)) {
-     setShowViewer(false);
   }
 };
 
@@ -224,7 +470,7 @@ let containerBaseClasses = `relative overflow-hidden group ${darkMode ? 'bg-gray
 if (isListView) {
   containerBaseClasses += ' w-24 h-24 sm:w-28 sm:h-28 rounded-lg flex-shrink-0'; // Small fixed size for list view
 } else {
-  containerBaseClasses += ' h-32 mb-2 rounded-t-lg'; // Larger size for grid view
+  containerBaseClasses += ' h-32 mb-2 rounded-t-xl'; // Match card's rounded-xl to prevent bleed
 }
 
 if (type === 'image') {
@@ -761,96 +1007,72 @@ return (
     const previewUrl = `${backendUrl}/api/files/preview/${file._id}`;
     return (
       <div
-        className="fixed inset-0 z-[60] flex flex-col bg-black/90 backdrop-blur-md animate-fadeIn"
-        onClick={(e) => { if (e.target === e.currentTarget) setShowViewer(false); }}
+        className="fixed inset-0 z-[60] animate-fadeIn"
+        style={{
+          background: 'rgba(8,14,28,0.95)',
+          backgroundImage: 'linear-gradient(rgba(59,130,246,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.05) 1px, transparent 1px)',
+          backgroundSize: '30px 30px',
+          backdropFilter: 'blur(8px)',
+        }}
+        onClick={() => setShowViewer(false)}
         role="dialog" aria-modal="true" aria-label={`Viewing ${file.filename}`}
       >
-        {/* Header Bar */}
-        <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-black/40 border-b border-white/10">
-          <div className="flex items-center gap-2.5 min-w-0">
-            {/* Type badge */}
-            <span className={cn(
-              'flex-shrink-0 text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded',
-              type === 'image' ? 'bg-blue-600/80 text-blue-100' :
-              type === 'video' ? 'bg-purple-600/80 text-purple-100' :
-              'bg-green-600/80 text-green-100'
-            )}>
-              {type}
-            </span>
-            <h2 className="text-white text-sm font-medium truncate" title={file.filename}>
-              {file.filename}
-            </h2>
-          </div>
-          {/* Close button */}
-          <button
-            onClick={() => setShowViewer(false)}
-            className="flex-shrink-0 ml-3 p-1.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            aria-label="Close viewer"
-            title="Close (Esc)"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        {/* Content wrapper — stopPropagation prevents backdrop click firing when clicking content */}
+        <div className="flex flex-col h-full" onClick={e => e.stopPropagation()}>
 
-        {/* Media Content Area */}
-        <div
-          ref={viewerModalRef}
-          className="flex-1 flex items-center justify-center overflow-hidden p-4 animate-viewerIn"
-        >
-          {type === 'image' && (
-            <img
-              src={previewUrl}
-              crossOrigin="use-credentials"
-              alt={file.filename}
-              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl select-none"
-              draggable={false}
-            />
-          )}
-
-          {type === 'video' && (
-            <video
-              src={previewUrl}
-              crossOrigin="use-credentials"
-              controls
-              autoPlay
-              className="max-w-full max-h-full rounded-lg shadow-2xl bg-black"
-              style={{ maxHeight: 'calc(100vh - 120px)' }}
-            >
-              Your browser does not support the video tag.
-            </video>
-          )}
-
-          {type === 'audio' && (
-            <div className="flex flex-col items-center gap-6 p-8 rounded-2xl border border-white/10 bg-white/5 max-w-sm w-full">
-              {/* Big audio icon */}
-              <div className="w-24 h-24 rounded-full bg-green-600/20 border border-green-500/30 flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
-                </svg>
-              </div>
-              <p className="text-white/80 text-sm font-medium text-center truncate w-full" title={file.filename}>
+          {/* Header Bar */}
+          <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-blue-900/30"
+            style={{ background: 'rgba(8,14,28,0.8)', backdropFilter: 'blur(4px)' }}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className={cn(
+                'flex-shrink-0 text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded border',
+                type === 'image'  ? 'bg-blue-600/20 border-blue-500/40 text-blue-300' :
+                type === 'video'  ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300' :
+                                    'bg-blue-700/20 border-blue-600/40 text-blue-300'
+              )}>
+                {type}
+              </span>
+              <h2 className="text-white/90 text-sm font-medium truncate" title={file.filename}>
                 {file.filename}
-              </p>
-              <audio
-                src={previewUrl}
-                crossOrigin="use-credentials"
-                controls
-                autoPlay
-                className="w-full"
-                style={{ accentColor: '#22c55e' }}
-              >
-                Your browser does not support the audio tag.
-              </audio>
-              <p className="text-white/40 text-xs">{formatSize(file.length)}</p>
+              </h2>
             </div>
-          )}
-        </div>
+            <button
+              onClick={() => setShowViewer(false)}
+              className="flex-shrink-0 ml-3 p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-blue-900/40 border border-transparent hover:border-blue-800/50 transition-all"
+              aria-label="Close viewer" title="Close (Esc)"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
 
-        {/* Footer hint */}
-        <div className="flex-shrink-0 pb-3 text-center">
-          <p className="text-white/30 text-xs">Press Esc or click outside to close</p>
+          {/* Media content area — clicking empty space closes viewer */}
+          <div
+            className="flex-1 flex items-center justify-center overflow-hidden p-4 animate-viewerIn"
+            onClick={() => setShowViewer(false)}
+          >
+            {/* Inner wrapper — stop propagation so clicking on actual media doesn't close */}
+            <div onClick={e => e.stopPropagation()}>
+              {type === 'image' && (
+                <img
+                  src={previewUrl}
+                  crossOrigin="use-credentials"
+                  alt={file.filename}
+                  className="max-w-full object-contain rounded-xl shadow-2xl shadow-blue-950/60 select-none border border-blue-900/30"
+                  style={{ maxHeight: 'calc(100vh - 130px)' }}
+                  draggable={false}
+                />
+              )}
+              {type === 'video' && <CustomVideoPlayer src={previewUrl} />}
+              {type === 'audio' && <CustomAudioPlayer src={previewUrl} filename={file.filename} fileSize={file.length} />}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex-shrink-0 pb-3 text-center pointer-events-none">
+            <p className="text-blue-400/30 text-xs tracking-wide">Click outside or press Esc to close</p>
+          </div>
         </div>
       </div>
     );

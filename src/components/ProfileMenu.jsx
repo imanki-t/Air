@@ -469,7 +469,7 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
           title="Export data"
           subtitle="Download all your files as a ZIP archive"
           onClose={() => !exportLoading && setShowExportModal(false)}
-          closable={!exportLoading}
+          closable={false}
         />
 
         <div className={`px-6 py-5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -536,7 +536,7 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
           title="Import data"
           subtitle="Restore files from an Airstream export ZIP"
           onClose={() => !importLoading && setShowImportModal(false)}
-          closable={!importLoading}
+          closable={false}
         />
 
         <div className={`px-6 py-5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -602,7 +602,7 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
           title="Delete account"
           subtitle="This action schedules permanent deletion of your account"
           onClose={() => !deleteLoading && setShowDeleteModal(false)}
-          closable={!deleteLoading}
+          closable={false}
         />
 
         <div className={`px-6 py-5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>

@@ -41,16 +41,21 @@ const CustomVideoPlayer = ({ src }) => {
   const [showSkipD,    setShowSkipD]    = useState(false);
   const [skipFlash,    setSkipFlash]    = useState(null);   // 'f'|'b'|null
   const [isFS,         setIsFS]         = useState(false);
+  const [vidW,         setVidW]         = useState(0);
+  const [vidH,         setVidH]         = useState(0);
   const hideTimer = useRef(null);
+  const isFSRef   = useRef(false);  // sync ref so callbacks always see latest value
 
   const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
   const SKIPS  = [3, 5, 10, 20, 30];
 
-  /* ── hide-controls timer ── */
+  /* ── hide-controls timer — only auto-hide in fullscreen ── */
   const nudgeControls = useCallback(() => {
     setShowCtrl(true);
     clearTimeout(hideTimer.current);
-    hideTimer.current = setTimeout(() => setShowCtrl(false), 3000);
+    if (isFSRef.current) {
+      hideTimer.current = setTimeout(() => setShowCtrl(false), 3000);
+    }
   }, []);
   useEffect(() => () => clearTimeout(hideTimer.current), []);
 
@@ -66,7 +71,18 @@ const CustomVideoPlayer = ({ src }) => {
 
   /* ── fullscreen change ── */
   useEffect(() => {
-    const h = () => setIsFS(!!document.fullscreenElement);
+    const h = () => {
+      const entering = !!document.fullscreenElement;
+      isFSRef.current = entering;
+      setIsFS(entering);
+      if (!entering) {
+        // exiting fullscreen — always show controls and cancel hide timer
+        clearTimeout(hideTimer.current);
+        setShowCtrl(true);
+        // unlock screen orientation
+        try { screen.orientation?.unlock?.(); } catch(_) {}
+      }
+    };
     document.addEventListener('fullscreenchange', h);
     return () => document.removeEventListener('fullscreenchange', h);
   }, []);
@@ -96,8 +112,19 @@ const CustomVideoPlayer = ({ src }) => {
     const n = !muted; setMuted(n); videoRef.current.muted = n;
   };
   const toggleFS    = () => {
-    if (!document.fullscreenElement) wrapRef.current?.requestFullscreen?.();
-    else document.exitFullscreen?.();
+    if (!document.fullscreenElement) {
+      wrapRef.current?.requestFullscreen?.();
+      // Lock landscape for landscape (16:9) videos, portrait for vertical
+      setTimeout(() => {
+        try {
+          if (vidW > 0 && vidH > 0 && vidW >= vidH) {
+            screen.orientation?.lock?.('landscape').catch(() => {});
+          }
+        } catch(_) {}
+      }, 200);
+    } else {
+      document.exitFullscreen?.();
+    }
   };
   const applySpeed  = (s) => {
     setSpeed(s); setShowSpeed(false);
@@ -131,7 +158,7 @@ const CustomVideoPlayer = ({ src }) => {
   return (
     <>
       <PlayerStyles />
-      {/* ── Outer shell: fixed size box, black bg ── */}
+      {/* ── Outer shell ── */}
       <div
         ref={wrapRef}
         style={{
@@ -144,14 +171,19 @@ const CustomVideoPlayer = ({ src }) => {
           boxShadow: isFS ? 'none' : '0 24px 64px rgba(0,0,0,.7)',
           position: 'relative',
           userSelect: 'none',
+          // In fullscreen: fill the whole screen, controls overlay at bottom
+          ...(isFS ? { height: '100vh', display: 'flex', flexDirection: 'column' } : {}),
         }}
         onMouseMove={nudgeControls}
-        onMouseLeave={() => playing && setShowCtrl(false)}
+        onMouseLeave={() => isFS && playing && setShowCtrl(false)}
         onTouchStart={nudgeControls}
       >
-        {/* ── Video area: always 16:9 box, video centered with black letterbox ── */}
+        {/* ── Video area ── */}
         <div
-          style={{ position: 'relative', width: '100%', paddingTop: '56.25%', background: '#000', cursor: 'pointer' }}
+          style={isFS
+            ? { position: 'relative', flex: 1, background: '#000', cursor: 'pointer', overflow: 'hidden' }
+            : { position: 'relative', width: '100%', paddingTop: '56.25%', background: '#000', cursor: 'pointer' }
+          }
           onClick={togglePlay}
         >
           <video
@@ -159,7 +191,13 @@ const CustomVideoPlayer = ({ src }) => {
             src={src}
             crossOrigin="use-credentials"
             onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={() => { if (videoRef.current) setDuration(videoRef.current.duration); }}
+            onLoadedMetadata={() => {
+              if (videoRef.current) {
+                setDuration(videoRef.current.duration);
+                setVidW(videoRef.current.videoWidth);
+                setVidH(videoRef.current.videoHeight);
+              }
+            }}
             onPlay={() => { setPlaying(true); nudgeControls(); }}
             onPause={() => { setPlaying(false); setShowCtrl(true); clearTimeout(hideTimer.current); }}
             onEnded={() => { setPlaying(false); setShowCtrl(true); }}
@@ -208,14 +246,24 @@ const CustomVideoPlayer = ({ src }) => {
           )}
         </div>
 
-        {/* ── Controls bar — always below video, fixed height, never overlapping ── */}
-        <div style={{
+        {/* ── Controls bar ── */}
+        <div style={isFS ? {
+          // Fullscreen: absolute overlay at bottom with gradient, fades on inactivity
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 20,
+          background: 'linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,.5) 60%, transparent 100%)',
+          padding: '32px 12px 14px',
+          transition: 'opacity .3s ease',
+          opacity: showCtrl ? 1 : 0,
+          pointerEvents: showCtrl ? 'auto' : 'none',
+        } : {
+          // Normal mode: always visible, static below video
           background: 'linear-gradient(180deg,#050d1e 0%,#060f24 100%)',
           borderTop: '1px solid rgba(59,130,246,.12)',
           padding: '8px 12px 10px',
-          transition: 'opacity .25s',
-          opacity: showCtrl || !playing ? 1 : 0,
-          pointerEvents: showCtrl || !playing ? 'auto' : 'none',
         }}>
 
           {/* ── Seek bar ── */}
@@ -260,20 +308,14 @@ const CustomVideoPlayer = ({ src }) => {
 
             {/* Skip back */}
             <button onClick={() => doSkip(-1)} title={`-${skipSec}s`}
-              style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.85)', padding:'4px', display:'flex', alignItems:'center', borderRadius:6, flexShrink:0 }}>
-              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                <path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
-                <text x="8.5" y="15" fontSize="5.5" fontWeight="700" fill="currentColor">{skipSec}</text>
-              </svg>
+              style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.85)', padding:'4px 2px', display:'flex', alignItems:'center', borderRadius:6, flexShrink:0, fontSize:18, fontWeight:700, lineHeight:1 }}>
+              {'<'}
             </button>
 
             {/* Skip forward */}
             <button onClick={() => doSkip(1)} title={`+${skipSec}s`}
-              style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.85)', padding:'4px', display:'flex', alignItems:'center', borderRadius:6, flexShrink:0 }}>
-              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                <path d="M12.01 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/>
-                <text x="8.5" y="15" fontSize="5.5" fontWeight="700" fill="currentColor">{skipSec}</text>
-              </svg>
+              style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.85)', padding:'4px 2px', display:'flex', alignItems:'center', borderRadius:6, flexShrink:0, fontSize:18, fontWeight:700, lineHeight:1 }}>
+              {'>'}
             </button>
 
             {/* Skip duration picker */}
@@ -509,11 +551,8 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
 
         {/* Skip back */}
         <button onClick={() => doSkip(-1)} title={`-${skipSec}s`}
-          style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.8)', padding:4, display:'flex', alignItems:'center', borderRadius:6 }}>
-          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-            <path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
-            <text x="8.5" y="15" fontSize="5.5" fontWeight="700" fill="currentColor">{skipSec}</text>
-          </svg>
+          style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.8)', padding:'4px 2px', display:'flex', alignItems:'center', borderRadius:6, fontSize:18, fontWeight:700, lineHeight:1 }}>
+          {'<'}
         </button>
 
         {/* Play/Pause — big centre */}
@@ -536,11 +575,8 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
 
         {/* Skip forward */}
         <button onClick={() => doSkip(1)} title={`+${skipSec}s`}
-          style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.8)', padding:4, display:'flex', alignItems:'center', borderRadius:6 }}>
-          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-            <path d="M12.01 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/>
-            <text x="8.5" y="15" fontSize="5.5" fontWeight="700" fill="currentColor">{skipSec}</text>
-          </svg>
+          style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.8)', padding:'4px 2px', display:'flex', alignItems:'center', borderRadius:6, fontSize:18, fontWeight:700, lineHeight:1 }}>
+          {'>'}
         </button>
 
         <div style={{ flex:1 }} />

@@ -265,7 +265,12 @@ const deleteFile = async (req, res) => {
       return res.status(403).json({ error: 'Access denied. You do not own this file.' });
     }
 
-    const gridFSId = new ObjectId(mapping.driveId);
+    // [FIX] Guard against null/corrupt driveId — raw new ObjectId() throws and
+    // causes a 500 instead of a clean error message.
+    const gridFSId = safeObjectId(mapping.driveId);
+    if (!gridFSId) {
+      return res.status(500).json({ error: 'File record is corrupt (invalid storage ID).' });
+    }
     await getBucket().delete(gridFSId);
 
     const objectId = safeObjectId(fileId);
@@ -461,6 +466,9 @@ const accessSharedFile = async (req, res) => {
 
     const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape);
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    // [FIX] Add CSP sandbox — shared files are public (no auth) so defense-in-depth
+    // is more important here than on previewFile. Matches the header set there.
+    res.setHeader('Content-Security-Policy', 'sandbox');
     res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
     res.setHeader('Content-Type', safeContentType);
     if (fileSize) res.setHeader('Content-Length', fileSize);

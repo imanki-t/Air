@@ -471,7 +471,6 @@ router.patch('/preferences', async (req, res) => {
       return res.status(400).json({ error: 'No valid preference provided.' });
     }
 
-    const db = getDb();
     await db.collection('users').updateOne(
       { googleId: decoded.googleId },
       { $set: updates }

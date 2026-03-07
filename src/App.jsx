@@ -73,6 +73,7 @@ function App() {
   const [files, setFiles] = useState([]);
   const [folders, setFolders] = useState([]);
   const [darkMode, setDarkMode] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const [themeMode, setThemeMode] = useState('system');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [hideFolderFiles, setHideFolderFiles] = useState(false);
@@ -95,6 +96,7 @@ function App() {
         setUser(userData);
         setIsLoggedIn(true);
         setDarkMode(userData.darkMode ?? false);
+        setThemeMode(userData.themeMode ?? 'system');
         setHideFolderFiles(userData.hideFolderFiles ?? false);
       } catch (err) {
         // JWT expired (common after 15 min) — try to refresh before giving up.
@@ -108,6 +110,7 @@ function App() {
             setUser(userData);
             setIsLoggedIn(true);
             setDarkMode(userData.darkMode ?? false);
+            setThemeMode(userData.themeMode ?? 'system');
             setHideFolderFiles(userData.hideFolderFiles ?? false);
             return;
           } catch (_) {
@@ -159,6 +162,7 @@ function App() {
     setUser(userData);
     setIsLoggedIn(true);
     setDarkMode(userData.darkMode ?? false);
+    setThemeMode(userData.themeMode ?? 'system');
     setHideFolderFiles(userData.hideFolderFiles ?? false);
   }, []);
 
@@ -172,13 +176,16 @@ function App() {
     setFolders([]);
   }, []);
 
-  const handleDarkModeToggle = useCallback(async () => {
-    const next = !darkMode;
-    setDarkMode(next);
+  const handleThemeModeChange = useCallback(async (mode) => {
+    let isDark;
+    if (mode === 'system') isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    else isDark = mode === 'dark';
+    setThemeMode(mode);
+    setDarkMode(isDark);
     try {
-      await axios.patch(`${BACKEND_URL}/api/auth/preferences`, { darkMode: next });
+      await axios.patch(`${BACKEND_URL}/api/auth/preferences`, { darkMode: isDark, themeMode: mode });
     } catch (_) {}
-  }, [darkMode]);
+  }, []);
 
   const handleHideFolderFilesToggle = useCallback(async () => {
     const next = !hideFolderFiles;
@@ -259,8 +266,9 @@ function App() {
               <ProfileMenu
                 user={user}
                 darkMode={darkMode}
+                themeMode={themeMode}
                 onLogout={handleLogout}
-                onDarkModeToggle={handleDarkModeToggle}
+                onThemeModeChange={handleThemeModeChange}
                 onFilesRefresh={fetchFiles}
                 hideFolderFiles={hideFolderFiles}
                 onHideFolderFilesToggle={handleHideFolderFilesToggle}

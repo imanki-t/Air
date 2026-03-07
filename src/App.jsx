@@ -80,7 +80,7 @@ function App() {
 
   const location = useLocation();
   const hideHeader = location.pathname === '/' || location.pathname === '/signup';
-  const showFooter = location.pathname === '/dashboard';
+  const showFooter = location.pathname === '/dashboard' || location.pathname === '/signup';
 
   // ─── Check existing session on mount ────────────────────────────────────────
   useEffect(() => {
@@ -214,7 +214,15 @@ function App() {
   // ─── Footer ──────────────────────────────────────────────────────────────────
   const renderFooter = () => (
     <footer className={`py-4 text-center text-xs border-t ${darkMode ? 'text-gray-500 border-gray-800' : 'text-gray-400 border-gray-200'}`}>
-      Airstream &copy; {new Date().getFullYear()}
+      Airstream &copy; {new Date().getFullYear()} &nbsp;&middot;&nbsp;{' '}
+      <a
+        href="https://quickwitty.onrender.com/contacts"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`underline hover:opacity-80 transition-opacity ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}
+      >
+        Contact
+      </a>
     </footer>
   );
 

@@ -196,7 +196,13 @@ const runAllCleanup = async (context = 'Periodic') => {
 };
 
 setInterval(() => runAllCleanup('Periodic'), ONE_HOUR_IN_MS);
-runAllCleanup('Startup');
+
+// Wait for MongoDB to be connected before running startup cleanup.
+// Running immediately (before connectDB resolves) causes mongoose.connection.db
+// to be undefined, which crashes cleanupPendingDeletions and cleanupExpiredExportTokens.
+mongoose.connection.once('open', () => {
+  runAllCleanup('Startup');
+});
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 

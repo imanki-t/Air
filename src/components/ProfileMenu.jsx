@@ -635,7 +635,7 @@ const ProfileMenu = ({ user, darkMode, onDarkModeToggle, onLogout, onFilesRefres
             <button
               onClick={() => setShowImportModal(false)}
               disabled={importLoading}
-              className={`${(!importResult && !importLoading && !importInProgress) ? 'flex-1' : 'px-6'} py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 darkMode ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
               } disabled:opacity-50`}
             >

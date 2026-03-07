@@ -4,7 +4,7 @@
  * - POST /api/auth/google              : Verify Google ID token, create/login user, set JWT cookie
  * - GET  /api/auth/me                  : Return current user from cookie
  * - POST /api/auth/logout              : Clear session cookie
- * - PATCH /api/auth/preferences        : Save dark-mode preference
+ * - PATCH /api/auth/preferences        : Save darkMode and hideFolderFiles preferences
  * - GET  /api/auth/stats               : Return file count + storage used for current user
  * - POST /api/auth/export-data         : Generate an export token and email a ZIP download link
  * - GET  /api/auth/export-download/:token : Stream all user files as a ZIP (public, token-gated)
@@ -222,6 +222,7 @@ router.get('/me', async (req, res) => {
       name: user.name,
       picture: user.picture,
       darkMode: user.darkMode || false,
+      hideFolderFiles: user.hideFolderFiles || false,
     });
   } catch (error) {
     console.error('Session check error:', error);
@@ -243,7 +244,7 @@ router.post('/logout', (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PATCH /api/auth/preferences  – save dark-mode preference (requires JWT)
+// PATCH /api/auth/preferences  – save user preferences: darkMode, hideFolderFiles (requires JWT)
 // ─────────────────────────────────────────────────────────────────────────────
 router.patch('/preferences', async (req, res) => {
   try {
@@ -257,15 +258,20 @@ router.patch('/preferences', async (req, res) => {
       return res.status(401).json({ error: 'Session expired.' });
     }
 
-    const { darkMode } = req.body;
-    if (typeof darkMode !== 'boolean') {
-      return res.status(400).json({ error: 'Invalid darkMode value.' });
+    const { darkMode, hideFolderFiles } = req.body;
+
+    const updates = { updatedAt: new Date() };
+    if (typeof darkMode === 'boolean') updates.darkMode = darkMode;
+    if (typeof hideFolderFiles === 'boolean') updates.hideFolderFiles = hideFolderFiles;
+
+    if (Object.keys(updates).length === 1) {
+      return res.status(400).json({ error: 'No valid preference provided.' });
     }
 
     const db = getDb();
     await db.collection('users').updateOne(
       { googleId: decoded.googleId },
-      { $set: { darkMode, updatedAt: new Date() } }
+      { $set: updates }
     );
 
     return res.json({ success: true });

@@ -80,7 +80,7 @@ app.use('/api/folders', folderRoutes);
 
 // ── WebSocket ─────────────────────────────────────────────────────────────────
 
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   // Verify the JWT cookie on every new Socket.IO connection.
   // Unauthenticated connections are rejected before they can receive any events.
   try {
@@ -92,7 +92,20 @@ io.use((socket, next) => {
       return next(new Error('Not authenticated'));
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+
+    // [FIX] Check tokenVersion against the DB — bare jwt.verify() only checks
+    // the signature, not revocation. A logged-out user with a still-valid 15-min
+    // JWT could otherwise keep an active socket connection and receive events.
+    const db = mongoose.connection.db;
+    const user = await db.collection('users').findOne(
+      { _id: new mongoose.Types.ObjectId(decoded.userId) },
+      { projection: { tokenVersion: 1 } }
+    );
+    if (!user || (decoded.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
+      return next(new Error('Session revoked'));
+    }
+
     socket.userId = decoded.userId; // attach userId to the socket for room use
     next();
   } catch (err) {

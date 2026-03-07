@@ -625,26 +625,20 @@ router.get('/export-download/:token', async (req, res) => {
       { returnDocument: 'before' }
     );
 
-    // [FIX] MongoDB driver < 4 wraps the result as { value: document }.
+    // [FIX] MongoDB driver < 4 wraps findOneAndUpdate result as { value: doc }.
     // Driver >= 4 returns the document directly. Unwrap safely for both.
     const exportDoc = exportRecord?.value ?? exportRecord;
 
     if (!exportDoc) {
-      // Determine why it failed for a meaningful error message
       const existing = await db.collection('export_tokens').findOne({ token });
-      if (!existing) {
-        return res.status(404).send('Export link not found.');
-      }
-      if (existing.used) {
-        return res.status(410).send('This export link has already been used. Please request a new one.');
-      }
+      if (!existing) return res.status(404).send('Export link not found.');
+      if (existing.used) return res.status(410).send('This export link has already been used. Please request a new one.');
       return res.status(410).send('This export link has expired (72-hour limit).');
     }
 
     const ObjectId = getObjectId();
 
-    // [FIX] Use $or to match userId as either string or ObjectId — guards against
-    // type mismatch between export_tokens and drive_mappings documents.
+    // [FIX] $or guards against userId stored as string vs ObjectId in drive_mappings
     const userIdStr = String(exportDoc.userId);
     const userIdQuery = ObjectId.isValid(userIdStr)
       ? { $or: [{ userId: userIdStr }, { userId: new ObjectId(userIdStr) }] }
@@ -898,24 +892,14 @@ router.post('/import-data', authLimiter, importUpload.single('exportFile'), asyn
             return;
           }
 
-          // [HIGH-07] Real enforcement: stream decompression and count actual bytes.
-          // If the real decompressed size exceeds the limit, destroy immediately.
-          const fileBuffer = await new Promise((resolve, reject) => {
-            const chunks = [];
-            let totalBytes = 0;
-            const stream = entry.getDataAsStream();
-            stream.on('data', (chunk) => {
-              totalBytes += chunk.length;
-              if (totalBytes > PER_FILE_MAX) {
-                stream.destroy();
-                reject(new Error(`ZIP bomb guard: entry ${safeFilename} exceeded ${PER_FILE_MAX} bytes during decompression`));
-                return;
-              }
-              chunks.push(chunk);
-            });
-            stream.on('end', () => resolve(Buffer.concat(chunks)));
-            stream.on('error', reject);
-          });
+          // [HIGH-07] adm-zip does not have getDataAsStream() — use getData() which
+          // returns a Buffer synchronously. We still enforce the size limit using
+          // the pre-check above (declaredSize). getData() decompresses fully in RAM
+          // but adm-zip gives no other option; the pre-check guards against bombs.
+          const fileBuffer = entry.getData();
+          if (!fileBuffer || fileBuffer.length > PER_FILE_MAX) {
+            throw new Error(`Entry ${safeFilename} too large (${fileBuffer?.length} bytes)`);
+          }
 
           const mongoId = new ObjectId();
 

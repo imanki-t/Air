@@ -275,6 +275,7 @@ const downloadFile = async (req, res) => {
       console.error('Drive download stream error:', err);
       if (!res.headersSent) res.status(404).json({ error: 'File not found in storage.' });
     });
+    res.on('close', () => downloadStream.destroy()); // cleanup if client disconnects
     downloadStream.pipe(res);
   } catch (error) {
     console.error('Download file error:', error);
@@ -318,6 +319,7 @@ const previewFile = async (req, res) => {
       res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
       const stream = await downloadFileStreamFromDrive(userId, fileMapping.driveId);
       stream.on('error', (err) => { console.error('Drive preview stream error:', err); if (!res.headersSent) res.status(404).json({ error: 'File not found.' }); });
+      res.on('close', () => stream.destroy()); // cleanup if client disconnects
       return stream.pipe(res);
     }
 
@@ -360,6 +362,7 @@ const previewFile = async (req, res) => {
         console.error('Drive range stream error:', err);
         if (!res.headersSent) res.status(404).json({ error: 'File not found.' });
       });
+      res.on('close', () => rangeStream.destroy()); // cleanup if client disconnects mid-seek
       return rangeStream.pipe(res);
     }
 
@@ -371,6 +374,7 @@ const previewFile = async (req, res) => {
       console.error('Drive preview stream error:', err);
       if (!res.headersSent) res.status(404).json({ error: 'File not found.' });
     });
+    res.on('close', () => fullStream.destroy()); // cleanup if client disconnects
     fullStream.pipe(res);
   } catch (error) {
     console.error('Preview file error:', error);
@@ -494,6 +498,7 @@ const accessSharedFile = async (req, res) => {
       console.error('Drive share stream error:', err);
       if (!res.headersSent) res.status(404).json({ error: 'File not found in storage.' });
     });
+    res.on('close', () => downloadStream.destroy()); // cleanup if client disconnects
     downloadStream.pipe(res);
   } catch (error) {
     console.error('Access shared file error:', error);

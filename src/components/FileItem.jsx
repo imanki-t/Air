@@ -8,23 +8,35 @@ const cn = (...classes) => classes.filter(Boolean).join(' ');
 // ─── Shared range-input styles injected once ──────────────────────────────────
 const PlayerStyles = () => (
   <style>{`
-    .vp-seek::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #60a5fa;box-shadow:0 0 6px rgba(96,165,250,.5);cursor:pointer}
-    .vp-seek::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #60a5fa;box-shadow:0 0 6px rgba(96,165,250,.5);cursor:pointer;border:2px solid #60a5fa}
+    .vp-seek::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid #3b82f6;box-shadow:0 0 8px rgba(59,130,246,.6),0 2px 4px rgba(0,0,0,.4);cursor:pointer;transition:transform .15s,box-shadow .15s}
+    .vp-seek::-webkit-slider-thumb:hover{transform:scale(1.2);box-shadow:0 0 12px rgba(59,130,246,.8),0 2px 6px rgba(0,0,0,.5)}
+    .vp-seek::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid #3b82f6;box-shadow:0 0 8px rgba(59,130,246,.6);cursor:pointer}
     .vp-seek::-webkit-slider-runnable-track{background:transparent}
     .vp-seek:focus{outline:none}
-    .vp-vol::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:#93c5fd;cursor:pointer}
-    .vp-vol::-moz-range-thumb{width:11px;height:11px;border-radius:50%;background:#93c5fd;cursor:pointer;border:none}
+    .vp-vol::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#60a5fa;cursor:pointer;box-shadow:0 0 4px rgba(96,165,250,.5)}
+    .vp-vol::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#60a5fa;cursor:pointer;border:none}
     .vp-vol::-webkit-slider-runnable-track{background:transparent}
+    .vp-icon-btn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:8px;cursor:pointer;color:rgba(203,213,225,.85);display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s,color .15s,transform .1s;flex-shrink:0}
+    .vp-icon-btn:hover{background:rgba(59,130,246,.2);border-color:rgba(96,165,250,.4);color:#e2e8f0;transform:scale(1.05)}
+    .vp-icon-btn:active{transform:scale(.95)}
+    .vp-pill-btn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:6px;cursor:pointer;color:rgba(148,163,184,.9);font-size:11px;font-weight:700;font-family:monospace;letter-spacing:.4px;transition:background .15s,border-color .15s,color .15s}
+    .vp-pill-btn:hover{background:rgba(59,130,246,.2);border-color:rgba(96,165,250,.4);color:#93c5fd}
+    .vp-pill-btn.active{background:rgba(59,130,246,.3);border-color:rgba(96,165,250,.55);color:#93c5fd}
+    .vp-play-btn{border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .12s,box-shadow .15s,background .15s;flex-shrink:0;border:1.5px solid rgba(96,165,250,.3)}
+    .vp-play-btn:hover{transform:scale(1.08);box-shadow:0 6px 24px rgba(37,99,235,.55)}
+    .vp-play-btn:active{transform:scale(.94)}
     .vp-pop{animation:vpPop .12s ease-out}
     @keyframes vpPop{from{opacity:0;transform:scale(.92) translateY(4px)}to{opacity:1;transform:scale(1) translateY(0)}}
     .vp-flash{animation:vpFlash .6s ease-out forwards}
     @keyframes vpFlash{0%{opacity:1}70%{opacity:.6}100%{opacity:0}}
     @keyframes vpSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    .vp-menu-item{display:block;width:100%;text-align:center;border:none;cursor:pointer;font-size:12px;font-weight:700;font-family:monospace;transition:background .12s,color .12s}
+    .vp-menu-item:hover{background:rgba(59,130,246,.25)!important;color:#93c5fd!important}
   `}</style>
 );
 
 // ─── Custom themed video player ───────────────────────────────────────────────
-const CustomVideoPlayer = ({ src }) => {
+const CustomVideoPlayer = ({ src, useCredentials = true }) => {
   const videoRef   = useRef(null);
   const wrapRef    = useRef(null);   // outer shell (for fullscreen)
   const speedRef   = useRef(null);
@@ -217,7 +229,7 @@ const CustomVideoPlayer = ({ src }) => {
           <video
             ref={videoRef}
             src={src}
-            crossOrigin="use-credentials"
+            {...(useCredentials ? { crossOrigin: 'use-credentials' } : {})}
             preload="auto"
             onTimeUpdate={handleTimeUpdate}
             onLoadedMetadata={() => {
@@ -359,47 +371,38 @@ const CustomVideoPlayer = ({ src }) => {
 
             {/* Play/Pause */}
             <button onClick={togglePlay} title={playing?'Pause':'Play'}
-              style={{ background:'none', border:'none', cursor:'pointer', color:'#e2e8f0', padding:'4px', display:'flex', alignItems:'center', borderRadius:6, flexShrink:0 }}>
+              className="vp-play-btn"
+              style={{ background: playing ? 'rgba(255,255,255,.1)' : 'linear-gradient(135deg,#2563eb,#1d4ed8)', width:40, height:40, boxShadow: playing ? 'none' : '0 4px 16px rgba(37,99,235,.45)', color:'#fff' }}>
               {playing ? <IconPause /> : <IconPlay />}
             </button>
 
             {/* Skip back */}
-            <button onClick={() => doSkip(-1)} title={`-${skipSec}s`}
-              style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:0, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, flexShrink:0, height:22, width:22 }}>
-              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+            <button onClick={() => doSkip(-1)} title={`-${skipSec}s`} className="vp-icon-btn" style={{ height:32, width:32 }}>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
             </button>
 
             {/* Skip forward */}
-            <button onClick={() => doSkip(1)} title={`+${skipSec}s`}
-              style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:0, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, flexShrink:0, height:22, width:22 }}>
-              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+            <button onClick={() => doSkip(1)} title={`+${skipSec}s`} className="vp-icon-btn" style={{ height:32, width:32 }}>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
             </button>
 
             {/* Skip duration picker */}
             <div ref={skipDRef} style={{ position:'relative', flexShrink:0 }}>
               <button onClick={() => { setShowSkipD(p=>!p); setShowSpeed(false); }}
-                style={{
-                  background: showSkipD ? 'rgba(59,130,246,.25)' : 'rgba(255,255,255,.06)',
-                  border: `1px solid ${showSkipD ? 'rgba(96,165,250,.5)' : 'rgba(255,255,255,.1)'}`,
-                  borderRadius:5, cursor:'pointer', padding:'3px 7px',
-                  color:'rgba(148,163,184,.9)', fontSize:11, fontWeight:600, fontFamily:'monospace', letterSpacing:.3,
-                }}>
+                className={`vp-pill-btn${showSkipD ? ' active' : ''}`}
+                style={{ padding:'4px 8px' }}>
                 {skipSec}s
               </button>
               {showSkipD && (
                 <div className="vp-pop" style={{
                   position:'absolute', bottom:'calc(100% + 6px)', left:'50%', transform:'translateX(-50%)',
-                  background:'#0d1b33', border:'1px solid rgba(59,130,246,.3)',
-                  borderRadius:8, overflow:'hidden', boxShadow:'0 8px 32px rgba(0,0,0,.7)', minWidth:52, zIndex:99,
+                  background:'#0a1628', border:'1px solid rgba(59,130,246,.3)',
+                  borderRadius:10, overflow:'hidden', boxShadow:'0 12px 40px rgba(0,0,0,.8)', minWidth:52, zIndex:99,
                 }}>
                   {SKIPS.map(s => (
                     <button key={s} onClick={() => { setSkipSec(s); setShowSkipD(false); }}
-                      style={{
-                        display:'block', width:'100%', textAlign:'center',
-                        padding:'7px 12px', background: skipSec===s ? 'rgba(59,130,246,.4)' : 'transparent',
-                        border:'none', cursor:'pointer', color: skipSec===s ? '#93c5fd' : 'rgba(148,163,184,.8)',
-                        fontSize:12, fontWeight:600, fontFamily:'monospace',
-                      }}>
+                      className="vp-menu-item"
+                      style={{ padding:'8px 12px', background: skipSec===s ? 'rgba(59,130,246,.4)' : 'transparent', color: skipSec===s ? '#93c5fd' : 'rgba(148,163,184,.8)' }}>
                       {s}s
                     </button>
                   ))}
@@ -409,7 +412,7 @@ const CustomVideoPlayer = ({ src }) => {
 
             {/* Volume */}
             <div style={{ display:'flex', alignItems:'center', gap:5, flexShrink:0 }}>
-              <button onClick={toggleMute} style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.8)', padding:4, display:'flex', borderRadius:6 }}>
+              <button onClick={toggleMute} className="vp-icon-btn" style={{ width:32, height:32 }}>
                 {muted || volume === 0 ? <IconVolOff /> : <IconVolOn />}
               </button>
               <div style={{ position:'relative', width:70, height:16, display:'flex', alignItems:'center' }}>
@@ -427,30 +430,20 @@ const CustomVideoPlayer = ({ src }) => {
             {/* Speed */}
             <div ref={speedRef} style={{ position:'relative', flexShrink:0 }}>
               <button onClick={() => { setShowSpeed(p=>!p); setShowSkipD(false); }}
-                style={{
-                  background: showSpeed ? 'rgba(59,130,246,.25)' : 'rgba(255,255,255,.06)',
-                  border: `1px solid ${showSpeed ? 'rgba(96,165,250,.5)' : 'rgba(255,255,255,.1)'}`,
-                  borderRadius:5, cursor:'pointer', padding:'3px 0',
-                  color: speed !== 1 ? '#93c5fd' : 'rgba(148,163,184,.9)',
-                  fontSize:11, fontWeight:700, fontFamily:'monospace', letterSpacing:.3,
-                  width: 38, textAlign:'center', display:'inline-block',
-                }}>
+                className={`vp-pill-btn${showSpeed ? ' active' : ''}`}
+                style={{ padding:'4px 0', width:38, textAlign:'center', color: speed !== 1 ? '#93c5fd' : undefined }}>
                 {speed === 1 ? '1×' : `${speed}×`}
               </button>
               {showSpeed && (
                 <div className="vp-pop" style={{
                   position:'absolute', bottom:'calc(100% + 6px)', right:0,
-                  background:'#0d1b33', border:'1px solid rgba(59,130,246,.3)',
-                  borderRadius:8, overflow:'hidden', boxShadow:'0 8px 32px rgba(0,0,0,.7)', minWidth:64, zIndex:99,
+                  background:'#0a1628', border:'1px solid rgba(59,130,246,.3)',
+                  borderRadius:10, overflow:'hidden', boxShadow:'0 12px 40px rgba(0,0,0,.8)', minWidth:64, zIndex:99,
                 }}>
                   {SPEEDS.map(s => (
                     <button key={s} onClick={() => applySpeed(s)}
-                      style={{
-                        display:'block', width:'100%', textAlign:'center',
-                        padding:'7px 14px', background: speed===s ? 'rgba(59,130,246,.4)' : 'transparent',
-                        border:'none', cursor:'pointer', color: speed===s ? '#93c5fd' : 'rgba(148,163,184,.8)',
-                        fontSize:12, fontWeight:700, fontFamily:'monospace',
-                      }}>
+                      className="vp-menu-item"
+                      style={{ padding:'8px 14px', background: speed===s ? 'rgba(59,130,246,.4)' : 'transparent', color: speed===s ? '#93c5fd' : 'rgba(148,163,184,.8)' }}>
                       {s === 1 ? '1×' : `${s}×`}
                     </button>
                   ))}
@@ -459,8 +452,7 @@ const CustomVideoPlayer = ({ src }) => {
             </div>
 
             {/* Fullscreen */}
-            <button onClick={toggleFS} title="Fullscreen"
-              style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.8)', padding:4, display:'flex', alignItems:'center', borderRadius:6, flexShrink:0 }}>
+            <button onClick={toggleFS} title="Fullscreen" className="vp-icon-btn" style={{ width:32, height:32 }}>
               {isFS ? <IconFSOut /> : <IconFSIn />}
             </button>
           </div>
@@ -472,7 +464,7 @@ const CustomVideoPlayer = ({ src }) => {
 };
 
 // ─── Custom themed audio player ───────────────────────────────────────────────
-const CustomAudioPlayer = ({ src, filename, fileSize }) => {
+const CustomAudioPlayer = ({ src, filename, fileSize, useCredentials = true }) => {
   const audioRef  = useRef(null);
   const speedRef  = useRef(null);
   const skipDRef  = useRef(null);
@@ -527,13 +519,6 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
 
   const prog = duration > 0 ? (currentTime / duration) * 100 : 0;
   const bars = Array.from({ length: 40 }, (_, i) => i);
-
-  const pill = {
-    background: 'rgba(255,255,255,.06)',
-    border: '1px solid rgba(255,255,255,.1)',
-    borderRadius: 5, cursor: 'pointer', padding: '3px 8px',
-    color: 'rgba(148,163,184,.9)', fontSize: 11, fontWeight: 700, fontFamily: 'monospace',
-  };
 
   return (
     <div style={{
@@ -610,10 +595,10 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
       <div style={{ padding: '8px 20px 18px', display:'flex', alignItems:'center', gap:8 }}>
 
         {/* Vol */}
-        <button onClick={toggleMute} style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(148,163,184,.7)', padding:4, display:'flex', borderRadius:6, flexShrink:0 }}>
+        <button onClick={toggleMute} className="vp-icon-btn" style={{ width:30, height:30, flexShrink:0 }}>
           {muted||volume===0
-            ? <svg viewBox="0 0 24 24" fill="currentColor" width="17" height="17"><path d="M16.5 12A4.5 4.5 0 0014 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
-            : <svg viewBox="0 0 24 24" fill="currentColor" width="17" height="17"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>}
+            ? <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M16.5 12A4.5 4.5 0 0014 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+            : <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0014 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>}
         </button>
         <div style={{ position:'relative', width:56, height:14, display:'flex', alignItems:'center', flexShrink:0 }}>
           <div style={{ position:'absolute', left:0, right:0, height:3, borderRadius:3, background:'rgba(255,255,255,.1)' }} />
@@ -626,49 +611,40 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
         <div style={{ flex:1 }} />
 
         {/* Skip back */}
-        <button onClick={() => doSkip(-1)} title={`-${skipSec}s`}
-          style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:0, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, height:22, width:22, flexShrink:0 }}>
-          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+        <button onClick={() => doSkip(-1)} title={`-${skipSec}s`} className="vp-icon-btn" style={{ height:30, width:30 }}>
+          <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
         </button>
 
         {/* Play/Pause — big centre */}
-        <button onClick={togglePlay}
-          style={{
-            width: 48, height: 48, borderRadius: '50%',
-            background: 'linear-gradient(135deg,#2563eb,#1d4ed8)',
-            border: '1.5px solid rgba(96,165,250,.3)',
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 20px rgba(37,99,235,.4)', flexShrink:0, transition:'transform .1s',
-          }}
-          onMouseDown={e => e.currentTarget.style.transform='scale(.93)'}
-          onMouseUp={e => e.currentTarget.style.transform='scale(1)'}
-          onMouseLeave={e => e.currentTarget.style.transform='scale(1)'}
-        >
+        <button onClick={togglePlay} className="vp-play-btn"
+          style={{ width:50, height:50, background:'linear-gradient(135deg,#2563eb,#1d4ed8)', boxShadow:'0 4px 20px rgba(37,99,235,.45)', color:'#fff' }}>
           {playing
             ? <svg viewBox="0 0 24 24" fill="white" width="20" height="20"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
             : <svg viewBox="0 0 24 24" fill="white" width="20" height="20" style={{ marginLeft:2 }}><path d="M8 5v14l11-7z"/></svg>}
         </button>
 
         {/* Skip forward */}
-        <button onClick={() => doSkip(1)} title={`+${skipSec}s`}
-          style={{ background:'rgba(255,255,255,.06)', border:'1px solid rgba(255,255,255,.12)', cursor:'pointer', color:'rgba(148,163,184,.9)', padding:0, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:5, height:22, width:22, flexShrink:0 }}>
-          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+        <button onClick={() => doSkip(1)} title={`+${skipSec}s`} className="vp-icon-btn" style={{ height:30, width:30 }}>
+          <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
         </button>
 
         <div style={{ flex:1 }} />
 
         {/* Skip duration */}
         <div ref={skipDRef} style={{ position:'relative', flexShrink:0 }}>
-          <button onClick={() => { setShowSkipD(p=>!p); setShowSpeed(false); }} style={pill}>{skipSec}s</button>
+          <button onClick={() => { setShowSkipD(p=>!p); setShowSpeed(false); }}
+            className={`vp-pill-btn${showSkipD ? ' active' : ''}`}
+            style={{ padding:'4px 8px' }}>{skipSec}s</button>
           {showSkipD && (
             <div className="vp-pop" style={{
               position:'absolute', bottom:'calc(100% + 6px)', right:0,
-              background:'#0d1b33', border:'1px solid rgba(59,130,246,.3)',
-              borderRadius:8, overflow:'hidden', boxShadow:'0 8px 32px rgba(0,0,0,.7)', minWidth:52, zIndex:99,
+              background:'#0a1628', border:'1px solid rgba(59,130,246,.3)',
+              borderRadius:10, overflow:'hidden', boxShadow:'0 12px 40px rgba(0,0,0,.8)', minWidth:52, zIndex:99,
             }}>
               {SKIPS.map(s => (
                 <button key={s} onClick={() => { setSkipSec(s); setShowSkipD(false); }}
-                  style={{ display:'block', width:'100%', textAlign:'center', padding:'7px 12px', background:skipSec===s?'rgba(59,130,246,.4)':'transparent', border:'none', cursor:'pointer', color:skipSec===s?'#93c5fd':'rgba(148,163,184,.8)', fontSize:12, fontWeight:700, fontFamily:'monospace' }}>
+                  className="vp-menu-item"
+                  style={{ padding:'8px 12px', background:skipSec===s?'rgba(59,130,246,.4)':'transparent', color:skipSec===s?'#93c5fd':'rgba(148,163,184,.8)' }}>
                   {s}s
                 </button>
               ))}
@@ -679,18 +655,20 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
         {/* Speed */}
         <div ref={speedRef} style={{ position:'relative', flexShrink:0 }}>
           <button onClick={() => { setShowSpeed(p=>!p); setShowSkipD(false); }}
-            style={{ ...pill, color: speed!==1 ? '#93c5fd' : 'rgba(148,163,184,.9)', width:38, textAlign:'center', padding:'3px 0' }}>
+            className={`vp-pill-btn${showSpeed ? ' active' : ''}`}
+            style={{ padding:'4px 0', width:38, textAlign:'center', color: speed!==1 ? '#93c5fd' : undefined }}>
             {speed===1?'1×':`${speed}×`}
           </button>
           {showSpeed && (
             <div className="vp-pop" style={{
               position:'absolute', bottom:'calc(100% + 6px)', right:0,
-              background:'#0d1b33', border:'1px solid rgba(59,130,246,.3)',
-              borderRadius:8, overflow:'hidden', boxShadow:'0 8px 32px rgba(0,0,0,.7)', minWidth:60, zIndex:99,
+              background:'#0a1628', border:'1px solid rgba(59,130,246,.3)',
+              borderRadius:10, overflow:'hidden', boxShadow:'0 12px 40px rgba(0,0,0,.8)', minWidth:60, zIndex:99,
             }}>
               {SPEEDS.map(s => (
                 <button key={s} onClick={() => applySpeed(s)}
-                  style={{ display:'block', width:'100%', textAlign:'center', padding:'7px 14px', background:speed===s?'rgba(59,130,246,.4)':'transparent', border:'none', cursor:'pointer', color:speed===s?'#93c5fd':'rgba(148,163,184,.8)', fontSize:12, fontWeight:700, fontFamily:'monospace' }}>
+                  className="vp-menu-item"
+                  style={{ padding:'8px 14px', background:speed===s?'rgba(59,130,246,.4)':'transparent', color:speed===s?'#93c5fd':'rgba(148,163,184,.8)' }}>
                   {s===1?'1×':`${s}×`}
                 </button>
               ))}
@@ -699,7 +677,7 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
         </div>
       </div>
 
-      <audio ref={audioRef} src={src} crossOrigin="use-credentials"
+      <audio ref={audioRef} src={src} {...(useCredentials ? { crossOrigin: 'use-credentials' } : {})}
         onTimeUpdate={() => { if (audioRef.current) setCurrentTime(audioRef.current.currentTime); }}
         onLoadedMetadata={trySetAudioDuration}
         onDurationChange={trySetAudioDuration}
@@ -1564,8 +1542,8 @@ return (
                   />
                 </div>
               )}
-              {type === 'video' && <CustomVideoPlayer src={streamUrl || previewUrl} />}
-              {type === 'audio' && <CustomAudioPlayer src={streamUrl || previewUrl} filename={file.filename} fileSize={file.length} />}
+              {type === 'video' && <CustomVideoPlayer src={streamUrl || previewUrl} useCredentials={!streamUrl} />}
+              {type === 'audio' && <CustomAudioPlayer src={streamUrl || previewUrl} filename={file.filename} fileSize={file.length} useCredentials={!streamUrl} />}
             </div>
           </div>
 

@@ -1,0 +1,1199 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import axios from 'axios';
+import { QRCodeSVG } from 'qrcode.react';
+
+// Utility for conditional class names
+const cn = (...classes) => classes.filter(Boolean).join(' ');
+
+// ─── Custom Premium Icons ───────────────────────────────────────────────────
+const Icons = {
+  Play: () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M8 5v14l11-7z"/></svg>,
+  Pause: () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>,
+  VolumeHigh: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"/></svg>,
+  VolumeMute: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6 4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"/></svg>,
+  FullscreenExit: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9V4.5M15 9h4.5M15 9l5.25-5.25M15 15v4.5M15 15h4.5M15 15l5.25 5.25"/></svg>,
+  FullscreenEnter: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9M20.25 20.25v-4.5m0 4.5h-4.5m4.5 0l-6-6"/></svg>,
+  Forward: () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M11.5 12 2 18V6l9.5 6zm10.5 0-9.5 6V6l9.5 6z"/></svg>,
+  Backward: () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12.5 12 22 6v12l-9.5-6zm-10.5 0L11.5 6v12L2 12z"/></svg>,
+  Settings: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a6.723 6.723 0 0 1 0 .255c-.008.378.137.75.43.99l1.005.831a1.125 1.125 0 0 1 .26 1.43l-1.297 2.247a1.125 1.125 0 0 1-1.37.491l-1.216-.456c-.356-.133-.751-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.831a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.645-.869l.214-1.28Z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>
+};
+
+// ─── Custom Themed Video Player ───────────────────────────────────────────────
+const CustomVideoPlayer = ({ src, fallbackSrc, useCredentials = true }) => {
+  const videoRef = useRef(null);
+  const wrapRef = useRef(null);
+  const speedRef = useRef(null);
+  const [videoUrl, setVideoUrl] = useState(src);
+  const [usingFallback, setUsingFallback] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
+  const [buffered, setBuffered] = useState(0);
+  const [showCtrl, setShowCtrl] = useState(true);
+  const [speed, setSpeed] = useState(1);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [isFS, setIsFS] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(true);
+
+  const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+  const hideTimer = useRef(null);
+
+  // ── Smart Dynamic Fallback Mechanism ──
+  const handleVideoError = useCallback(() => {
+    if (!usingFallback && fallbackSrc) {
+      console.warn("Direct stream URL failed/blocked. Falling back to secure proxy preview URL...");
+      setUsingFallback(true);
+      setVideoUrl(fallbackSrc);
+      setIsBuffering(true);
+    } else {
+      console.error("Video player encountered an unrecoverable rendering or network error.");
+      setIsBuffering(false);
+    }
+  }, [usingFallback, fallbackSrc]);
+
+  useEffect(() => {
+    setVideoUrl(src);
+    setUsingFallback(false);
+  }, [src]);
+
+  const nudgeControls = useCallback(() => {
+    setShowCtrl(true);
+    clearTimeout(hideTimer.current);
+    if (videoRef.current && !videoRef.current.paused) {
+      hideTimer.current = setTimeout(() => setShowCtrl(false), 3000);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (speedRef.current && !speedRef.current.contains(e.target)) {
+        setShowSpeedMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      clearTimeout(hideTimer.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFS(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // ── Keyboard Shortcuts inside Player Context ──
+  const handleKeyDown = useCallback((e) => {
+    if (!videoRef.current) return;
+    const key = e.key.toLowerCase();
+    
+    // Skip if user is typing in any text fields
+    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+
+    if (key === ' ' || key === 'k') {
+      e.preventDefault();
+      togglePlay();
+    } else if (key === 'f') {
+      e.preventDefault();
+      toggleFS();
+    } else if (key === 'm') {
+      e.preventDefault();
+      toggleMute();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      seekRelative(5);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      seekRelative(-5);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      adjustVolume(0.1);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      adjustVolume(-0.1);
+    }
+  }, [volume, muted]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play().catch(() => {});
+    } else {
+      videoRef.current.pause();
+    }
+  };
+
+  const seekRelative = (seconds) => {
+    if (!videoRef.current) return;
+    videoRef.current.currentTime = Math.max(0, Math.min(videoRef.current.duration || 0, videoRef.current.currentTime + seconds));
+  };
+
+  const adjustVolume = (amount) => {
+    if (!videoRef.current) return;
+    const newVol = Math.max(0, Math.min(1, volume + amount));
+    setVolume(newVol);
+    videoRef.current.volume = newVol;
+    setMuted(newVol === 0);
+  };
+
+  const handleTimeUpdate = () => {
+    if (!videoRef.current) return;
+    setCurrentTime(videoRef.current.currentTime);
+    if (videoRef.current.buffered.length) {
+      setBuffered(videoRef.current.buffered.end(videoRef.current.buffered.length - 1));
+    }
+  };
+
+  const handleSeek = (e) => {
+    const v = parseFloat(e.target.value);
+    setCurrentTime(v);
+    if (videoRef.current) videoRef.current.currentTime = v;
+  };
+
+  const handleVolChange = (e) => {
+    const v = parseFloat(e.target.value);
+    setVolume(v);
+    setMuted(v === 0);
+    if (videoRef.current) {
+      videoRef.current.volume = v;
+      videoRef.current.muted = (v === 0);
+    }
+  };
+
+  const toggleMute = () => {
+    if (!videoRef.current) return;
+    const nextMute = !muted;
+    setMuted(nextMute);
+    videoRef.current.muted = nextMute;
+  };
+
+  const toggleFS = () => {
+    if (!document.fullscreenElement) {
+      wrapRef.current?.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  };
+
+  const handleSpeedSelect = (s) => {
+    setSpeed(s);
+    setShowSpeedMenu(false);
+    if (videoRef.current) videoRef.current.playbackRate = s;
+  };
+
+  const fmtTime = (t) => {
+    if (!t || isNaN(t) || !isFinite(t)) return '0:00';
+    const h = Math.floor(t / 3600);
+    const m = Math.floor((t % 3600) / 60);
+    const s = String(Math.floor(t % 60)).padStart(2, '0');
+    return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
+  };
+
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const bufferPercent = duration > 0 ? (buffered / duration) * 100 : 0;
+
+  return (
+    <div
+      ref={wrapRef}
+      className={cn(
+        "relative w-full max-w-[900px] bg-black overflow-hidden group border border-white/5 transition-all shadow-2xl select-none",
+        isFS ? "h-screen rounded-none" : "rounded-2xl"
+      )}
+      onMouseMove={nudgeControls}
+      onMouseLeave={() => playing && setShowCtrl(false)}
+      onTouchStart={nudgeControls}
+    >
+      {/* ── Video Element ── */}
+      <div className="relative w-full aspect-video flex items-center justify-center bg-black" onClick={togglePlay}>
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          {...(useCredentials && !usingFallback ? { crossOrigin: 'use-credentials' } : {})}
+          preload="auto"
+          className="w-full h-full object-contain"
+          onTimeUpdate={handleTimeUpdate}
+          onDurationChange={() => videoRef.current && setDuration(videoRef.current.duration)}
+          onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration)}
+          onPlay={() => { setPlaying(true); nudgeControls(); }}
+          onPause={() => { setPlaying(false); setShowCtrl(true); }}
+          onEnded={() => setPlaying(false)}
+          onWaiting={() => setIsBuffering(true)}
+          onPlaying={() => setIsBuffering(false)}
+          onCanPlay={() => setIsBuffering(false)}
+          onError={handleVideoError}
+        />
+
+        {/* ── Buffer Indicator ── */}
+        {isBuffering && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none z-10">
+            <div className="flex flex-col items-center gap-3">
+              <svg className="animate-spin h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              <span className="text-xs font-semibold text-blue-400 tracking-wider">BUFFERING...</span>
+            </div>
+          </div>
+        )}
+
+        {/* ── Big Center Play State Toggle ── */}
+        {!playing && !isBuffering && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/10 hover:bg-black/20 transition-all pointer-events-none z-10">
+            <div className="w-16 h-16 rounded-full bg-blue-600/90 text-white flex items-center justify-center shadow-lg border border-white/10 transform scale-100 hover:scale-105 active:scale-95 transition-all">
+              <Icons.Play />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Glassmorphic Controller Controls ── */}
+      <div
+        className={cn(
+          "absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 flex flex-col gap-3 transition-opacity duration-300 z-20",
+          showCtrl ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+      >
+        {/* ── Professional Slider/Scrubber ── */}
+        <div className="relative flex items-center w-full h-1.5 group/scrub cursor-pointer">
+          <div className="absolute inset-y-0 left-0 right-0 bg-white/10 rounded-full h-1" />
+          <div className="absolute inset-y-0 left-0 bg-blue-500/30 rounded-full h-1 transition-all" style={{ width: `${bufferPercent}%` }} />
+          <div className="absolute inset-y-0 left-0 bg-blue-600 rounded-full h-1" style={{ width: `${progressPercent}%` }} />
+          <input
+            type="range"
+            min={0}
+            max={duration || 0}
+            step={0.01}
+            value={currentTime}
+            onChange={handleSeek}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          />
+          <div
+            className="absolute w-3 h-3 bg-white rounded-full shadow-md scale-0 group-hover/scrub:scale-100 transition-transform pointer-events-none"
+            style={{ left: `calc(${progressPercent}% - 6px)` }}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {/* Play/Pause */}
+            <button onClick={togglePlay} className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors">
+              {playing ? <Icons.Pause /> : <Icons.Play />}
+            </button>
+
+            {/* Skip Controls */}
+            <button onClick={() => seekRelative(-5)} className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="-5 seconds">
+              <Icons.Backward />
+            </button>
+            <button onClick={() => seekRelative(5)} className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="+5 seconds">
+              <Icons.Forward />
+            </button>
+
+            {/* Time Indicators */}
+            <div className="text-xs text-white/80 font-mono">
+              <span>{fmtTime(currentTime)}</span>
+              <span className="mx-1 text-white/40">/</span>
+              <span>{fmtTime(duration)}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* Smooth Volume Control */}
+            <div className="flex items-center gap-2 group/volume">
+              <button onClick={toggleMute} className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors">
+                {muted || volume === 0 ? <Icons.VolumeMute /> : <Icons.VolumeHigh />}
+              </button>
+              <div className="relative w-0 group-hover/volume:w-20 transition-all duration-300 h-1 overflow-hidden flex items-center">
+                <div className="absolute inset-x-0 h-1 bg-white/20 rounded-full" />
+                <div className="absolute left-0 h-1 bg-blue-500 rounded-full" style={{ width: `${muted ? 0 : volume * 100}%` }} />
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={muted ? 0 : volume}
+                  onChange={handleVolChange}
+                  className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {/* Playback Speed Setting */}
+            <div className="relative" ref={speedRef}>
+              <button
+                onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 flex items-center gap-1 text-xs font-semibold transition-colors"
+              >
+                <Icons.Settings />
+                <span>{speed === 1 ? '1.0x' : `${speed}x`}</span>
+              </button>
+
+              {showSpeedMenu && (
+                <div className="absolute bottom-full right-0 mb-2 w-28 rounded-lg bg-black/95 border border-white/10 backdrop-blur-md overflow-hidden z-30 shadow-xl">
+                  {SPEEDS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => handleSpeedSelect(s)}
+                      className={cn(
+                        "w-full px-3 py-1.5 text-left text-xs transition-colors font-medium",
+                        s === speed ? "bg-blue-600 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
+                      )}
+                    >
+                      {s === 1 ? 'Normal' : `${s}x`}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Fullscreen Option */}
+            <button onClick={toggleFS} className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors">
+              {isFS ? <Icons.FullscreenExit /> : <Icons.FullscreenEnter />}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Custom Themed Audio Player with Real Visualizer Waveform ──────────────────
+const CustomAudioPlayer = ({ src, filename, fileSize, useCredentials = true }) => {
+  const audioRef = useRef(null);
+  const canvasRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const analyserRef = useRef(null);
+  const sourceRef = useRef(null);
+  const speedRef = useRef(null);
+  const animationRef = useRef(null);
+
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+  // Close menus on clicking outside
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (speedRef.current && !speedRef.current.contains(e.target)) {
+        setShowSpeedMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      cancelAnimationFrame(animationRef.current);
+    };
+  }, []);
+
+  // ── Keyboard Shortcuts inside Player Context ──
+  const handleKeyDown = useCallback((e) => {
+    if (!audioRef.current) return;
+    const key = e.key.toLowerCase();
+    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+
+    if (key === ' ' || key === 'k') {
+      e.preventDefault();
+      togglePlay();
+    } else if (key === 'm') {
+      e.preventDefault();
+      toggleMute();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      seekRelative(5);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      seekRelative(-5);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      adjustVolume(0.1);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      adjustVolume(-0.1);
+    }
+  }, [volume, muted]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (audioRef.current.paused) {
+      setupAudioContext();
+      audioRef.current.play().catch(() => {});
+    } else {
+      audioRef.current.pause();
+    }
+  };
+
+  const seekRelative = (seconds) => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = Math.max(0, Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + seconds));
+  };
+
+  const adjustVolume = (amount) => {
+    if (!audioRef.current) return;
+    const newVol = Math.max(0, Math.min(1, volume + amount));
+    setVolume(newVol);
+    audioRef.current.volume = newVol;
+    setMuted(newVol === 0);
+  };
+
+  // ── Setup Audio Analysis for Real Dynamic Visualizer ──
+  const setupAudioContext = () => {
+    if (audioCtxRef.current) return;
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioContextClass();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 128; // Keep frequency resolution optimal for equalizer layout
+      
+      const source = ctx.createMediaElementSource(audioRef.current);
+      source.connect(analyser);
+      analyser.connect(ctx.destination);
+
+      audioCtxRef.current = ctx;
+      analyserRef.current = analyser;
+      sourceRef.current = source;
+    } catch (e) {
+      console.warn("Unable to initialize Web Audio API due to browser/CORS policies. Playing audio directly with realistic animation.");
+    }
+  };
+
+  // ── Render actual audio visualizer on canvas ──
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let width = canvas.width;
+    let height = canvas.height;
+
+    const render = () => {
+      animationRef.current = requestAnimationFrame(render);
+      ctx.clearRect(0, 0, width, height);
+
+      const barWidth = 4;
+      const gap = 3;
+      const barCount = Math.floor(width / (barWidth + gap));
+      const dataArray = new Uint8Array(barCount);
+
+      if (analyserRef.current && playing) {
+        analyserRef.current.getByteFrequencyData(dataArray);
+      } else if (playing) {
+        // High fidelity mock equalizer data if Web Audio API is blocked
+        for (let i = 0; i < barCount; i++) {
+          dataArray[i] = 15 + Math.abs(Math.sin(i * 0.15 + Date.now() * 0.005)) * 60 + Math.random() * 10;
+        }
+      } else {
+        // Inactive steady wave pattern
+        for (let i = 0; i < barCount; i++) {
+          dataArray[i] = 12 + Math.abs(Math.sin(i * 0.2)) * 12;
+        }
+      }
+
+      ctx.fillStyle = '#3b82f6';
+      // Draw equalizer visualization
+      for (let i = 0; i < barCount; i++) {
+        const val = dataArray[i];
+        const barHeight = Math.max(4, (val / 255) * height * 1.2);
+        const x = i * (barWidth + gap);
+        const y = height - barHeight;
+
+        // Visual gradients
+        const grad = ctx.createLinearGradient(0, y, 0, height);
+        grad.addColorStop(0, '#60a5fa'); // Vibrant sky
+        grad.addColorStop(0.5, '#3b82f6'); // Royal blue
+        grad.addColorStop(1, '#1d4ed8'); // Deep blue
+        ctx.fillStyle = grad;
+
+        // Rounded bar logic
+        ctx.beginPath();
+        ctx.roundRect(x, y, barWidth, barHeight, 2);
+        ctx.fill();
+      }
+    };
+
+    render();
+    return () => cancelAnimationFrame(animationRef.current);
+  }, [playing]);
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+  };
+
+  const handleSeek = (e) => {
+    const v = parseFloat(e.target.value);
+    setCurrentTime(v);
+    if (audioRef.current) audioRef.current.currentTime = v;
+  };
+
+  const handleVolChange = (e) => {
+    const v = parseFloat(e.target.value);
+    setVolume(v);
+    setMuted(v === 0);
+    if (audioRef.current) {
+      audioRef.current.volume = v;
+      audioRef.current.muted = (v === 0);
+    }
+  };
+
+  const toggleMute = () => {
+    if (!audioRef.current) return;
+    const nextMuted = !muted;
+    setMuted(nextMuted);
+    audioRef.current.muted = nextMuted;
+  };
+
+  const handleSpeedSelect = (s) => {
+    setSpeed(s);
+    setShowSpeedMenu(false);
+    if (audioRef.current) audioRef.current.playbackRate = s;
+  };
+
+  const fmtSize = (b) => {
+    if (!b) return '';
+    const k = 1024, s = ['B', 'KB', 'MB', 'GB'], i = Math.floor(Math.log(b) / Math.log(k));
+    return parseFloat((b / Math.pow(k, i)).toFixed(1)) + ' ' + s[i];
+  };
+
+  const fmtTime = (t) => {
+    if (!t || isNaN(t) || !isFinite(t)) return '0:00';
+    const m = Math.floor(t / 60);
+    const s = String(Math.floor(t % 60)).padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  return (
+    <div className="w-full max-w-[420px] bg-slate-900/90 border border-white/10 backdrop-blur-xl rounded-2xl p-6 shadow-2xl relative select-none">
+      {/* ── File Metadata Info ── */}
+      <div className="flex items-center gap-4 mb-5">
+        <div className="w-12 h-12 rounded-xl bg-blue-600/20 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"/>
+          </svg>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-white text-sm font-semibold truncate" title={filename}>{filename}</p>
+          {fileSize > 0 && <p className="text-white/40 text-xs mt-0.5">{fmtSize(fileSize)}</p>}
+        </div>
+      </div>
+
+      {/* ── Live Visualizer Equalizer Canvas ── */}
+      <div className="relative w-full h-24 bg-black/20 rounded-xl mb-4 overflow-hidden border border-white/5 flex items-end">
+        <canvas ref={canvasRef} width="372" height="96" className="w-full h-full" />
+      </div>
+
+      {/* ── Premium Control Bar ── */}
+      <div className="flex flex-col gap-4">
+        {/* Progress Timeline Scrubber */}
+        <div className="flex flex-col gap-1.5">
+          <div className="relative flex items-center w-full h-1 group cursor-pointer">
+            <div className="absolute inset-x-0 h-1 bg-white/10 rounded-full" />
+            <div className="absolute left-0 h-1 bg-blue-500 rounded-full" style={{ width: `${progressPercent}%` }} />
+            <input
+              type="range"
+              min={0}
+              max={duration || 0}
+              step={0.01}
+              value={currentTime}
+              onChange={handleSeek}
+              className="absolute inset-0 w-full opacity-0 cursor-pointer"
+            />
+          </div>
+          <div className="flex justify-between text-[10px] text-white/40 font-mono">
+            <span>{fmtTime(currentTime)}</span>
+            <span>{fmtTime(duration)}</span>
+          </div>
+        </div>
+
+        {/* Playback Buttons Group */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Play Button */}
+            <button
+              onClick={togglePlay}
+              className="w-11 h-11 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-lg transform active:scale-95 transition-all"
+            >
+              {playing ? <Icons.Pause /> : <Icons.Play />}
+            </button>
+
+            {/* Back / Skip buttons */}
+            <button onClick={() => seekRelative(-5)} className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+              <Icons.Backward />
+            </button>
+            <button onClick={() => seekRelative(5)} className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+              <Icons.Forward />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Speed selection dropdown */}
+            <div className="relative" ref={speedRef}>
+              <button
+                onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                className="px-2 py-1 rounded border border-white/10 text-[11px] font-semibold text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+              >
+                {speed === 1 ? 'Speed' : `${speed}x`}
+              </button>
+              {showSpeedMenu && (
+                <div className="absolute bottom-full right-0 mb-2 w-24 rounded-lg bg-slate-950 border border-white/10 shadow-2xl overflow-hidden z-30">
+                  {SPEEDS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => handleSpeedSelect(s)}
+                      className={cn(
+                        "w-full px-3 py-1.5 text-left text-xs transition-colors",
+                        s === speed ? "bg-blue-600 text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
+                      )}
+                    >
+                      {s === 1 ? 'Normal' : `${s}x`}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Premium Volume controls */}
+            <div className="flex items-center gap-1 group/vol">
+              <button onClick={toggleMute} className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+                {muted || volume === 0 ? <Icons.VolumeMute /> : <Icons.VolumeHigh />}
+              </button>
+              <div className="relative w-0 group-hover/vol:w-16 transition-all duration-300 h-1 overflow-hidden flex items-center">
+                <div className="absolute inset-x-0 h-1 bg-white/20 rounded-full" />
+                <div className="absolute left-0 h-1 bg-blue-500 rounded-full" style={{ width: `${muted ? 0 : volume * 100}%` }} />
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={muted ? 0 : volume}
+                  onChange={handleVolChange}
+                  className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <audio
+        ref={audioRef}
+        src={src}
+        {...(useCredentials ? { crossOrigin: 'use-credentials' } : {})}
+        onTimeUpdate={handleTimeUpdate}
+        onDurationChange={() => audioRef.current && setDuration(audioRef.current.duration)}
+        onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration)}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+      />
+    </div>
+  );
+};
+
+// ─── Main FileItem Component ──────────────────────────────────────────────────
+const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, selectionMode, viewType }) => {
+  const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
+  const [showShare, setShowShare] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [showViewer, setShowViewer] = useState(false);
+  const [streamUrl, setStreamUrl] = useState(null);
+
+  const menuRef = useRef(null);
+  const shareModalRef = useRef(null);
+  const deleteModalRef = useRef(null);
+  const shareLinkInputRef = useRef(null);
+
+  // Close modals & overlays on outside clicks
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        const menuButton = menuRef.current.previousElementSibling;
+        if (!menuButton || !menuButton.contains(event.target)) {
+          setShowMenu(false);
+        }
+      }
+      if (shareModalRef.current && !shareModalRef.current.contains(event.target)) {
+        setShowShare(false);
+      }
+      if (deleteModalRef.current && !deleteModalRef.current.contains(event.target)) {
+        setShowDeleteConfirm(false);
+      }
+    };
+
+    if (showMenu || showShare || showDeleteConfirm || showViewer) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showMenu, showShare, showDeleteConfirm, showViewer]);
+
+  // Close dynamic dropdown on scroll
+  useEffect(() => {
+    if (!showMenu) return;
+    const close = () => setShowMenu(false);
+    window.addEventListener('scroll', close, { capture: true, passive: true });
+    return () => window.removeEventListener('scroll', close, { capture: true });
+  }, [showMenu]);
+
+  // Escape key events
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Escape') {
+      if (showViewer) { setShowViewer(false); return; }
+      if (showShare) setShowShare(false);
+      if (showDeleteConfirm) setShowDeleteConfirm(false);
+      if (showMenu) setShowMenu(false);
+    }
+  }, [showShare, showDeleteConfirm, showMenu, showViewer]);
+
+  useEffect(() => {
+    if (showShare || showDeleteConfirm || showMenu || showViewer) {
+      window.addEventListener('keydown', handleKeyDown);
+    } else {
+      window.removeEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showShare, showDeleteConfirm, showMenu, showViewer, handleKeyDown]);
+
+  const download = async () => {
+    setShowMenu(false);
+    setIsActionLoading(true);
+    setDownloadProgress(0);
+    try {
+      const response = await axios({
+        url: `${backendUrl}/api/files/download/${file._id}`,
+        method: 'GET',
+        responseType: 'blob',
+        onDownloadProgress: (progressEvent) => {
+          if (progressEvent.total && progressEvent.total > 0) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setDownloadProgress(percentCompleted);
+          }
+        },
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', file.filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download failed:', err);
+    } finally {
+      setIsActionLoading(false);
+      setTimeout(() => setDownloadProgress(0), 1200);
+    }
+  };
+
+  const deleteFile = async () => {
+    setIsActionLoading(true);
+    try {
+      await axios.delete(`${backendUrl}/api/files/${file._id}`);
+      setShowDeleteConfirm(false);
+      refresh();
+    } catch (err) {
+      console.error('Delete failed:', err);
+      setIsActionLoading(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const share = async () => {
+    setShowMenu(false);
+    setIsActionLoading(true);
+    setShareLink('');
+    setCopied(false);
+    setShowShare(true);
+    try {
+      const res = await axios.post(`${backendUrl}/api/files/share/${file._id}`);
+      setShareLink(res.data.url);
+    } catch (err) {
+      console.error('Share failed:', err);
+      setShowShare(false);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const copyToClipboard = async (link) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  const openViewer = async () => {
+    setShowMenu(false);
+    setStreamUrl(null);
+    setShowViewer(true);
+    const type = file.metadata?.type;
+    if (type === 'video' || type === 'audio') {
+      try {
+        const res = await axios.get(`${backendUrl}/api/files/stream-url/${file._id}`);
+        if (res.data?.url) setStreamUrl(res.data.url);
+      } catch (err) {
+        console.warn('Could not retrieve direct stream URL, falling back to secure preview proxy:', err.message);
+      }
+    }
+  };
+
+  const formatSize = (bytes) => {
+    if (bytes === null || bytes === undefined || bytes < 0) return 'N/A';
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(i === 0 ? 0 : 1)) + ' ' + sizes[i];
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown date';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString(undefined, {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: 'numeric', minute: '2-digit', hour12: true
+      });
+    } catch (e) {
+      return 'Invalid date';
+    }
+  };
+
+  const FileTypeIcon = ({ type, darkMode, size = "h-10 w-10" }) => {
+    const iconColor = darkMode ? "text-gray-400" : "text-gray-500";
+    const icons = {
+      image: <svg xmlns="http://www.w3.org/2000/svg" className={size} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
+      video: <svg xmlns="http://www.w3.org/2000/svg" className={size} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>,
+      audio: <svg xmlns="http://www.w3.org/2000/svg" className={size} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" /></svg>,
+      document: <svg xmlns="http://www.w3.org/2000/svg" className={size} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
+      other: <svg xmlns="http://www.w3.org/2000/svg" className={size} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>,
+    };
+    return <div className={iconColor}>{icons[type] || icons['other']}</div>;
+  };
+
+  const renderPreview = (isListView) => {
+    const previewUrl = `${backendUrl}/api/files/preview/${file._id}`;
+    const type = file.metadata?.type || 'other';
+    const imageVideoPreviewClasses = 'absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300';
+    let containerBaseClasses = `relative overflow-hidden group ${darkMode ? 'bg-gray-700' : 'bg-gray-100'} flex items-center justify-center`;
+
+    if (isListView) {
+      containerBaseClasses += ' w-24 h-24 sm:w-28 sm:h-28 rounded-lg flex-shrink-0';
+    } else {
+      containerBaseClasses += ' h-32 mb-2 rounded-t-xl';
+    }
+
+    if (type === 'image') {
+      return (
+        <div className={containerBaseClasses}>
+          <img
+            src={previewUrl}
+            crossOrigin="use-credentials"
+            alt={`Preview of ${file.filename}`}
+            className={imageVideoPreviewClasses}
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        </div>
+      );
+    }
+
+    if (type === 'video') {
+      return (
+        <div className={containerBaseClasses}>
+          <video
+            src={`${previewUrl}#t=0.5`}
+            crossOrigin="use-credentials"
+            preload="metadata"
+            className={`${imageVideoPreviewClasses} bg-black`}
+          />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white/70 drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8.118v3.764a1 1 0 001.555.832l3.197-1.882a1 1 0 000-1.664l-3.197-1.882z" clipRule="evenodd" />
+            </svg>
+          </div>
+        </div>
+      );
+    }
+
+    const fileExtension = file.filename.split('.').pop().toUpperCase();
+    return (
+      <div className={`${containerBaseClasses} flex flex-col items-center justify-center`}>
+        <FileTypeIcon type={type} darkMode={darkMode} size={isListView ? "h-8 w-8 sm:h-10 w-10" : "h-10 w-10"} />
+        {type !== 'audio' && (
+          <span className={`mt-1 text-xs font-semibold tracking-wide ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            {fileExtension}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const handleItemClick = (e) => {
+    const menuButton = e.currentTarget.querySelector('[aria-label="File options"]');
+    if (menuButton && menuButton.contains(e.target)) {
+      return;
+    }
+    if (selectionMode) {
+      e.preventDefault();
+      onSelect(file._id);
+    }
+  };
+
+  return (
+    <>
+      {/* ── File Card Container ── */}
+      <div
+        className={cn(
+          "relative text-sm rounded-xl shadow-md border transition-all duration-200 ease-in-out",
+          isSelected
+            ? `ring-2 ring-offset-1 ${darkMode ? 'ring-blue-500 bg-gray-750 border-blue-700' : 'ring-blue-600 bg-blue-50 border-blue-400'}`
+            : `${darkMode ? 'bg-gray-800 border-gray-700 hover:border-gray-600' : 'bg-white border-gray-200 hover:border-gray-300'}`,
+          darkMode ? 'text-white' : 'text-gray-900',
+          selectionMode ? 'cursor-pointer' : '',
+          'transform hover:-translate-y-0.5 hover:shadow-lg',
+          viewType === 'list'
+            ? 'flex items-center p-3 gap-3 min-h-[90px] sm:min-h-[110px]'
+            : 'flex flex-col justify-between h-full min-h-[200px]',
+          showMenu ? 'z-30' : 'z-10'
+        )}
+        onClick={handleItemClick}
+        role="listitem"
+        aria-selected={isSelected}
+      >
+        {viewType === 'list' && (
+          <>
+            {renderPreview(true)}
+            <div className="flex flex-col flex-grow min-w-0">
+              <h3 title={file.filename} className={cn("font-medium text-sm truncate mb-1", darkMode ? 'text-gray-100' : 'text-gray-800')}>
+                {file.filename}
+              </h3>
+              <div className={cn("text-xs mt-0.5", darkMode ? 'text-gray-400' : 'text-gray-500')}>
+                <p className="truncate">{formatSize(file.length)}</p>
+              </div>
+              {showDetails && (
+                <div className={cn("mt-2 text-xs space-y-1 pt-2 border-t", darkMode ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-200')}>
+                  {file.metadata?.type && <p><span className="font-semibold">Type:</span> {file.metadata.type}</p>}
+                  <p><span className="font-semibold">Uploaded:</span> {formatDate(file.uploadDate)}</p>
+                  {file.metadata?.dimensions && <p><span className="font-semibold">Dimensions:</span> {file.metadata.dimensions}</p>}
+                </div>
+              )}
+            </div>
+
+            <div className="flex-shrink-0 ml-auto self-start pt-1">
+              {selectionMode ? (
+                <div className={cn("w-5 h-5 rounded-full flex items-center justify-center border transition-all duration-150", isSelected ? (darkMode ? 'bg-blue-500 border-blue-400' : 'bg-blue-600 border-blue-500') : (darkMode ? 'bg-gray-600/80 border-gray-500 hover:bg-gray-500/80' : 'bg-white/80 border-gray-400 hover:bg-gray-50/80'))}>
+                  {isSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                </div>
+              ) : (
+                <div className="relative">
+                  <button onClick={(e) => { e.stopPropagation(); setShowMenu(prev => !prev); }} className={cn("p-1.5 rounded-full transition-colors duration-150", showMenu ? (darkMode ? 'bg-gray-600 text-gray-100' : 'bg-gray-200 text-gray-700') : (darkMode ? 'text-gray-400 hover:bg-gray-700/80 hover:text-gray-100' : 'text-gray-500 hover:bg-gray-100/80 hover:text-gray-700'), 'backdrop-blur-sm bg-opacity-50')} aria-label="File options" aria-haspopup="true" aria-expanded={showMenu} title="Options">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" /></svg>
+                  </button>
+
+                  {showMenu && (
+                    <div ref={menuRef} className={cn("absolute right-0 mt-1 py-1 sm:w-40 w-36 rounded-md shadow-xl z-50 border backdrop-blur-md", darkMode ? 'bg-gray-800/90 border-gray-600' : 'bg-white/90 border-gray-200')} role="menu">
+                      {(file.metadata?.type === 'image' || file.metadata?.type === 'video' || file.metadata?.type === 'audio') && (
+                        <>
+                          <button onClick={openViewer} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                            View
+                          </button>
+                          <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+                        </>
+                      )}
+                      <button onClick={download} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-current opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
+                        Get
+                      </button>
+                      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+                      <button onClick={share} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> Share
+                      </button>
+                      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+                      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-red-400' : 'text-red-600')} role="menuitem">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {viewType === 'grid' && (
+          <div className="flex flex-col h-full">
+            {renderPreview(false)}
+            <div className="p-3 pt-2 flex flex-col flex-grow">
+              <h3 title={file.filename} className={cn("font-medium text-sm truncate mb-1", darkMode ? 'text-gray-100' : 'text-gray-800')}>
+                {file.filename}
+              </h3>
+              <div className={cn("text-xs mt-0.5", darkMode ? 'text-gray-400' : 'text-gray-500')}>
+                <p className="truncate">{formatSize(file.length)}</p>
+              </div>
+              {showDetails && <div className="flex-grow min-h-[1rem]" />}
+              {showDetails && (
+                <div className={cn("mt-2 text-xs space-y-1 pt-2 border-t", darkMode ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-200')}>
+                  {file.metadata?.type && <p><span className="font-semibold">Type:</span> {file.metadata.type}</p>}
+                  <p><span className="font-semibold">Uploaded:</span> {formatDate(file.uploadDate)}</p>
+                  {file.metadata?.dimensions && <p><span className="font-semibold">Dimensions:</span> {file.metadata.dimensions}</p>}
+                </div>
+              )}
+            </div>
+
+            <div className="absolute top-1.5 right-1.5 z-10">
+              {selectionMode ? (
+                <div className={cn("w-5 h-5 rounded-full flex items-center justify-center border transition-all duration-150", isSelected ? (darkMode ? 'bg-blue-500 border-blue-400' : 'bg-blue-600 border-blue-500') : (darkMode ? 'bg-gray-600/80 border-gray-500 hover:bg-gray-500/80' : 'bg-white/80 border-gray-400 hover:bg-gray-50/80'))}>
+                  {isSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                </div>
+              ) : (
+                <div className="relative">
+                  <button onClick={(e) => { e.stopPropagation(); setShowMenu(prev => !prev); }} className={cn("p-1.5 rounded-full transition-colors duration-150", showMenu ? (darkMode ? 'bg-gray-600 text-gray-100' : 'bg-gray-200 text-gray-700') : (darkMode ? 'text-gray-400 hover:bg-gray-700/80 hover:text-gray-100' : 'text-gray-500 hover:bg-gray-100/80 hover:text-gray-700'), 'backdrop-blur-sm bg-opacity-50')} aria-label="File options" aria-haspopup="true" aria-expanded={showMenu} title="Options">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" /></svg>
+                  </button>
+
+                  {showMenu && (
+                    <div ref={menuRef} className={cn("absolute right-0 mt-1 py-1 sm:w-40 w-36 rounded-md shadow-xl z-50 border backdrop-blur-md", darkMode ? 'bg-gray-800/90 border-gray-600' : 'bg-white/90 border-gray-200')} role="menu">
+                      {(file.metadata?.type === 'image' || file.metadata?.type === 'video' || file.metadata?.type === 'audio') && (
+                        <>
+                          <button onClick={openViewer} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                            View
+                          </button>
+                          <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+                        </>
+                      )}
+                      <button onClick={download} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-current opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
+                        Get
+                      </button>
+                      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+                      <button onClick={share} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> Share
+                      </button>
+                      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+                      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-red-400' : 'text-red-600')} role="menuitem">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {isActionLoading && downloadProgress > 0 && (
+          <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20 rounded-lg backdrop-blur-sm animate-fadeIn">
+            <div className="w-4/5 max-w-xs text-center">
+              <div className="mb-1.5 text-xs font-medium text-white">Downloading... {downloadProgress}%</div>
+              <div className="w-full bg-gray-600 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-blue-500 h-full rounded-full transition-all duration-150 ease-out" style={{ width: `${downloadProgress}%` }} />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Share Modal ── */}
+      {showShare && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] px-4 backdrop-blur-sm animate-fadeIn">
+          <div ref={shareModalRef} className={cn("p-6 rounded-xl max-w-sm w-full relative shadow-xl border animate-modalIn", darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200')} role="dialog" aria-modal="true" aria-labelledby="share-file-title">
+            <button onClick={() => setShowShare(false)} className={cn("absolute top-3 right-3 p-1.5 rounded-full transition-colors disabled:opacity-50", isActionLoading ? "cursor-not-allowed" : (darkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100'))} disabled={isActionLoading} title="Close" aria-label="Close share dialog">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <h2 id="share-file-title" className={cn("font-semibold mb-5 text-lg text-center truncate px-8", darkMode ? 'text-white' : 'text-gray-800')}>Share</h2>
+            <div className="flex justify-center mb-5">
+              <div className={cn("p-2 border rounded-lg", darkMode ? 'border-gray-600 bg-gray-900' : 'border-gray-300 bg-gray-50')}>
+                {isActionLoading && !shareLink ? (
+                  <div className="w-40 h-40 flex items-center justify-center">
+                    <svg className="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                  </div>
+                ) : shareLink ? (
+                  <QRCodeSVG value={shareLink} size={160} bgColor="transparent" fgColor={darkMode ? "#FFFFFF" : "#000000"} level="M" includeMargin={false} className="block" />
+                ) : (
+                  <div className="w-40 h-40 flex items-center justify-center text-center text-xs text-red-500 p-2">Failed to load QR Code.</div>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col gap-2.5 mb-4">
+              <input ref={shareLinkInputRef} value={isActionLoading ? 'Generating...' : shareLink || 'Error generating link'} readOnly className={cn("w-full px-3 py-2 rounded font-mono text-xs border overflow-x-auto whitespace-nowrap", darkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-800', 'disabled:opacity-70')} disabled={isActionLoading} aria-label="Shareable link" onClick={(e) => e.target.select()} />
+              <button onClick={() => copyToClipboard(shareLink)} disabled={!shareLink || copied || isActionLoading} className={cn("w-full px-3 py-2 rounded-md font-medium text-sm transition-colors flex items-center justify-center gap-2", copied ? 'bg-green-600 text-white cursor-default' : !shareLink || isActionLoading ? (darkMode ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed') : 'bg-blue-600 hover:bg-blue-700 text-white')}>
+                {copied ? <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</> : 'Copy Link'}
+              </button>
+            </div>
+            <p className={cn("text-xs text-center", darkMode ? 'text-gray-400' : 'text-gray-500')}>Anyone with this link can view or download this file.</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Confirmation Modal ── */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] px-4 backdrop-blur-sm animate-fadeIn">
+          <div ref={deleteModalRef} className={cn("p-6 rounded-xl max-w-sm w-full relative shadow-xl border animate-modalIn", darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800')} role="alertdialog" aria-modal="true" aria-labelledby="delete-file-title" aria-describedby="delete-file-desc">
+            <h2 id="delete-file-title" className={cn("font-semibold mb-2 text-lg", darkMode ? 'text-white' : 'text-gray-800')}>Confirm Delete</h2>
+            <p id="delete-file-desc" className={cn("text-sm mb-3", darkMode ? 'text-gray-300' : 'text-gray-600')}>Are you sure you want to permanently delete this file?</p>
+            <div className={cn("font-medium max-w-full truncate overflow-hidden whitespace-nowrap my-3 p-2 rounded text-sm", darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700 border border-gray-200')}>{file.filename}</div>
+            <p className={cn("text-sm mb-5", darkMode ? 'text-gray-400' : 'text-gray-600')}>This action cannot be undone.</p>
+            <div className="flex w-full justify-between gap-3 mt-4">
+              <button onClick={() => setShowDeleteConfirm(false)} disabled={isActionLoading} className={cn("flex-1 px-4 py-2 rounded-md font-medium transition-colors text-sm", isActionLoading ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed') : (darkMode ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-300'))}>Cancel</button>
+              <button onClick={deleteFile} disabled={isActionLoading} className={cn("flex-1 px-4 py-2 rounded-md font-medium transition-colors text-sm text-white flex items-center justify-center gap-2", isActionLoading ? 'bg-red-500 cursor-wait' : 'bg-red-600 hover:bg-red-700')}>
+                {isActionLoading && <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Dynamic Media Viewer Overlays ── */}
+      {showViewer && (file.metadata?.type === 'image' || file.metadata?.type === 'video' || file.metadata?.type === 'audio') && (() => {
+        const type = file.metadata.type;
+        const previewUrl = `${backendUrl}/api/files/preview/${file._id}`;
+        return (
+          <div className="fixed inset-0 z-[80] animate-fadeIn flex flex-col" style={{ background: 'rgba(8,14,28,0.96)', backdropFilter: 'blur(10px)' }} onClick={() => setShowViewer(false)} role="dialog" aria-modal="true" aria-label={`Viewing ${file.filename}`}>
+            <div className="flex flex-col h-full w-full" onClick={e => e.stopPropagation()}>
+              <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-white/5 bg-slate-950/40 backdrop-blur-md">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className={cn('flex-shrink-0 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded border', type === 'image' ? 'bg-blue-600/20 border-blue-500/40 text-blue-300' : type === 'video' ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300' : 'bg-sky-600/20 border-sky-500/40 text-sky-300')}>
+                    {type}
+                  </span>
+                  <h2 className="text-white/90 text-sm font-semibold truncate" title={file.filename}>{file.filename}</h2>
+                </div>
+                <button onClick={() => setShowViewer(false)} className="flex-shrink-0 ml-3 p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all" aria-label="Close viewer" title="Close (Esc)">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+
+              <div className="flex-1 flex items-center justify-center overflow-hidden p-6" onClick={() => setShowViewer(false)}>
+                <div onClick={e => e.stopPropagation()} className="w-full flex items-center justify-center">
+                  {type === 'image' && (
+                    <div className="max-w-[92v

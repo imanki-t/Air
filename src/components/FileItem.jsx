@@ -499,11 +499,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                     </div>
                   )}
                   {type === 'video' && (
-                    <CustomVideoPlayer 
-                      src={streamUrl || previewUrl} 
-                      fallbackSrc={previewUrl} 
-                      useCredentials={!streamUrl} 
-                    />
+                    <video src={streamUrl || previewUrl} controls autoPlay preload="metadata" className="max-w-[92vw] max-h-[78vh] rounded-2xl bg-black shadow-2xl" />
                   )}
                   {type === 'audio' && (
                     <CustomAudioPlayer 

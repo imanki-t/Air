@@ -499,7 +499,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                     </div>
                   )}
                   {type === 'video' && (
-                    <video src={streamUrl || previewUrl} controls autoPlay preload="metadata" className="max-w-[92vw] max-h-[78vh] rounded-2xl bg-black shadow-2xl" />
+                    <video src={streamUrl || previewUrl} controls autoPlay preload="metadata" crossOrigin={streamUrl ? undefined : 'use-credentials'} className="max-w-[92vw] max-h-[78vh] rounded-2xl bg-black shadow-2xl" />
                   )}
                   {type === 'audio' && (
                     <CustomAudioPlayer 

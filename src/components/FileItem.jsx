@@ -501,15 +501,32 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                     </div>
                   )}
                   {type === 'video' && (
-                    <video src={streamUrl || previewUrl} controls autoPlay preload="metadata" crossOrigin={streamUrl ? undefined : 'use-credentials'} className="max-w-[92vw] max-h-[78vh] rounded-2xl bg-black shadow-2xl" />
+                    <video
+                      src={mediaError ? previewUrl : (streamUrl || previewUrl)}
+                      controls
+                      autoPlay
+                      preload="metadata"
+                      playsInline
+                      crossOrigin={(!streamUrl || mediaError) ? 'use-credentials' : undefined}
+                      className="max-w-[92vw] max-h-[78vh] rounded-2xl bg-black shadow-2xl"
+                    >
+                      Your browser does not support the video tag.
+                    </video>
                   )}
                   {type === 'audio' && (
-                    <CustomAudioPlayer 
-                      src={streamUrl || previewUrl} 
-                      filename={file.filename} 
-                      fileSize={file.length} 
-                      useCredentials={!streamUrl} 
-                    />
+                    <div className="w-full max-w-[420px] bg-slate-900/90 border border-white/10 rounded-2xl p-6 shadow-2xl">
+                      <p className="text-white text-sm font-semibold truncate mb-4" title={file.filename}>{file.filename}</p>
+                      <audio
+                        src={mediaError ? previewUrl : (streamUrl || previewUrl)}
+                        controls
+                        autoPlay
+                        preload="metadata"
+                        crossOrigin={(!streamUrl || mediaError) ? 'use-credentials' : undefined}
+                        className="w-full"
+                      >
+                        Your browser does not support the audio tag.
+                      </audio>
+                    </div>
                   )}
                 </div>
               </div>

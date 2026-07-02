@@ -527,6 +527,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                         autoPlay
                         preload="metadata"
                         crossOrigin={(!streamUrl || mediaError) ? 'use-credentials' : undefined}
+                        ref={(el) => { if (el) el.addEventListener('error', handleMediaFailure, { once: true }); }}
                         className="w-full"
                       >
                         Your browser does not support the audio tag.

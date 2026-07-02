@@ -19,6 +19,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [showViewer, setShowViewer] = useState(false);
   const [streamUrl, setStreamUrl] = useState(null);
+  const [mediaError, setMediaError] = useState(false);
 
   const menuRef = useRef(null);
   const shareModalRef = useRef(null);

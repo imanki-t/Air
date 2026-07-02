@@ -151,6 +151,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   const openViewer = async () => {
     setShowMenu(false);
     setStreamUrl(null);
+    setMediaError(false);
     setShowViewer(true);
     const type = file.metadata?.type;
     if (type === 'video' || type === 'audio') {

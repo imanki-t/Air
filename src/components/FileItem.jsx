@@ -164,6 +164,10 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     }
   };
 
+  const handleMediaFailure = () => {
+    if (!mediaError && streamUrl) setMediaError(true);
+  };
+
   const formatSize = (bytes) => {
     if (bytes === null || bytes === undefined || bytes < 0) return 'N/A';
     if (bytes === 0) return '0 Bytes';

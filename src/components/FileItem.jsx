@@ -512,6 +512,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                       preload="metadata"
                       playsInline
                       crossOrigin={(!streamUrl || mediaError) ? 'use-credentials' : undefined}
+                      ref={(el) => { if (el) el.addEventListener('error', handleMediaFailure, { once: true }); }}
                       className="max-w-[92vw] max-h-[78vh] rounded-2xl bg-black shadow-2xl"
                     >
                       Your browser does not support the video tag.

@@ -7,7 +7,8 @@ module.exports = {
   deleteFile: fileService.deleteFile,
   downloadFile: fileService.downloadFile,
   previewFile: fileService.previewFile, // NEW: Add preview endpoint
-  getVideoStreamUrl: fileService.getVideoStreamUrl, // Direct CDN stream URL for video/audio
+  streamFile: fileService.streamFile, // Stream media file with direct Range headers
+  getVideoStreamUrl: fileService.getVideoStreamUrl, // Signed stream URL for video/audio
   cleanupIncompleteUpload: fileService.cleanupIncompleteUpload,
   generateShareLink: fileService.generateShareLink,
   accessSharedFile: fileService.accessSharedFile,

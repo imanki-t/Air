@@ -53,9 +53,10 @@ router.get('/download/:id', downloadLimiter, controller.downloadFile);
 // Preview/Thumbnail (24-hour browser caching so this is rarely hit)
 router.get('/preview/:id', downloadLimiter, controller.previewFile);
 
-// Direct stream URL for video/audio — returns a short-lived Google CDN URL.
-// Auth is enforced by authMiddleware wrapping all /api/files routes.
-// Ownership is verified inside getVideoStreamUrl before the token is issued.
+// High-speed direct Range stream endpoint for video & audio
+router.get('/stream/:id', controller.streamFile);
+
+// Direct stream URL for video/audio — returns a short-lived signed stream URL.
 router.get('/stream-url/:id', downloadLimiter, controller.getVideoStreamUrl);
 
 // Cleanup incomplete upload

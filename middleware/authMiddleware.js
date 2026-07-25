@@ -47,7 +47,18 @@ const protectRoute = async (req, res, next) => {
     return next();
   }
 
-  // ─── 3. Auth routes: only require valid origin (no JWT needed yet) ────────
+  // ─── 3. Stream Token validation (for media streaming via query string ?st=...) ─
+  if (req.method === 'GET' && (req.path.includes('/stream/') || req.path.includes('/preview/')) && req.query.st) {
+    try {
+      const decoded = jwt.verify(req.query.st, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+      req.user = decoded;
+      return next();
+    } catch (e) {
+      console.log('Stream token verification failed:', e.message);
+    }
+  }
+
+  // ─── 4. Auth routes: only require valid origin (no JWT needed yet) ────────
   if (req.path.startsWith('/auth/')) {
     if (!isFromAuthorizedOrigin) {
       console.log(`Auth route blocked – origin: ${origin}`);
@@ -56,8 +67,9 @@ const protectRoute = async (req, res, next) => {
     return next();
   }
 
-  // ─── 4. All other API routes: require valid JWT in httpOnly cookie ─────────
-  if (!isFromAuthorizedOrigin) {
+  // ─── 5. Media Stream GET routes: allow if valid session token exists (even if origin header omitted by browser media tag) ───
+  const isMediaGetRoute = req.method === 'GET' && (req.path.includes('/stream/') || req.path.includes('/preview/'));
+  if (!isFromAuthorizedOrigin && !isMediaGetRoute) {
     console.log(`API route blocked – origin: ${origin}, path: ${req.path}`);
     return res.status(403).json({ error: 'Access denied. Unauthorized origin.' });
   }

@@ -703,6 +703,7 @@ module.exports = {
   getFiles,
   downloadFile,
   previewFile,
+  streamFile: previewFile,
   getVideoStreamUrl,
   deleteFile,
   generateShareLink,

@@ -209,14 +209,26 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
   // Shortcuts Modal
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [touchSelect, setTouchSelect] = useState(() => {
-    return localStorage.getItem('airstream_touch_select') === 'true';
+    return user?.touchSelect ?? (localStorage.getItem('airstream_touch_select') === 'true');
   });
 
-  const toggleTouchSelect = () => {
+  useEffect(() => {
+    if (typeof user?.touchSelect === 'boolean') {
+      setTouchSelect(user.touchSelect);
+      localStorage.setItem('airstream_touch_select', String(user.touchSelect));
+    }
+  }, [user?.touchSelect]);
+
+  const toggleTouchSelect = async () => {
     const next = !touchSelect;
     setTouchSelect(next);
     localStorage.setItem('airstream_touch_select', String(next));
     window.dispatchEvent(new Event('storage'));
+    try {
+      await axios.patch(`${BACKEND_URL}/api/auth/preferences`, { touchSelect: next }, { withCredentials: true });
+    } catch (err) {
+      console.warn('Failed to persist touchSelect to DB:', err.message);
+    }
   };
 
   // Delete
@@ -539,7 +551,7 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
               )}
             </div>
 
-            {/* Hide folder files toggle */}
+            {/* Hide folder files toggle (Glassmorphic) */}
             <div className={`px-4 py-2.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
               <button
                 onClick={() => { onHideFolderFilesToggle?.(); }}
@@ -548,32 +560,48 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
                 }`}
               >
                 <span className="flex items-center gap-2.5">
-                  <Icon.Folder className="w-4 h-4" />
+                  <Icon.Folder className="w-4 h-4 text-blue-400" />
                   Hide files in folders
                 </span>
-                <div className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${hideFolderFiles ? (darkMode ? 'bg-blue-600' : 'bg-red-500') : 'bg-gray-300'}`}>
-                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${hideFolderFiles ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                <div className={`relative w-10 h-5.5 rounded-full p-0.5 backdrop-blur-md transition-all duration-300 border shadow-inner ${
+                  hideFolderFiles
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-500 border-blue-400/40 shadow-blue-500/30'
+                    : darkMode
+                    ? 'bg-slate-800/80 border-white/10'
+                    : 'bg-gray-300/80 border-gray-400/30'
+                }`}>
+                  <div className={`w-4.5 h-4.5 rounded-full bg-white shadow-lg backdrop-blur-sm transform transition-transform duration-300 ${
+                    hideFolderFiles ? 'translate-x-4.5 bg-gradient-to-tr from-white to-blue-50' : 'translate-x-0'
+                  }`} />
                 </div>
               </button>
             </div>
 
-            {/* Double-click / Touch Select toggle */}
+            {/* Double-click / Touch Select toggle (Glassmorphic) */}
             <div className={`px-4 py-2.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
               <button
                 onClick={toggleTouchSelect}
                 className={`w-full flex items-center justify-between text-sm transition-colors duration-150 ${
                   darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
-                title="Double click/tap any file to select it and open the multiselect bar"
+                title="Double click/tap any file to select it and open the multiselect bar (saved to account)"
               >
                 <span className="flex items-center gap-2.5">
-                  <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5-2-4-4 2 2-7M9 11l4-8 2 1-2 7" />
                   </svg>
                   Double-click / Touch Select
                 </span>
-                <div className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${touchSelect ? (darkMode ? 'bg-blue-600' : 'bg-red-500') : 'bg-gray-300'}`}>
-                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${touchSelect ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                <div className={`relative w-10 h-5.5 rounded-full p-0.5 backdrop-blur-md transition-all duration-300 border shadow-inner ${
+                  touchSelect
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-500 border-blue-400/40 shadow-blue-500/30'
+                    : darkMode
+                    ? 'bg-slate-800/80 border-white/10'
+                    : 'bg-gray-300/80 border-gray-400/30'
+                }`}>
+                  <div className={`w-4.5 h-4.5 rounded-full bg-white shadow-lg backdrop-blur-sm transform transition-transform duration-300 ${
+                    touchSelect ? 'translate-x-4.5 bg-gradient-to-tr from-white to-blue-50' : 'translate-x-0'
+                  }`} />
                 </div>
               </button>
             </div>

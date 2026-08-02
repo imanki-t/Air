@@ -35,21 +35,33 @@ const Icons = {
   Music: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"/></svg>,
 };
 
-// ─── Interactive Zoomable Image Viewer Container ──────────────────────────────
+// ─── Compact Modern Zoomable Image Viewer Container ─────────────────────────
 const ImageViewerContainer = ({ src, filename }) => {
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  const handleZoomIn = () => setScale((s) => Math.min(s + 0.25, 4));
-  const handleZoomOut = () => setScale((s) => Math.max(s - 0.25, 0.5));
-  const handleReset = () => { setScale(1); setPosition({ x: 0, y: 0 }); };
-
   const handleWheel = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     const delta = e.deltaY > 0 ? -0.15 : 0.15;
-    setScale((s) => Math.min(Math.max(s + delta, 0.5), 4));
+    setScale((s) => {
+      const next = Math.min(Math.max(s + delta, 1), 3.5);
+      if (next === 1) setPosition({ x: 0, y: 0 });
+      return next;
+    });
+  };
+
+  const handleDoubleClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (scale > 1) {
+      setScale(1);
+      setPosition({ x: 0, y: 0 });
+    } else {
+      setScale(2);
+    }
   };
 
   const handleMouseDown = (e) => {
@@ -59,49 +71,32 @@ const ImageViewerContainer = ({ src, filename }) => {
   };
 
   const handleMouseMove = (e) => {
-    if (!isDragging) return;
+    if (!isDragging || scale <= 1) return;
     setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
   };
 
   const handleMouseUp = () => setIsDragging(false);
 
   return (
-    <div className="relative w-full max-w-[95vw] h-[78vh] sm:h-[84vh] bg-black/95 rounded-2xl border border-white/10 overflow-hidden flex flex-col items-center justify-center select-none shadow-2xl">
-      {/* Floating Zoom Toolbar */}
-      <div className="absolute top-3 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/80 border border-white/15 backdrop-blur-md shadow-xl text-white text-xs" onClick={(e) => e.stopPropagation()}>
-        <button onClick={handleZoomOut} className="p-1 text-white/70 hover:text-blue-400 transition-colors" title="Zoom Out (-)">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" /></svg>
-        </button>
-        <span className="font-mono text-[11px] font-bold px-1 text-blue-300">{Math.round(scale * 100)}%</span>
-        <button onClick={handleZoomIn} className="p-1 text-white/70 hover:text-blue-400 transition-colors" title="Zoom In (+)">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-        </button>
-        <div className="w-px h-3.5 bg-white/20 my-auto mx-1" />
-        <button onClick={handleReset} className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-600/30 border border-blue-500/40 text-blue-300 hover:bg-blue-600/50 transition-all">
-          Fit
-        </button>
-      </div>
-
-      {/* Image Container */}
-      <div
-        className="w-full h-full flex items-center justify-center overflow-auto p-2 sm:p-4 custom-scrollbar"
-        onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      >
-        <img
-          src={src}
-          alt={filename}
-          className="max-w-full max-h-full object-contain transition-transform duration-100 ease-out"
-          style={{
-            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
-            cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
-          }}
-          draggable={false}
-        />
-      </div>
+    <div
+      className="relative w-full max-w-4xl h-[68vh] sm:h-[75vh] bg-slate-950/95 border border-white/10 rounded-2xl overflow-hidden flex items-center justify-center select-none shadow-2xl backdrop-blur-2xl"
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onDoubleClick={handleDoubleClick}
+    >
+      <img
+        src={src}
+        alt={filename}
+        className="max-w-full max-h-full object-contain transition-transform duration-200 ease-out pointer-events-none"
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+          cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in',
+        }}
+        draggable={false}
+      />
     </div>
   );
 };

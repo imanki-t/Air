@@ -220,11 +220,12 @@ const getDriveStorageQuota = async (userId) => {
   const drive = google.drive({ version: 'v3', auth });
   const about = await drive.about.get({ fields: 'storageQuota' });
   const q = about.data.storageQuota || {};
+  const limit = q.limit ? parseInt(q.limit, 10) : (5 * 1024 * 1024 * 1024 * 1024); // 5TB fallback if Google returns unlimited/null limit
   return {
-    limit:             parseInt(q.limit             || '0'),
-    usage:             parseInt(q.usage             || '0'), // Drive + Gmail + Photos
-    usageInDrive:      parseInt(q.usageInDrive      || '0'), // Drive files only
-    usageInDriveTrash: parseInt(q.usageInDriveTrash || '0'),
+    limit:             isNaN(limit) ? (5 * 1024 * 1024 * 1024 * 1024) : limit,
+    usage:             parseInt(q.usage             || '0', 10) || 0,
+    usageInDrive:      parseInt(q.usageInDrive      || '0', 10) || 0,
+    usageInDriveTrash: parseInt(q.usageInDriveTrash || '0', 10) || 0,
   };
 };
 

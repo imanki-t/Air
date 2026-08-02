@@ -280,6 +280,75 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, [applyOrientation, forcedOrientation]);
 
+  const autoPlayPendingRef = useRef(false);
+
+  const togglePlay = useCallback(() => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      autoPlayPendingRef.current = true;
+      setPlaying(true);
+      videoRef.current.play().then(() => {
+        autoPlayPendingRef.current = false;
+      }).catch((err) => {
+        console.warn("Video play deferred until media buffer arrives:", err.message);
+      });
+    } else {
+      autoPlayPendingRef.current = false;
+      videoRef.current.pause();
+      setPlaying(false);
+    }
+  }, []);
+
+  const seekRelative = useCallback((seconds) => {
+    if (!videoRef.current) return;
+    videoRef.current.currentTime = Math.max(0, Math.min(videoRef.current.duration || 0, videoRef.current.currentTime + seconds));
+  }, []);
+
+  const adjustVolume = useCallback((amount) => {
+    if (!videoRef.current) return;
+    setVolume(prev => {
+      const newVol = Math.max(0, Math.min(1, prev + amount));
+      videoRef.current.volume = newVol;
+      setMuted(newVol === 0);
+      return newVol;
+    });
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    if (!videoRef.current) return;
+    setMuted(prev => {
+      const nextMute = !prev;
+      videoRef.current.muted = nextMute;
+      return nextMute;
+    });
+  }, []);
+
+  const toggleFS = useCallback(() => {
+    if (!document.fullscreenElement) {
+      wrapRef.current?.requestFullscreen?.().then(() => {
+        applyOrientation(forcedOrientation);
+      }).catch(() => {});
+    } else {
+      document.exitFullscreen?.().then(() => {
+        if (typeof window !== 'undefined' && window.screen && window.screen.orientation && window.screen.orientation.unlock) {
+          try { window.screen.orientation.unlock(); } catch (_) {}
+        }
+      }).catch(() => {});
+    }
+  }, [applyOrientation, forcedOrientation]);
+
+  const togglePiP = useCallback(async () => {
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else if (videoRef.current && document.pictureInPictureEnabled) {
+        await videoRef.current.requestPictureInPicture();
+      }
+    } catch (e) {
+      console.warn("Picture-in-picture failed:", e);
+    }
+  }, []);
+
   // ── Keyboard Shortcuts inside Player Context ──
   const handleKeyDown = useCallback((e) => {
     if (!videoRef.current) return;
@@ -327,44 +396,12 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
     } else if (e.key !== 'Escape') {
       e.stopPropagation();
     }
-  }, [volume, muted]);
+  }, [togglePlay, toggleFS, togglePiP, toggleMute, seekRelative, adjustVolume]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [handleKeyDown]);
-
-  const autoPlayPendingRef = useRef(false);
-
-  const togglePlay = () => {
-    if (!videoRef.current) return;
-    if (videoRef.current.paused) {
-      autoPlayPendingRef.current = true;
-      setPlaying(true);
-      videoRef.current.play().then(() => {
-        autoPlayPendingRef.current = false;
-      }).catch((err) => {
-        console.warn("Video play deferred until media buffer arrives:", err.message);
-      });
-    } else {
-      autoPlayPendingRef.current = false;
-      videoRef.current.pause();
-      setPlaying(false);
-    }
-  };
-
-  const seekRelative = (seconds) => {
-    if (!videoRef.current) return;
-    videoRef.current.currentTime = Math.max(0, Math.min(videoRef.current.duration || 0, videoRef.current.currentTime + seconds));
-  };
-
-  const adjustVolume = (amount) => {
-    if (!videoRef.current) return;
-    const newVol = Math.max(0, Math.min(1, volume + amount));
-    setVolume(newVol);
-    videoRef.current.volume = newVol;
-    setMuted(newVol === 0);
-  };
 
   const handleTimeUpdate = () => {
     if (!videoRef.current) return;
@@ -939,6 +976,82 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize, thumbnail }) 
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [handleKeyDown]);
 
+  const autoPlayPendingRef = useRef(false);
+
+  const togglePlay = useCallback(() => {
+    if (!audioRef.current) return;
+    if (audioRef.current.paused) {
+      autoPlayPendingRef.current = true;
+      setPlaying(true);
+      audioRef.current.play().then(() => {
+        autoPlayPendingRef.current = false;
+      }).catch((err) => {
+        console.warn("Audio play deferred until media buffer is ready:", err.message);
+      });
+    } else {
+      autoPlayPendingRef.current = false;
+      audioRef.current.pause();
+      setPlaying(false);
+    }
+  }, []);
+
+  const seekRelative = useCallback((seconds) => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = Math.max(0, Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + seconds));
+  }, []);
+
+  const adjustVolume = useCallback((amount) => {
+    if (!audioRef.current) return;
+    setVolume(prev => {
+      const newVol = Math.max(0, Math.min(1, prev + amount));
+      audioRef.current.volume = newVol;
+      setMuted(newVol === 0);
+      return newVol;
+    });
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    if (!audioRef.current) return;
+    setMuted(prev => {
+      const nextMute = !prev;
+      audioRef.current.muted = nextMute;
+      return nextMute;
+    });
+  }, []);
+
+  const handleKeyDown = useCallback((e) => {
+    if (!audioRef.current) return;
+    const key = e.key.toLowerCase();
+    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+
+    if (key === ' ' || key === 'k') {
+      e.preventDefault(); e.stopPropagation();
+      togglePlay();
+    } else if (key === 'm') {
+      e.preventDefault(); e.stopPropagation();
+      toggleMute();
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault(); e.stopPropagation();
+      seekRelative(5);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault(); e.stopPropagation();
+      seekRelative(-5);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault(); e.stopPropagation();
+      adjustVolume(0.1);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault(); e.stopPropagation();
+      adjustVolume(-0.1);
+    } else if (e.key !== 'Escape') {
+      e.stopPropagation();
+    }
+  }, [togglePlay, toggleMute, seekRelative, adjustVolume]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [handleKeyDown]);
+
   useEffect(() => {
     setAudioUrl(src);
     setUsingFallback(false);
@@ -956,38 +1069,6 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize, thumbnail }) 
       console.error('Audio player encountered an unrecoverable error.');
     }
   }, [usingFallback, fallbackSrc, audioUrl]);
-
-  const autoPlayPendingRef = useRef(false);
-
-  const togglePlay = () => {
-    if (!audioRef.current) return;
-    if (audioRef.current.paused) {
-      autoPlayPendingRef.current = true;
-      setPlaying(true);
-      audioRef.current.play().then(() => {
-        autoPlayPendingRef.current = false;
-      }).catch((err) => {
-        console.warn("Audio play deferred until media buffer is ready:", err.message);
-      });
-    } else {
-      autoPlayPendingRef.current = false;
-      audioRef.current.pause();
-      setPlaying(false);
-    }
-  };
-
-  const seekRelative = (seconds) => {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = Math.max(0, Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + seconds));
-  };
-
-  const adjustVolume = (amount) => {
-    if (!audioRef.current) return;
-    const newVol = Math.max(0, Math.min(1, volume + amount));
-    setVolume(newVol);
-    audioRef.current.volume = newVol;
-    setMuted(newVol === 0);
-  };
 
   useEffect(() => {
     const canvas = canvasRef.current;

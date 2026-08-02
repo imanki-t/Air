@@ -1369,9 +1369,13 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     }
   };
 
+  const isTouchSelectEnabled = () => {
+    const saved = localStorage.getItem('airstream_touch_select');
+    return saved === null ? true : saved === 'true';
+  };
+
   const handleDoubleClick = (e) => {
-    const touchSelectEnabled = localStorage.getItem('airstream_touch_select') === 'true';
-    if (touchSelectEnabled) {
+    if (isTouchSelectEnabled()) {
       e.preventDefault();
       e.stopPropagation();
       if (onSelect) onSelect(file._id);
@@ -1379,8 +1383,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   };
 
   const handleTouchEnd = (e) => {
-    const touchSelectEnabled = localStorage.getItem('airstream_touch_select') === 'true';
-    if (!touchSelectEnabled) return;
+    if (!isTouchSelectEnabled()) return;
     const now = Date.now();
     if (now - lastTouchTimeRef.current < 300) {
       e.preventDefault();

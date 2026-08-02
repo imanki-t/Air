@@ -13,16 +13,23 @@ const Icons = {
   VolumeMute: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6 4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"/></svg>,
   FullscreenExit: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9V4.5M15 9h4.5M15 9l5.25-5.25M15 15v4.5M15 15h4.5M15 15l5.25 5.25"/></svg>,
   FullscreenEnter: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9M20.25 20.25v-4.5m0 4.5h-4.5m4.5 0l-6-6"/></svg>,
-  Forward: () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M11.5 12 2 18V6l9.5 6zm10.5 0-9.5 6V6l9.5 6z"/></svg>,
-  Backward: () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12.5 12 22 6v12l-9.5-6zm-10.5 0L11.5 6v12L2 12z"/></svg>,
-  Settings: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a6.723 6.723 0 0 1 0 .255c-.008.378.137.75.43.99l1.005.831a1.125 1.125 0 0 1 .26 1.43l-1.297 2.247a1.125 1.125 0 0 1-1.37.491l-1.216-.456c-.356-.133-.751-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.831a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.645-.869l.214-1.28Z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>
+  Forward10: () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8zm-1.1 11h-1.2v-4.3l-1.3.4v-.9l2.4-.8h.1v5.6zm4.6-2.3c0 .5-.1.9-.3 1.3s-.4.6-.7.8-.7.3-1.1.3-1-.1-1.3-.3-.6-.5-.7-.9-.2-.9-.2-1.4v-1.1c0-.5.1-1 .3-1.4s.4-.6.7-.8.7-.3 1.1-.3 1 .1 1.3.3.6.5.7.9.2.9.2 1.4v1.2zm-1.2-1.5c0-.4-.1-.7-.2-.9s-.3-.3-.6-.3-.5.1-.6.3-.2.5-.2.9v1.6c0 .4.1.7.2.9s.3.3.6.3.5-.1.6-.3.2-.5.2-.9v-1.6z"/></svg>,
+  Replay10: () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8zm-1.1 11h-1.2v-4.3l-1.3.4v-.9l2.4-.8h.1v5.6zm4.6-2.3c0 .5-.1.9-.3 1.3s-.4.6-.7.8-.7.3-1.1.3-1-.1-1.3-.3-.6-.5-.7-.9-.2-.9-.2-1.4v-1.1c0-.5.1-1 .3-1.4s.4-.6.7-.8.7-.3 1.1-.3 1 .1 1.3.3.6.5.7.9.2.9.2 1.4v1.2zm-1.2-1.5c0-.4-.1-.7-.2-.9s-.3-.3-.6-.3-.5.1-.6.3-.2.5-.2.9v1.6c0 .4.1.7.2.9s.3.3.6.3.5-.1.6-.3.2-.5.2-.9v-1.6z" transform="scale(-1, 1) translate(-24, 0)"/></svg>,
+  Settings: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a6.723 6.723 0 0 1 0 .255c-.008.378.137.75.43.99l1.005.831a1.125 1.125 0 0 1 .26 1.43l-1.297 2.247a1.125 1.125 0 0 1-1.37.491l-1.216-.456c-.356-.133-.751-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.831a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.645-.869l.214-1.28Z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>,
+  PiP: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11v6a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h6m6 0v4m0-4h-4m4 0L13 11"/></svg>,
+  Theater: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 18h16M4 12h16"/></svg>,
+  Help: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M12 18h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+  Repeat: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>,
+  Music: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"/></svg>,
 };
 
-// ─── Custom Themed Video Player ───────────────────────────────────────────────
-const CustomVideoPlayer = ({ src, fallbackSrc, useCredentials = true }) => {
+// ─── Custom Modern YouTube-Style Liquid Glass Video Player ────────────────────
+const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const videoRef = useRef(null);
   const wrapRef = useRef(null);
   const speedRef = useRef(null);
+  const hoverScrubRef = useRef(null);
+
   const [videoUrl, setVideoUrl] = useState(src);
   const [usingFallback, setUsingFallback] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -35,15 +42,24 @@ const CustomVideoPlayer = ({ src, fallbackSrc, useCredentials = true }) => {
   const [speed, setSpeed] = useState(1);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [isFS, setIsFS] = useState(false);
+  const [isTheater, setIsTheater] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
+  const [hoverTime, setHoverTime] = useState(null);
+  const [hoverPos, setHoverPos] = useState(0);
+  const [showHelp, setShowHelp] = useState(false);
 
-  const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
+  // Quick skip ripple animations
+  const [leftRipple, setLeftRipple] = useState(false);
+  const [rightRipple, setRightRipple] = useState(false);
+  const lastClickRef = useRef({ time: 0, x: 0 });
+
+  const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
   const hideTimer = useRef(null);
 
-  // ── Smart Dynamic Fallback Mechanism ──
+  // ── Smart Dynamic Fallback Mechanism for Direct Drive URLs ──
   const handleVideoError = useCallback(() => {
-    if (!usingFallback && fallbackSrc) {
-      console.warn("Direct stream URL failed/blocked. Falling back to secure proxy preview URL...");
+    if (!usingFallback && fallbackSrc && videoUrl !== fallbackSrc) {
+      console.warn("Direct Google Drive stream URL failed/blocked by CORS. Falling back to byte-range proxy URL...");
       setUsingFallback(true);
       setVideoUrl(fallbackSrc);
       setIsBuffering(true);
@@ -51,7 +67,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, useCredentials = true }) => {
       console.error("Video player encountered an unrecoverable rendering or network error.");
       setIsBuffering(false);
     }
-  }, [usingFallback, fallbackSrc]);
+  }, [usingFallback, fallbackSrc, videoUrl]);
 
   useEffect(() => {
     setVideoUrl(src);
@@ -101,9 +117,24 @@ const CustomVideoPlayer = ({ src, fallbackSrc, useCredentials = true }) => {
     } else if (key === 'f') {
       e.preventDefault();
       toggleFS();
+    } else if (key === 'p') {
+      e.preventDefault();
+      togglePiP();
+    } else if (key === 't') {
+      e.preventDefault();
+      setIsTheater(prev => !prev);
     } else if (key === 'm') {
       e.preventDefault();
       toggleMute();
+    } else if (key === 'j') {
+      e.preventDefault();
+      seekRelative(-10);
+    } else if (key === 'l') {
+      e.preventDefault();
+      seekRelative(10);
+    } else if (key === '?') {
+      e.preventDefault();
+      setShowHelp(prev => !prev);
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
       seekRelative(5);
@@ -160,6 +191,14 @@ const CustomVideoPlayer = ({ src, fallbackSrc, useCredentials = true }) => {
     if (videoRef.current) videoRef.current.currentTime = v;
   };
 
+  const handleScrubberMouseMove = (e) => {
+    if (!hoverScrubRef.current || !duration) return;
+    const rect = hoverScrubRef.current.getBoundingClientRect();
+    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    setHoverPos(pos * 100);
+    setHoverTime(pos * duration);
+  };
+
   const handleVolChange = (e) => {
     const v = parseFloat(e.target.value);
     setVolume(v);
@@ -185,10 +224,50 @@ const CustomVideoPlayer = ({ src, fallbackSrc, useCredentials = true }) => {
     }
   };
 
+  const togglePiP = async () => {
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else if (videoRef.current && document.pictureInPictureEnabled) {
+        await videoRef.current.requestPictureInPicture();
+      }
+    } catch (e) {
+      console.warn("Picture-in-picture failed:", e);
+    }
+  };
+
   const handleSpeedSelect = (s) => {
     setSpeed(s);
     setShowSpeedMenu(false);
     if (videoRef.current) videoRef.current.playbackRate = s;
+  };
+
+  // ── YouTube-style Double-Click / Double-Tap Skip Handler ──
+  const handleVideoClick = (e) => {
+    const now = Date.now();
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const clickX = e.clientX - rect.left;
+    const isLeft = clickX < rect.width * 0.4;
+    const isRight = clickX > rect.width * 0.6;
+
+    if (now - lastClickRef.current.time < 300) {
+      // Double click detected!
+      if (isLeft) {
+        seekRelative(-10);
+        setLeftRipple(true);
+        setTimeout(() => setLeftRipple(false), 600);
+      } else if (isRight) {
+        seekRelative(10);
+        setRightRipple(true);
+        setTimeout(() => setRightRipple(false), 600);
+      } else {
+        togglePlay();
+      }
+    } else {
+      togglePlay();
+    }
+    lastClickRef.current = { time: now, x: clickX };
   };
 
   const fmtTime = (t) => {
@@ -202,172 +281,262 @@ const CustomVideoPlayer = ({ src, fallbackSrc, useCredentials = true }) => {
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const bufferPercent = duration > 0 ? (buffered / duration) * 100 : 0;
 
+  // Decide if we should omit crossOrigin for direct Drive URLs to avoid CORS block
+  const isDirectDrive = videoUrl && videoUrl.includes('googleapis.com');
+
   return (
-    <div
-      ref={wrapRef}
-      className={cn(
-        "relative w-full max-w-[900px] bg-black overflow-hidden group border border-white/5 transition-all shadow-2xl select-none",
-        isFS ? "h-screen rounded-none" : "rounded-2xl"
-      )}
-      onMouseMove={nudgeControls}
-      onMouseLeave={() => playing && setShowCtrl(false)}
-      onTouchStart={nudgeControls}
-    >
-      {/* ── Video Element ── */}
-      <div className="relative w-full aspect-video flex items-center justify-center bg-black" onClick={togglePlay}>
-        <video
-          ref={videoRef}
-          src={videoUrl}
-          {...(useCredentials && !usingFallback ? { crossOrigin: 'use-credentials' } : {})}
-          preload="auto"
-          className="w-full h-full object-contain"
-          onTimeUpdate={handleTimeUpdate}
-          onDurationChange={() => videoRef.current && setDuration(videoRef.current.duration)}
-          onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration)}
-          onPlay={() => { setPlaying(true); nudgeControls(); }}
-          onPause={() => { setPlaying(false); setShowCtrl(true); }}
-          onEnded={() => setPlaying(false)}
-          onWaiting={() => setIsBuffering(true)}
-          onPlaying={() => setIsBuffering(false)}
-          onCanPlay={() => setIsBuffering(false)}
-          onError={handleVideoError}
-        />
+    <div className="relative w-full flex flex-col items-center justify-center">
+      {/* ── Ambient Cinema Glow ── */}
+      <div className="absolute -inset-4 bg-gradient-to-r from-blue-600/30 via-indigo-500/20 to-cyan-500/30 rounded-3xl blur-3xl opacity-60 scale-105 pointer-events-none transition-all duration-700 animate-pulse" />
 
-        {/* ── Buffer Indicator ── */}
-        {isBuffering && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm pointer-events-none z-10">
-            <div className="flex flex-col items-center gap-3">
-              <svg className="animate-spin h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              <span className="text-xs font-semibold text-blue-400 tracking-wider">BUFFERING...</span>
-            </div>
-          </div>
-        )}
-
-        {/* ── Big Center Play State Toggle ── */}
-        {!playing && !isBuffering && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/10 hover:bg-black/20 transition-all pointer-events-none z-10">
-            <div className="w-16 h-16 rounded-full bg-blue-600/90 text-white flex items-center justify-center shadow-lg border border-white/10 transform scale-100 hover:scale-105 active:scale-95 transition-all">
-              <Icons.Play />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Glassmorphic Controller Controls ── */}
       <div
+        ref={wrapRef}
         className={cn(
-          "absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 flex flex-col gap-3 transition-opacity duration-300 z-20",
-          showCtrl ? "opacity-100" : "opacity-0 pointer-events-none"
+          "relative w-full bg-slate-950 overflow-hidden group border border-white/10 transition-all duration-300 shadow-2xl select-none flex flex-col items-center justify-center backdrop-blur-2xl rounded-2xl",
+          isFS ? "h-screen w-screen rounded-none max-w-none z-50" : isTheater ? "max-w-[1200px]" : "max-w-[900px]"
         )}
+        onMouseMove={nudgeControls}
+        onMouseLeave={() => playing && setShowCtrl(false)}
+        onTouchStart={nudgeControls}
       >
-        {/* ── Professional Slider/Scrubber ── */}
-        <div className="relative flex items-center w-full h-1.5 group/scrub cursor-pointer">
-          <div className="absolute inset-y-0 left-0 right-0 bg-white/10 rounded-full h-1" />
-          <div className="absolute inset-y-0 left-0 bg-blue-500/30 rounded-full h-1 transition-all" style={{ width: `${bufferPercent}%` }} />
-          <div className="absolute inset-y-0 left-0 bg-blue-600 rounded-full h-1" style={{ width: `${progressPercent}%` }} />
-          <input
-            type="range"
-            min={0}
-            max={duration || 0}
-            step={0.01}
-            value={currentTime}
-            onChange={handleSeek}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        {/* ── Video Canvas Container ── */}
+        <div className="relative w-full aspect-video flex items-center justify-center bg-black overflow-hidden cursor-pointer" onClick={handleVideoClick}>
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            {...(!isDirectDrive ? { crossOrigin: 'use-credentials' } : {})}
+            preload="auto"
+            className="w-full h-full object-contain"
+            onTimeUpdate={handleTimeUpdate}
+            onDurationChange={() => videoRef.current && setDuration(videoRef.current.duration)}
+            onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration)}
+            onPlay={() => { setPlaying(true); nudgeControls(); }}
+            onPause={() => { setPlaying(false); setShowCtrl(true); }}
+            onEnded={() => setPlaying(false)}
+            onWaiting={() => setIsBuffering(true)}
+            onPlaying={() => setIsBuffering(false)}
+            onCanPlay={() => setIsBuffering(false)}
+            onError={handleVideoError}
           />
-          <div
-            className="absolute w-3 h-3 bg-white rounded-full shadow-md scale-0 group-hover/scrub:scale-100 transition-transform pointer-events-none"
-            style={{ left: `calc(${progressPercent}% - 6px)` }}
-          />
+
+          {/* ── YouTube-Style Skip Ripple Overlays ── */}
+          {leftRipple && (
+            <div className="absolute left-0 inset-y-0 w-1/3 bg-white/15 backdrop-blur-sm flex flex-col items-center justify-center text-white font-bold text-sm rounded-r-full animate-ping pointer-events-none z-20">
+              <Icons.Replay10 />
+              <span className="mt-1 font-mono">-10s</span>
+            </div>
+          )}
+          {rightRipple && (
+            <div className="absolute right-0 inset-y-0 w-1/3 bg-white/15 backdrop-blur-sm flex flex-col items-center justify-center text-white font-bold text-sm rounded-l-full animate-ping pointer-events-none z-20">
+              <Icons.Forward10 />
+              <span className="mt-1 font-mono">+10s</span>
+            </div>
+          )}
+
+          {/* ── Buffer / Loader Indicator ── */}
+          {isBuffering && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 backdrop-blur-md pointer-events-none z-20">
+              <div className="flex flex-col items-center gap-3 bg-black/40 px-6 py-4 rounded-2xl border border-white/10 shadow-2xl">
+                <svg className="animate-spin h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                <span className="text-xs font-semibold text-blue-400 tracking-wider">
+                  {isDirectDrive ? 'FAST DIRECT DRIVE STREAMING...' : 'BUFFERING...'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* ── Big Center Play/Pause Toggle Indicator ── */}
+          {!playing && !isBuffering && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-all pointer-events-none z-10">
+              <div className="w-16 h-16 rounded-full bg-blue-600/90 text-white flex items-center justify-center shadow-2xl border border-white/20 transform scale-100 hover:scale-110 active:scale-95 transition-all backdrop-blur-md">
+                <Icons.Play />
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {/* Play/Pause */}
-            <button onClick={togglePlay} className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors">
-              {playing ? <Icons.Pause /> : <Icons.Play />}
-            </button>
+        {/* ── Liquid Glass Controller Bar ── */}
+        <div
+          className={cn(
+            "absolute bottom-3 inset-x-3 bg-slate-950/75 border border-white/15 backdrop-blur-xl p-3 sm:p-4 rounded-2xl flex flex-col gap-2.5 transition-all duration-300 z-30 shadow-2xl",
+            showCtrl ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
+          )}
+        >
+          {/* ── YouTube Scrubber with Hover Time Tooltip ── */}
+          <div
+            ref={hoverScrubRef}
+            className="relative flex items-center w-full h-3 group/scrub cursor-pointer"
+            onMouseMove={handleScrubberMouseMove}
+            onMouseLeave={() => setHoverTime(null)}
+          >
+            {/* Live Hover Time Tooltip */}
+            {hoverTime !== null && (
+              <div
+                className="absolute bottom-full mb-2 -translate-x-1/2 px-2 py-1 bg-slate-900/90 border border-white/15 text-white text-[11px] font-mono rounded-md shadow-xl backdrop-blur-md pointer-events-none z-40"
+                style={{ left: `${hoverPos}%` }}
+              >
+                {fmtTime(hoverTime)}
+              </div>
+            )}
 
-            {/* Skip Controls */}
-            <button onClick={() => seekRelative(-5)} className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="-5 seconds">
-              <Icons.Backward />
-            </button>
-            <button onClick={() => seekRelative(5)} className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors" title="+5 seconds">
-              <Icons.Forward />
-            </button>
-
-            {/* Time Indicators */}
-            <div className="text-xs text-white/80 font-mono">
-              <span>{fmtTime(currentTime)}</span>
-              <span className="mx-1 text-white/40">/</span>
-              <span>{fmtTime(duration)}</span>
-            </div>
+            {/* Track Background */}
+            <div className="absolute inset-y-0 left-0 right-0 bg-white/15 rounded-full h-1.5 group-hover/scrub:h-2 transition-all" />
+            {/* Buffer bar */}
+            <div className="absolute inset-y-0 left-0 bg-blue-400/30 rounded-full h-1.5 group-hover/scrub:h-2 transition-all" style={{ width: `${bufferPercent}%` }} />
+            {/* Progress bar */}
+            <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-600 to-sky-400 rounded-full h-1.5 group-hover/scrub:h-2 transition-all shadow-md" style={{ width: `${progressPercent}%` }} />
+            {/* Interactive Input Range */}
+            <input
+              type="range"
+              min={0}
+              max={duration || 0}
+              step={0.01}
+              value={currentTime}
+              onChange={handleSeek}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+            {/* Scrubber Knob */}
+            <div
+              className="absolute w-3.5 h-3.5 bg-white rounded-full shadow-lg scale-0 group-hover/scrub:scale-100 transition-transform pointer-events-none ring-2 ring-blue-500"
+              style={{ left: `calc(${progressPercent}% - 7px)` }}
+            />
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* Smooth Volume Control */}
-            <div className="flex items-center gap-2 group/volume">
-              <button onClick={toggleMute} className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors">
-                {muted || volume === 0 ? <Icons.VolumeMute /> : <Icons.VolumeHigh />}
+          {/* ── Controls Row ── */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Play/Pause Button */}
+              <button onClick={togglePlay} className="p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all">
+                {playing ? <Icons.Pause /> : <Icons.Play />}
               </button>
-              <div className="relative w-0 group-hover/volume:w-20 transition-all duration-300 h-1 overflow-hidden flex items-center">
-                <div className="absolute inset-x-0 h-1 bg-white/20 rounded-full" />
-                <div className="absolute left-0 h-1 bg-blue-500 rounded-full" style={{ width: `${muted ? 0 : volume * 100}%` }} />
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={muted ? 0 : volume}
-                  onChange={handleVolChange}
-                  className="absolute inset-0 w-full opacity-0 cursor-pointer"
-                />
+
+              {/* Skip 10s Replay / Forward */}
+              <button onClick={() => seekRelative(-10)} className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all" title="-10 seconds (J)">
+                <Icons.Replay10 />
+              </button>
+              <button onClick={() => seekRelative(10)} className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all" title="+10 seconds (L)">
+                <Icons.Forward10 />
+              </button>
+
+              {/* Time Display */}
+              <div className="text-xs text-white/80 font-mono tracking-wider ml-1">
+                <span>{fmtTime(currentTime)}</span>
+                <span className="mx-1 text-white/30">/</span>
+                <span>{fmtTime(duration)}</span>
               </div>
             </div>
 
-            {/* Playback Speed Setting */}
-            <div className="relative" ref={speedRef}>
-              <button
-                onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-                className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 flex items-center gap-1 text-xs font-semibold transition-colors"
-              >
-                <Icons.Settings />
-                <span>{speed === 1 ? '1.0x' : `${speed}x`}</span>
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Smooth Volume Control */}
+              <div className="flex items-center gap-1.5 group/volume">
+                <button onClick={toggleMute} className="p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all">
+                  {muted || volume === 0 ? <Icons.VolumeMute /> : <Icons.VolumeHigh />}
+                </button>
+                <div className="relative w-0 group-hover/volume:w-20 transition-all duration-300 h-1.5 overflow-hidden flex items-center">
+                  <div className="absolute inset-x-0 h-1.5 bg-white/20 rounded-full" />
+                  <div className="absolute left-0 h-1.5 bg-blue-500 rounded-full" style={{ width: `${muted ? 0 : volume * 100}%` }} />
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={muted ? 0 : volume}
+                    onChange={handleVolChange}
+                    className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Playback Speed Menu */}
+              <div className="relative" ref={speedRef}>
+                <button
+                  onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                  className="px-2 py-1.5 rounded-xl border border-white/10 text-xs font-semibold text-white/80 hover:text-white hover:bg-white/10 transition-all flex items-center gap-1"
+                >
+                  <span>{speed === 1 ? '1.0x' : `${speed}x`}</span>
+                </button>
+
+                {showSpeedMenu && (
+                  <div className="absolute bottom-full right-0 mb-2 w-32 rounded-xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl overflow-hidden z-40 shadow-2xl">
+                    {SPEEDS.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => handleSpeedSelect(s)}
+                        className={cn(
+                          "w-full px-3 py-1.5 text-left text-xs transition-colors font-medium flex items-center justify-between",
+                          s === speed ? "bg-blue-600 text-white font-bold" : "text-white/70 hover:bg-white/10 hover:text-white"
+                        )}
+                      >
+                        <span>{s === 1 ? 'Normal' : `${s}x`}</span>
+                        {s === speed && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Picture-in-Picture */}
+              <button onClick={togglePiP} className="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all" title="Picture-in-Picture (P)">
+                <Icons.PiP />
               </button>
 
-              {showSpeedMenu && (
-                <div className="absolute bottom-full right-0 mb-2 w-28 rounded-lg bg-black/95 border border-white/10 backdrop-blur-md overflow-hidden z-30 shadow-xl">
-                  {SPEEDS.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => handleSpeedSelect(s)}
-                      className={cn(
-                        "w-full px-3 py-1.5 text-left text-xs transition-colors font-medium",
-                        s === speed ? "bg-blue-600 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
-                      )}
-                    >
-                      {s === 1 ? 'Normal' : `${s}x`}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+              {/* Theater Mode */}
+              <button onClick={() => setIsTheater(!isTheater)} className={cn("p-2 rounded-xl transition-all", isTheater ? "text-blue-400 bg-blue-500/20 border border-blue-500/30" : "text-white/80 hover:text-white hover:bg-white/10")} title="Theater Mode (T)">
+                <Icons.Theater />
+              </button>
 
-            {/* Fullscreen Option */}
-            <button onClick={toggleFS} className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors">
-              {isFS ? <Icons.FullscreenExit /> : <Icons.FullscreenEnter />}
-            </button>
+              {/* Fullscreen */}
+              <button onClick={toggleFS} className="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all" title="Fullscreen (F)">
+                {isFS ? <Icons.FullscreenExit /> : <Icons.FullscreenEnter />}
+              </button>
+
+              {/* Shortcuts Help */}
+              <button onClick={() => setShowHelp(true)} className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all" title="Shortcuts (?)">
+                <Icons.Help />
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* ── Shortcuts Help Modal Overlay ── */}
+        {showHelp && (
+          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-6 z-50 animate-fadeIn">
+            <div className="bg-slate-900/90 border border-white/15 p-6 rounded-2xl max-w-sm w-full shadow-2xl relative">
+              <button onClick={() => setShowHelp(false)} className="absolute top-4 right-4 text-white/60 hover:text-white">
+                ✕
+              </button>
+              <h3 className="text-white text-base font-bold mb-4 flex items-center gap-2">
+                <Icons.Help /> Keyboard Shortcuts
+              </h3>
+              <div className="grid grid-cols-2 gap-2 text-xs text-white/80 font-mono">
+                <div><span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">Space</span> / <span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">K</span></div>
+                <div>Play / Pause</div>
+                <div><span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">F</span></div>
+                <div>Fullscreen</div>
+                <div><span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">J</span> / <span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">L</span></div>
+                <div>-10s / +10s</div>
+                <div><span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">P</span></div>
+                <div>Picture-in-Picture</div>
+                <div><span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">T</span></div>
+                <div>Theater Mode</div>
+                <div><span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">M</span></div>
+                <div>Mute</div>
+                <div><span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">↑</span> / <span className="bg-white/10 px-1.5 py-0.5 rounded text-white font-bold">↓</span></div>
+                <div>Volume +/-</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-// ─── Custom Themed Audio Player with Real Visualizer Waveform ──────────────────
-const CustomAudioPlayer = ({ src, filename, fileSize, useCredentials = true }) => {
+// ─── Custom Liquid Glass Audio Dashboard Player with Real Visualizer ────────────
+const CustomAudioPlayer = ({ src, filename, fileSize }) => {
   const audioRef = useRef(null);
   const canvasRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -383,9 +552,9 @@ const CustomAudioPlayer = ({ src, filename, fileSize, useCredentials = true }) =
   const [muted, setMuted] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
   const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
-  // Close menus on clicking outside
   useEffect(() => {
     const handleOutside = (e) => {
       if (speedRef.current && !speedRef.current.contains(e.target)) {
@@ -399,7 +568,6 @@ const CustomAudioPlayer = ({ src, filename, fileSize, useCredentials = true }) =
     };
   }, []);
 
-  // ── Keyboard Shortcuts inside Player Context ──
   const handleKeyDown = useCallback((e) => {
     if (!audioRef.current) return;
     const key = e.key.toLowerCase();
@@ -454,14 +622,13 @@ const CustomAudioPlayer = ({ src, filename, fileSize, useCredentials = true }) =
     setMuted(newVol === 0);
   };
 
-  // ── Setup Audio Analysis for Real Dynamic Visualizer ──
   const setupAudioContext = () => {
     if (audioCtxRef.current) return;
     try {
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       const ctx = new AudioContextClass();
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 128; // Keep frequency resolution optimal for equalizer layout
+      analyser.fftSize = 128;
       
       const source = ctx.createMediaElementSource(audioRef.current);
       source.connect(analyser);
@@ -471,11 +638,10 @@ const CustomAudioPlayer = ({ src, filename, fileSize, useCredentials = true }) =
       analyserRef.current = analyser;
       sourceRef.current = source;
     } catch (e) {
-      console.warn("Unable to initialize Web Audio API due to browser/CORS policies. Playing audio directly with realistic animation.");
+      console.warn("Web Audio API CORS fallback activated.");
     }
   };
 
-  // ── Render actual audio visualizer on canvas ──
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -495,33 +661,27 @@ const CustomAudioPlayer = ({ src, filename, fileSize, useCredentials = true }) =
       if (analyserRef.current && playing) {
         analyserRef.current.getByteFrequencyData(dataArray);
       } else if (playing) {
-        // High fidelity mock equalizer data if Web Audio API is blocked
         for (let i = 0; i < barCount; i++) {
           dataArray[i] = 15 + Math.abs(Math.sin(i * 0.15 + Date.now() * 0.005)) * 60 + Math.random() * 10;
         }
       } else {
-        // Inactive steady wave pattern
         for (let i = 0; i < barCount; i++) {
           dataArray[i] = 12 + Math.abs(Math.sin(i * 0.2)) * 12;
         }
       }
 
-      ctx.fillStyle = '#3b82f6';
-      // Draw equalizer visualization
       for (let i = 0; i < barCount; i++) {
         const val = dataArray[i];
         const barHeight = Math.max(4, (val / 255) * height * 1.2);
         const x = i * (barWidth + gap);
         const y = height - barHeight;
 
-        // Visual gradients
         const grad = ctx.createLinearGradient(0, y, 0, height);
-        grad.addColorStop(0, '#60a5fa'); // Vibrant sky
-        grad.addColorStop(0.5, '#3b82f6'); // Royal blue
-        grad.addColorStop(1, '#1d4ed8'); // Deep blue
+        grad.addColorStop(0, '#60a5fa');
+        grad.addColorStop(0.5, '#3b82f6');
+        grad.addColorStop(1, '#1d4ed8');
         ctx.fillStyle = grad;
 
-        // Rounded bar logic
         ctx.beginPath();
         ctx.roundRect(x, y, barWidth, barHeight, 2);
         ctx.fill();
@@ -579,34 +739,43 @@ const CustomAudioPlayer = ({ src, filename, fileSize, useCredentials = true }) =
   };
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const isDirectDrive = src && src.includes('googleapis.com');
 
   return (
-    <div className="w-full max-w-[420px] bg-slate-900/90 border border-white/10 backdrop-blur-xl rounded-2xl p-6 shadow-2xl relative select-none">
-      {/* ── File Metadata Info ── */}
-      <div className="flex items-center gap-4 mb-5">
-        <div className="w-12 h-12 rounded-xl bg-blue-600/20 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"/>
-          </svg>
+    <div className="w-full max-w-[460px] bg-slate-900/80 border border-white/15 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl relative select-none flex flex-col gap-5">
+      {/* ── Header Metadata & Spinning Vinyl Art ── */}
+      <div className="flex items-center gap-4">
+        {/* Vinyl Disk Artwork */}
+        <div className={cn(
+          "w-16 h-16 rounded-full bg-slate-950 border-2 border-white/20 flex items-center justify-center shrink-0 relative shadow-2xl overflow-hidden transition-all duration-700",
+          playing ? "animate-spin" : ""
+        )} style={{ animationDuration: '12s' }}>
+          {/* Vinyl grooves */}
+          <div className="absolute inset-1 rounded-full border border-white/10 pointer-events-none" />
+          <div className="absolute inset-3 rounded-full border border-white/10 pointer-events-none" />
+          <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-600 to-sky-400 border border-white/40 flex items-center justify-center shadow-inner">
+            <div className="w-1.5 h-1.5 rounded-full bg-slate-950" />
+          </div>
         </div>
+
         <div className="min-w-0 flex-1">
-          <p className="text-white text-sm font-semibold truncate" title={filename}>{filename}</p>
-          {fileSize > 0 && <p className="text-white/40 text-xs mt-0.5">{fmtSize(fileSize)}</p>}
+          <p className="text-white text-base font-semibold truncate" title={filename}>{filename}</p>
+          {fileSize > 0 && <p className="text-white/40 text-xs mt-0.5 font-mono">{fmtSize(fileSize)}</p>}
         </div>
       </div>
 
-      {/* ── Live Visualizer Equalizer Canvas ── */}
-      <div className="relative w-full h-24 bg-black/20 rounded-xl mb-4 overflow-hidden border border-white/5 flex items-end">
-        <canvas ref={canvasRef} width="372" height="96" className="w-full h-full" />
+      {/* ── Real-time Frequency Spectrum Equalizer Canvas ── */}
+      <div className="relative w-full h-24 bg-black/40 rounded-2xl overflow-hidden border border-white/10 flex items-end p-2 shadow-inner">
+        <canvas ref={canvasRef} width="400" height="80" className="w-full h-full" />
       </div>
 
-      {/* ── Premium Control Bar ── */}
+      {/* ── Timeline & Controls ── */}
       <div className="flex flex-col gap-4">
-        {/* Progress Timeline Scrubber */}
+        {/* Scrubber */}
         <div className="flex flex-col gap-1.5">
-          <div className="relative flex items-center w-full h-1 group cursor-pointer">
-            <div className="absolute inset-x-0 h-1 bg-white/10 rounded-full" />
-            <div className="absolute left-0 h-1 bg-blue-500 rounded-full" style={{ width: `${progressPercent}%` }} />
+          <div className="relative flex items-center w-full h-2 group cursor-pointer">
+            <div className="absolute inset-x-0 h-1.5 bg-white/15 rounded-full" />
+            <div className="absolute left-0 h-1.5 bg-gradient-to-r from-blue-500 to-sky-400 rounded-full" style={{ width: `${progressPercent}%` }} />
             <input
               type="range"
               min={0}
@@ -617,50 +786,48 @@ const CustomAudioPlayer = ({ src, filename, fileSize, useCredentials = true }) =
               className="absolute inset-0 w-full opacity-0 cursor-pointer"
             />
           </div>
-          <div className="flex justify-between text-[10px] text-white/40 font-mono">
+          <div className="flex justify-between text-[11px] text-white/50 font-mono">
             <span>{fmtTime(currentTime)}</span>
             <span>{fmtTime(duration)}</span>
           </div>
         </div>
 
-        {/* Playback Buttons Group */}
+        {/* Buttons Row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Play Button */}
             <button
               onClick={togglePlay}
-              className="w-11 h-11 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center shadow-lg transform active:scale-95 transition-all"
+              className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white flex items-center justify-center shadow-xl transform active:scale-95 transition-all border border-white/20"
             >
               {playing ? <Icons.Pause /> : <Icons.Play />}
             </button>
 
-            {/* Back / Skip buttons */}
-            <button onClick={() => seekRelative(-5)} className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
-              <Icons.Backward />
+            <button onClick={() => seekRelative(-10)} className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+              <Icons.Replay10 />
             </button>
-            <button onClick={() => seekRelative(5)} className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
-              <Icons.Forward />
+            <button onClick={() => seekRelative(10)} className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+              <Icons.Forward10 />
             </button>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Speed selection dropdown */}
+            {/* Speed selection */}
             <div className="relative" ref={speedRef}>
               <button
                 onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-                className="px-2 py-1 rounded border border-white/10 text-[11px] font-semibold text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+                className="px-2.5 py-1 rounded-xl border border-white/10 text-xs font-semibold text-white/70 hover:text-white hover:bg-white/10 transition-colors"
               >
-                {speed === 1 ? 'Speed' : `${speed}x`}
+                {speed === 1 ? '1.0x' : `${speed}x`}
               </button>
               {showSpeedMenu && (
-                <div className="absolute bottom-full right-0 mb-2 w-24 rounded-lg bg-slate-950 border border-white/10 shadow-2xl overflow-hidden z-30">
+                <div className="absolute bottom-full right-0 mb-2 w-28 rounded-xl bg-slate-950 border border-white/15 shadow-2xl overflow-hidden z-40 backdrop-blur-2xl">
                   {SPEEDS.map((s) => (
                     <button
                       key={s}
                       onClick={() => handleSpeedSelect(s)}
                       className={cn(
                         "w-full px-3 py-1.5 text-left text-xs transition-colors",
-                        s === speed ? "bg-blue-600 text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
+                        s === speed ? "bg-blue-600 text-white font-bold" : "text-white/70 hover:bg-white/10 hover:text-white"
                       )}
                     >
                       {s === 1 ? 'Normal' : `${s}x`}
@@ -670,14 +837,27 @@ const CustomAudioPlayer = ({ src, filename, fileSize, useCredentials = true }) =
               )}
             </div>
 
-            {/* Premium Volume controls */}
+            {/* Loop Toggle */}
+            <button
+              onClick={() => {
+                const next = !isLooping;
+                setIsLooping(next);
+                if (audioRef.current) audioRef.current.loop = next;
+              }}
+              className={cn("p-2 rounded-xl transition-all", isLooping ? "text-blue-400 bg-blue-500/20 border border-blue-500/30" : "text-white/60 hover:text-white hover:bg-white/10")}
+              title="Repeat Track"
+            >
+              <Icons.Repeat />
+            </button>
+
+            {/* Volume */}
             <div className="flex items-center gap-1 group/vol">
-              <button onClick={toggleMute} className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors">
+              <button onClick={toggleMute} className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors">
                 {muted || volume === 0 ? <Icons.VolumeMute /> : <Icons.VolumeHigh />}
               </button>
-              <div className="relative w-0 group-hover/vol:w-16 transition-all duration-300 h-1 overflow-hidden flex items-center">
-                <div className="absolute inset-x-0 h-1 bg-white/20 rounded-full" />
-                <div className="absolute left-0 h-1 bg-blue-500 rounded-full" style={{ width: `${muted ? 0 : volume * 100}%` }} />
+              <div className="relative w-0 group-hover/vol:w-16 transition-all duration-300 h-1.5 overflow-hidden flex items-center">
+                <div className="absolute inset-x-0 h-1.5 bg-white/20 rounded-full" />
+                <div className="absolute left-0 h-1.5 bg-blue-500 rounded-full" style={{ width: `${muted ? 0 : volume * 100}%` }} />
                 <input
                   type="range"
                   min="0"
@@ -696,7 +876,7 @@ const CustomAudioPlayer = ({ src, filename, fileSize, useCredentials = true }) =
       <audio
         ref={audioRef}
         src={src}
-        {...(useCredentials ? { crossOrigin: 'use-credentials' } : {})}
+        {...(!isDirectDrive ? { crossOrigin: 'use-credentials' } : {})}
         onTimeUpdate={handleTimeUpdate}
         onDurationChange={() => audioRef.current && setDuration(audioRef.current.duration)}
         onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration)}
@@ -1162,7 +1342,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
             <h2 id="delete-file-title" className={cn("font-semibold mb-2 text-lg", darkMode ? 'text-white' : 'text-gray-800')}>Confirm Delete</h2>
             <p id="delete-file-desc" className={cn("text-sm mb-3", darkMode ? 'text-gray-300' : 'text-gray-600')}>Are you sure you want to permanently delete this file?</p>
             <div className={cn("font-medium max-w-full truncate overflow-hidden whitespace-nowrap my-3 p-2 rounded text-sm", darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700 border border-gray-200')}>{file.filename}</div>
-            <p className={cn("text-sm mb-5", darkMode ? 'text-gray-400' : 'text-gray-600')}>This action cannot be undone.</p>
+            <p className={cn("text-sm mb-5", darkMode ? 'text-gray-400' : 'text-gray-500')}>This action cannot be undone.</p>
             <div className="flex w-full justify-between gap-3 mt-4">
               <button onClick={() => setShowDeleteConfirm(false)} disabled={isActionLoading} className={cn("flex-1 px-4 py-2 rounded-md font-medium transition-colors text-sm", isActionLoading ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed') : (darkMode ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-300'))}>Cancel</button>
               <button onClick={deleteFile} disabled={isActionLoading} className={cn("flex-1 px-4 py-2 rounded-md font-medium transition-colors text-sm text-white flex items-center justify-center gap-2", isActionLoading ? 'bg-red-500 cursor-wait' : 'bg-red-600 hover:bg-red-700')}>
@@ -1204,7 +1384,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                     <CustomVideoPlayer 
                       src={streamUrl || previewUrl} 
                       fallbackSrc={previewUrl} 
-                      useCredentials={!streamUrl} 
+                      filename={file.filename} 
                     />
                   )}
                   {type === 'audio' && (
@@ -1212,7 +1392,6 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                       src={streamUrl || previewUrl} 
                       filename={file.filename} 
                       fileSize={file.length} 
-                      useCredentials={!streamUrl} 
                     />
                   )}
                 </div>

@@ -758,6 +758,9 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
   useEffect(() => {
     setAudioUrl(src);
     setUsingFallback(false);
+    setIsAudioLoading(true);
+    setPlaying(false);
+    autoPlayPendingRef.current = false;
   }, [src]);
 
   const handleAudioError = useCallback(() => {
@@ -1067,13 +1070,13 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
         ref={audioRef}
         src={audioUrl}
         {...(needsCredentials ? { crossOrigin: 'use-credentials' } : {})}
+        preload="auto"
         onTimeUpdate={handleTimeUpdate}
         onDurationChange={() => audioRef.current && setDuration(audioRef.current.duration)}
         onLoadedMetadata={() => { if (audioRef.current) setDuration(audioRef.current.duration); setIsAudioLoading(false); }}
         onCanPlay={() => {
           setIsAudioLoading(false);
           if (autoPlayPendingRef.current && audioRef.current && audioRef.current.paused) {
-            initWebAudio();
             audioRef.current.play().then(() => {
               autoPlayPendingRef.current = false;
               setPlaying(true);
@@ -1081,9 +1084,10 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
           }
         }}
         onWaiting={() => setIsAudioLoading(true)}
+        onPlaying={() => setIsAudioLoading(false)}
         onPlay={() => { setPlaying(true); setIsAudioLoading(false); }}
         onPause={() => setPlaying(false)}
-        onEnded={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); autoPlayPendingRef.current = false; }}
         onError={handleAudioError}
       />
     </div>

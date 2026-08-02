@@ -39,47 +39,61 @@ const buildOAuth2Client = (accessToken, refreshToken) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Return a Drive-ready OAuth2 client for a given userId.
-// Uses an in-memory cache (5-minute TTL) to avoid redundant MongoDB lookups
-// during high-frequency HTTP 206 media range requests.
+// Uses an in-memory cache (10-minute TTL) & promise deduplication to avoid
+// thundering herd MongoDB lookups during high-frequency HTTP 206 range requests.
 // ─────────────────────────────────────────────────────────────────────────────
 const driveClientCache = new Map();
+const pendingClientPromises = new Map();
 
 const getUserDriveClient = async (userId) => {
   const cacheKey = String(userId);
   const cached = driveClientCache.get(cacheKey);
   const now = Date.now();
-  if (cached && (now - cached.timestamp < 5 * 60 * 1000)) {
+  if (cached && (now - cached.timestamp < 10 * 60 * 1000)) {
     return cached.auth;
   }
 
-  const ObjectId = mongoose.mongo.ObjectId;
-  const db = mongoose.connection.db;
-
-  const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
-  if (!user?.googleDriveRefreshToken) {
-    throw new Error('Google Drive not connected for this user. Please sign in again.');
+  if (pendingClientPromises.has(cacheKey)) {
+    return pendingClientPromises.get(cacheKey);
   }
 
-  const auth = buildOAuth2Client(user.googleDriveAccessToken, user.googleDriveRefreshToken);
+  const promise = (async () => {
+    try {
+      const ObjectId = mongoose.mongo.ObjectId;
+      const db = mongoose.connection.db;
 
-  // When googleapis refreshes the access_token automatically, save the new one.
-  auth.on('tokens', async (tokens) => {
-    if (tokens.access_token) {
-      await db.collection('users').updateOne(
-        { _id: new ObjectId(userId) },
-        {
-          $set: {
-            googleDriveAccessToken: tokens.access_token,
-            googleDriveTokenExpiry: tokens.expiry_date || null,
-            updatedAt: new Date(),
-          },
-        },
-      );
+      const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+      if (!user?.googleDriveRefreshToken) {
+        throw new Error('Google Drive not connected for this user. Please sign in again.');
+      }
+
+      const auth = buildOAuth2Client(user.googleDriveAccessToken, user.googleDriveRefreshToken);
+
+      auth.removeAllListeners('tokens');
+      auth.on('tokens', async (tokens) => {
+        if (tokens.access_token) {
+          await db.collection('users').updateOne(
+            { _id: new ObjectId(userId) },
+            {
+              $set: {
+                googleDriveAccessToken: tokens.access_token,
+                googleDriveTokenExpiry: tokens.expiry_date || null,
+                updatedAt: new Date(),
+              },
+            },
+          );
+        }
+      });
+
+      driveClientCache.set(cacheKey, { auth, timestamp: Date.now() });
+      return auth;
+    } finally {
+      pendingClientPromises.delete(cacheKey);
     }
-  });
+  })();
 
-  driveClientCache.set(cacheKey, { auth, timestamp: now });
-  return auth;
+  pendingClientPromises.set(cacheKey, promise);
+  return promise;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

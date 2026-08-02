@@ -357,9 +357,11 @@ const previewFile = async (req, res) => {
         requestedEnd = match[2] ? parseInt(match[2], 10) : null;
       }
 
-      // Ultra-fast streaming: initial chunk is 256KB for instant startup (<30ms),
-      // seeking chunks cap at 1MB to minimize network latency and memory overhead.
-      const maxChunk = start === 0 ? 256 * 1024 : 1024 * 1024;
+      // High-performance streaming: 2MB initial chunk for instant startup & 2s HD buffer,
+      // 8MB seeking chunk limit for smooth continuous playback without frequent request overhead.
+      const initialChunkSize = 2 * 1024 * 1024;
+      const maxChunkSize     = 8 * 1024 * 1024;
+      const maxChunk = start === 0 ? initialChunkSize : maxChunkSize;
       const calcEnd = requestedEnd !== null ? requestedEnd : (start + maxChunk - 1);
       const clampedEnd = Math.min(calcEnd, fileSize - 1);
 

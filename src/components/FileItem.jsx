@@ -404,7 +404,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         ref={wrapRef}
         className={cn(
           "relative w-full bg-slate-950 overflow-hidden group border border-white/10 transition-all duration-300 shadow-2xl select-none flex flex-col items-center justify-center backdrop-blur-2xl rounded-2xl",
-          isFS ? "h-screen w-screen rounded-none max-w-none z-50" : isTheater ? "max-w-[1200px] max-h-[78vh]" : "max-w-[900px] xl:max-w-[1000px] max-h-[58vh] sm:max-h-[64vh]",
+          isFS ? "h-screen w-screen rounded-none max-w-none z-50" : isTheater ? "max-w-[1200px] max-h-[82vh]" : "max-w-[900px] xl:max-w-[1000px] max-h-[70vh] sm:max-h-[74vh]",
           !showCtrl && playing ? "cursor-none" : ""
         )}
         onMouseMove={nudgeControls}
@@ -414,7 +414,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         {/* ── Video Canvas Container ── */}
         <div
           className={cn(
-            "relative w-full aspect-video min-h-[260px] sm:min-h-[360px] max-h-[46vh] sm:max-h-[50vh] flex items-center justify-center bg-black overflow-hidden",
+            "relative w-full aspect-video max-h-[56vh] sm:max-h-[62vh] flex items-center justify-center bg-black overflow-hidden",
             !showCtrl && playing ? "cursor-none" : "cursor-pointer"
           )}
           onClick={handleVideoClick}

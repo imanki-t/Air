@@ -12,6 +12,8 @@ const MAX_FILES_SELECTED = 10;
 const UPLOADED_FILES_DISPLAY_TIMEOUT = 5000;
 
 const UploadForm = ({ refresh, darkMode }) => {
+ const reactId = useId();
+ const fileInputId = `fileInput-${reactId}`;
  const [files, setFiles] = useState([]);
  const [uploadedFiles, setUploadedFiles] = useState([]);
  const [currentFileIndex, setCurrentFileIndex] = useState(0);

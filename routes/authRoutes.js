@@ -882,7 +882,7 @@ router.get('/export-download/:token', async (req, res) => {
 
     archive = archiver('zip-encrypted', {
       zlib: { level: 6 },
-      encryptionMethod: 'aes256',
+      encryptionMethod: 'zip20',
       password: exportPassword,
     });
     archive.on('error', (err) => {
@@ -933,20 +933,28 @@ router.post('/import-data', authLimiter, importUpload.single('exportFile'), asyn
     }
 
     const userExportPassword = await getUserExportPassword(db, decoded.userId);
+    const passBuf = userExportPassword ? Buffer.from(userExportPassword) : null;
     let zip;
     try {
-      zip = new AdmZip(req.file.path, userExportPassword); // Decrypt with stored user export password
+      zip = new AdmZip(req.file.path); // Open ZIP archive from disk
     } catch {
-      try {
-        zip = new AdmZip(req.file.path); // Fallback try without password
-      } catch {
-        fs.unlink(req.file.path, () => {});
-        return res.status(400).json({ error: 'Invalid or password-protected ZIP file. Unable to decrypt archive.' });
-      }
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ error: 'Invalid ZIP file. Please upload a valid Airstream export.' });
     }
 
+    // Helper: Safely extract entry Buffer with password fallback
+    const getEntryData = (entry) => {
+      if (!entry) return null;
+      if (passBuf) {
+        try {
+          const data = entry.getData(passBuf);
+          if (data && data.length > 0) return data;
+        } catch {}
+      }
+      return entry.getData();
+    };
+
     // [FIX] Helper so every validation early-return cleans up the temp file.
-    // Without this, any rejection after the ZIP opens leaks the file on disk.
     const rejectAndCleanup = (status, message) => {
       fs.unlink(req.file.path, () => {});
       return res.status(status).json({ error: message });
@@ -960,9 +968,10 @@ router.post('/import-data', authLimiter, importUpload.single('exportFile'), asyn
 
     let manifest;
     try {
-      manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
+      const manifestBuf = getEntryData(manifestEntry);
+      manifest = JSON.parse(manifestBuf.toString('utf8'));
     } catch {
-      return rejectAndCleanup(400, 'Corrupt manifest.json in export file.');
+      return rejectAndCleanup(400, 'Corrupt or encrypted manifest.json in export file.');
     }
 
     if (!manifest.airstreamExport) {
@@ -1063,7 +1072,7 @@ router.post('/import-data', authLimiter, importUpload.single('exportFile'), asyn
             return;
           }
 
-          const fileBuffer = entry.getData();
+          const fileBuffer = getEntryData(entry);
           if (!fileBuffer || fileBuffer.length > PER_FILE_MAX) {
             throw new Error(`Entry ${safeFilename} too large (${fileBuffer?.length} bytes)`);
           }

@@ -259,9 +259,6 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
       if (settingsRef.current && !settingsRef.current.contains(e.target)) {
         setShowSettingsMenu(false);
       }
-      if (speedRef.current && !speedRef.current.contains(e.target)) {
-        setShowSpeedMenu(false);
-      }
     };
     document.addEventListener('mousedown', handleOutsideClick);
     return () => {

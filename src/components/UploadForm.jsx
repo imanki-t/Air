@@ -581,7 +581,7 @@ const UploadForm = ({ refresh, darkMode }) => {
 
      {!isUploading && (
        <label
-         htmlFor="fileInput"
+         htmlFor={fileInputId}
          className={cn(
            'block w-full cursor-pointer px-4 py-8 rounded-lg mb-5 text-center transition-colors duration-200 ease-in-out border-2 border-dashed',
            darkMode

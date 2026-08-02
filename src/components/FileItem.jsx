@@ -403,7 +403,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         ref={wrapRef}
         className={cn(
           "relative w-full bg-slate-950 overflow-hidden group border border-white/10 transition-all duration-300 shadow-2xl select-none flex flex-col items-center justify-center backdrop-blur-2xl rounded-2xl",
-          isFS ? "h-screen w-screen rounded-none max-w-none z-50" : isTheater ? "max-w-[1200px]" : "max-w-[900px]",
+          isFS ? "h-screen w-screen rounded-none max-w-none z-50" : isTheater ? "max-w-[1280px]" : "max-w-[960px] xl:max-w-[1080px]",
           !showCtrl && playing ? "cursor-none" : ""
         )}
         onMouseMove={nudgeControls}
@@ -1628,7 +1628,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
               {/* Main Content Area — Clicking anywhere outside media container closes viewer */}
               <div className="flex-1 flex items-center justify-center overflow-hidden p-2 sm:p-6 cursor-pointer" onClick={() => setShowViewer(false)}>
-                <div onClick={(e) => e.stopPropagation()} className="max-w-full max-h-full cursor-default flex items-center justify-center">
+                <div onClick={(e) => e.stopPropagation()} className="w-full max-w-5xl xl:max-w-6xl max-h-full cursor-default flex items-center justify-center">
                   {isMediaLoading ? (
                     <div className="flex flex-col items-center justify-center gap-3 p-8 bg-slate-950/60 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl">
                       <svg className="animate-spin h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24">

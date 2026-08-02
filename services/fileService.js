@@ -351,10 +351,12 @@ const previewFile = async (req, res) => {
       }
 
       const start = parseInt(match[1], 10);
-      const end   = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+      // If end is omitted (open-ended range like "bytes=0-"), cap chunk to 4MB max for fast buffering on mobile
+      const maxChunk = 4 * 1024 * 1024;
+      const requestedEnd = match[2] ? parseInt(match[2], 10) : (start + maxChunk - 1);
 
       // Clamp to valid bounds
-      const clampedEnd = Math.min(end, fileSize - 1);
+      const clampedEnd = Math.min(requestedEnd, fileSize - 1);
 
       if (start > clampedEnd || start < 0) {
         res.setHeader('Content-Range', `bytes */${fileSize}`);

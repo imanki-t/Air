@@ -162,7 +162,6 @@ const ImageViewerContainer = ({ src, filename }) => {
 const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const videoRef = useRef(null);
   const wrapRef = useRef(null);
-  const speedRef = useRef(null);
   const settingsRef = useRef(null);
   const hoverScrubRef = useRef(null);
 
@@ -176,9 +175,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const [buffered, setBuffered] = useState(0);
   const [showCtrl, setShowCtrl] = useState(true);
   const [speed, setSpeed] = useState(1);
-  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
-  const [activeSettingsView, setActiveSettingsView] = useState('main');
   const [isLooping, setIsLooping] = useState(false);
   const [forcedOrientation, setForcedOrientation] = useState(null);
   const [isFS, setIsFS] = useState(false);
@@ -187,7 +184,6 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const [hoverTime, setHoverTime] = useState(null);
   const [hoverPos, setHoverPos] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
-  const [showMobileSettings, setShowMobileSettings] = useState(false);
 
   // Quick skip ripple animations
   const [leftRipple, setLeftRipple] = useState(false);

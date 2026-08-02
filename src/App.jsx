@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import UploadForm from './components/UploadForm';
+import UserNotesDashboard from './components/UserNotesDashboard';
 import FileList from './components/FileList';
 import FolderList from './components/FolderList';
 import SignUp from './components/SignUp';
@@ -309,7 +310,17 @@ function App() {
                       {error}
                     </div>
                   )}
-                  <UploadForm refresh={fetchFiles} darkMode={darkMode} />
+                  <div className="mb-6">
+                    {/* Mobile: full-width upload box only */}
+                    <div className="block lg:hidden">
+                      <UploadForm refresh={fetchFiles} darkMode={darkMode} />
+                    </div>
+                    {/* Desktop: 50/50 split — upload + notes */}
+                    <div className="hidden lg:grid lg:grid-cols-2 gap-4 xl:gap-6">
+                      <UploadForm refresh={fetchFiles} darkMode={darkMode} />
+                      <UserNotesDashboard user={user} darkMode={darkMode} />
+                    </div>
+                  </div>
                   <FolderList
                     darkMode={darkMode}
                     files={files}

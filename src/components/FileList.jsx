@@ -300,8 +300,10 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
         return;
       }
 
-      // If user is actively typing in an input field, skip single-key shortcuts
-      if (isInput) return;
+      // If user is actively typing in an input field or ANY modal/dialog/dropdown is open, skip shortcuts
+      const isModalOpen = !!document.querySelector('[role="dialog"]') ||
+                          document.body.style.overflow === 'hidden';
+      if (isInput || isModalOpen) return;
 
       const key = e.key.toLowerCase();
       const isCmdOrCtrl = e.ctrlKey || e.metaKey;

@@ -35,6 +35,77 @@ const Icons = {
   Music: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"/></svg>,
 };
 
+// ─── Interactive Zoomable Image Viewer Container ──────────────────────────────
+const ImageViewerContainer = ({ src, filename }) => {
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const handleZoomIn = () => setScale((s) => Math.min(s + 0.25, 4));
+  const handleZoomOut = () => setScale((s) => Math.max(s - 0.25, 0.5));
+  const handleReset = () => { setScale(1); setPosition({ x: 0, y: 0 }); };
+
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.15 : 0.15;
+    setScale((s) => Math.min(Math.max(s + delta, 0.5), 4));
+  };
+
+  const handleMouseDown = (e) => {
+    if (scale <= 1) return;
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+  };
+
+  const handleMouseUp = () => setIsDragging(false);
+
+  return (
+    <div className="relative w-full max-w-[95vw] h-[78vh] sm:h-[84vh] bg-black/95 rounded-2xl border border-white/10 overflow-hidden flex flex-col items-center justify-center select-none shadow-2xl">
+      {/* Floating Zoom Toolbar */}
+      <div className="absolute top-3 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/80 border border-white/15 backdrop-blur-md shadow-xl text-white text-xs" onClick={(e) => e.stopPropagation()}>
+        <button onClick={handleZoomOut} className="p-1 text-white/70 hover:text-blue-400 transition-colors" title="Zoom Out (-)">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" /></svg>
+        </button>
+        <span className="font-mono text-[11px] font-bold px-1 text-blue-300">{Math.round(scale * 100)}%</span>
+        <button onClick={handleZoomIn} className="p-1 text-white/70 hover:text-blue-400 transition-colors" title="Zoom In (+)">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+        </button>
+        <div className="w-px h-3.5 bg-white/20 my-auto mx-1" />
+        <button onClick={handleReset} className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-600/30 border border-blue-500/40 text-blue-300 hover:bg-blue-600/50 transition-all">
+          Fit
+        </button>
+      </div>
+
+      {/* Image Container */}
+      <div
+        className="w-full h-full flex items-center justify-center overflow-auto p-2 sm:p-4 custom-scrollbar"
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        <img
+          src={src}
+          alt={filename}
+          className="max-w-full max-h-full object-contain transition-transform duration-100 ease-out"
+          style={{
+            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+            cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+          }}
+          draggable={false}
+        />
+      </div>
+    </div>
+  );
+};
+
 // ─── Custom Modern YouTube-Style Liquid Glass Video Player ────────────────────
 const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const videoRef = useRef(null);
@@ -307,7 +378,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         ref={wrapRef}
         className={cn(
           "relative w-full bg-slate-950 overflow-hidden group border border-white/10 transition-all duration-300 shadow-2xl select-none flex flex-col items-center justify-center backdrop-blur-2xl rounded-2xl",
-          isFS ? "h-screen w-screen rounded-none max-w-none z-50" : isTheater ? "max-w-[1200px]" : "max-w-[900px]"
+          isFS ? "h-screen w-screen rounded-none max-w-none z-50" : isTheater ? "max-w-[1200px]" : "max-w-[900px]",
+          isFS && playing && !showCtrl ? "cursor-none" : ""
         )}
         onMouseMove={nudgeControls}
         onMouseLeave={() => playing && setShowCtrl(false)}
@@ -364,8 +436,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 
           {/* ── Big Center Play/Pause Toggle Indicator ── */}
           {!playing && !isBuffering && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/30 transition-all pointer-events-none z-10">
-              <div className="w-16 h-16 rounded-full bg-blue-600/90 text-white flex items-center justify-center shadow-2xl border border-white/20 transform scale-100 hover:scale-110 active:scale-95 transition-all backdrop-blur-md">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/10 hover:bg-black/25 transition-all pointer-events-none z-10">
+              <div className="w-16 h-16 rounded-full bg-black/30 text-white flex items-center justify-center shadow-2xl border border-white/20 transform scale-100 hover:scale-110 active:scale-95 transition-all backdrop-blur-md">
                 <Icons.Play />
               </div>
             </div>
@@ -497,8 +569,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                 <Icons.PiP />
               </button>
 
-              {/* Theater Mode */}
-              <button onClick={() => setIsTheater(!isTheater)} className={cn("p-2 rounded-xl transition-all", isTheater ? "text-blue-400 bg-blue-500/20 border border-blue-500/30" : "text-white/80 hover:text-white hover:bg-white/10")} title="Theater Mode (T)">
+              {/* Theater Mode (Desktop only) */}
+              <button onClick={() => setIsTheater(!isTheater)} className={cn("hidden sm:inline-flex p-2 rounded-xl transition-all", isTheater ? "text-blue-400 bg-blue-500/20 border border-blue-500/30" : "text-white/80 hover:text-white hover:bg-white/10")} title="Theater Mode (T)">
                 <Icons.Theater />
               </button>
 
@@ -507,8 +579,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                 {isFS ? <Icons.FullscreenExit /> : <Icons.FullscreenEnter />}
               </button>
 
-              {/* Shortcuts Help */}
-              <button onClick={() => setShowHelp(true)} className="p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all" title="Shortcuts (?)">
+              {/* Shortcuts Help (Desktop only) */}
+              <button onClick={() => setShowHelp(true)} className="hidden sm:inline-flex p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all" title="Shortcuts (?)">
                 <Icons.Help />
               </button>
             </div>
@@ -561,6 +633,7 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
 
   const [audioUrl, setAudioUrl] = useState(src);
   const [usingFallback, setUsingFallback] = useState(false);
+  const [isAudioLoading, setIsAudioLoading] = useState(true);
 
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -571,6 +644,21 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
   const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+  // 60fps smooth audio time update loop
+  useEffect(() => {
+    let animId;
+    const updateSmoothAudioTime = () => {
+      if (audioRef.current && playing) {
+        setCurrentTime(audioRef.current.currentTime);
+        animId = requestAnimationFrame(updateSmoothAudioTime);
+      }
+    };
+    if (playing) {
+      animId = requestAnimationFrame(updateSmoothAudioTime);
+    }
+    return () => cancelAnimationFrame(animId);
+  }, [playing]);
 
   useEffect(() => {
     const handleOutside = (e) => {
@@ -756,13 +844,27 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
 
   return (
     <div className="w-full max-w-[460px] bg-slate-900/80 border border-white/15 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl relative select-none flex flex-col gap-5">
+      {/* ── Top Header ESC Hint ── */}
+      <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Audio Player</span>
+        <span className="text-[10px] font-mono text-white/40 bg-white/5 px-2 py-0.5 rounded border border-white/10">Press ESC to exit</span>
+      </div>
+
       {/* ── Header Metadata & Spinning Vinyl Art ── */}
       <div className="flex items-center gap-4">
         {/* Vinyl Disk Artwork */}
         <div className={cn(
           "w-16 h-16 rounded-full bg-slate-950 border-2 border-white/20 flex items-center justify-center shrink-0 relative shadow-2xl overflow-hidden transition-all duration-700",
-          playing ? "animate-spin" : ""
+          playing && !isAudioLoading ? "animate-spin" : ""
         )} style={{ animationDuration: '12s' }}>
+          {isAudioLoading && (
+            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-20">
+              <svg className="animate-spin h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+          )}
           {/* Vinyl grooves */}
           <div className="absolute inset-1 rounded-full border border-white/10 pointer-events-none" />
           <div className="absolute inset-3 rounded-full border border-white/10 pointer-events-none" />
@@ -892,8 +994,10 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
         {...(needsCredentials ? { crossOrigin: 'use-credentials' } : {})}
         onTimeUpdate={handleTimeUpdate}
         onDurationChange={() => audioRef.current && setDuration(audioRef.current.duration)}
-        onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration)}
-        onPlay={() => setPlaying(true)}
+        onLoadedMetadata={() => { if (audioRef.current) setDuration(audioRef.current.duration); setIsAudioLoading(false); }}
+        onCanPlay={() => setIsAudioLoading(false)}
+        onWaiting={() => setIsAudioLoading(true)}
+        onPlay={() => { setPlaying(true); setIsAudioLoading(false); }}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
         onError={handleAudioError}
@@ -1394,8 +1498,9 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
         const previewUrl = `${backendUrl}/api/files/preview/${file._id}`;
         return (
           <div className="fixed inset-0 z-[80] animate-fadeIn flex flex-col touch-none overscroll-none" style={{ background: 'rgba(8,14,28,0.96)', backdropFilter: 'blur(10px)' }} onClick={() => setShowViewer(false)} onTouchMove={(e) => e.preventDefault()} role="dialog" aria-modal="true" aria-label={`Viewing ${file.filename}`}>
-            <div className="flex flex-col h-full w-full" onClick={e => e.stopPropagation()}>
-              <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-4 border-b border-white/5 bg-slate-950/40 backdrop-blur-md">
+            <div className="flex flex-col h-full w-full">
+              {/* Header Bar */}
+              <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-4 border-b border-white/5 bg-slate-950/40 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
                   <span className={cn('flex-shrink-0 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 sm:px-2.5 sm:py-1 rounded border', type === 'image' ? 'bg-blue-600/20 border-blue-500/40 text-blue-300' : type === 'video' ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300' : 'bg-sky-600/20 border-sky-500/40 text-sky-300')}>
                     {type}
@@ -1407,8 +1512,9 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                 </button>
               </div>
 
+              {/* Main Content Area */}
               <div className="flex-1 flex items-center justify-center overflow-hidden p-2 sm:p-6" onClick={() => setShowViewer(false)}>
-                <div onClick={e => e.stopPropagation()} className="w-full flex items-center justify-center">
+                <div onClick={(e) => e.stopPropagation()} className="w-full flex items-center justify-center">
                   {isMediaLoading ? (
                     <div className="flex flex-col items-center justify-center gap-3 p-8 bg-slate-950/60 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl">
                       <svg className="animate-spin h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24">
@@ -1420,9 +1526,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                   ) : (
                     <>
                       {type === 'image' && (
-                        <div className="max-w-[95vw] max-h-[82vh] rounded-2xl border border-white/5 overflow-hidden shadow-2xl bg-black flex items-center justify-center">
-                          <img src={previewUrl} alt={file.filename} className="max-w-full max-h-full object-contain select-none" draggable={false} />
-                        </div>
+                        <ImageViewerContainer src={previewUrl} filename={file.filename} />
                       )}
                       {type === 'video' && (
                         <CustomVideoPlayer 
@@ -1445,7 +1549,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
               </div>
 
               <div className="flex-shrink-0 pb-3 text-center pointer-events-none">
-                <p className="text-white/20 text-[11px] tracking-wide">Press ESC or click outside to close</p>
+                <p className="text-white/20 text-[11px] tracking-wide">Press ESC or click outside container to close</p>
               </div>
             </div>
           </div>

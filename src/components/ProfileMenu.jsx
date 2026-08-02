@@ -6,10 +6,11 @@ import { io } from 'socket.io-client';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const formatBytes = (bytes) => {
+  if (bytes === null || bytes === undefined || isNaN(bytes) || bytes < 0) return '0 B';
   if (bytes === 0) return '0 B';
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
@@ -830,7 +831,12 @@ export const ShortcutsModal = ({ open, onClose, darkMode }) => {
 
   const shortcutGroups = [
     {
-      category: '🔍 Navigation & Search',
+      icon: (
+        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      ),
+      category: 'Navigation & Search',
       items: [
         { keys: ['/', 'Ctrl + K'], label: 'Focus Search Bar' },
         { keys: ['G'], label: 'Toggle Grid / List View' },
@@ -840,7 +846,12 @@ export const ShortcutsModal = ({ open, onClose, darkMode }) => {
       ],
     },
     {
-      category: '📂 File Operations',
+      icon: (
+        <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+      ),
+      category: 'File Operations',
       items: [
         { keys: ['Enter', 'V'], label: 'View Selected File' },
         { keys: ['D'], label: 'Download Selected File' },
@@ -850,7 +861,13 @@ export const ShortcutsModal = ({ open, onClose, darkMode }) => {
       ],
     },
     {
-      category: '👁️ Media Player Controls',
+      icon: (
+        <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      category: 'Media Player Controls',
       items: [
         { keys: ['→'], label: 'Next Media Item' },
         { keys: ['←'], label: 'Previous Media Item' },
@@ -860,7 +877,12 @@ export const ShortcutsModal = ({ open, onClose, darkMode }) => {
       ],
     },
     {
-      category: '🎯 Selection & Filtering',
+      icon: (
+        <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      category: 'Selection & Filtering',
       items: [
         { keys: ['Ctrl + A'], label: 'Select All Visible Files' },
         { keys: ['Space'], label: 'Toggle Select File' },
@@ -872,7 +894,12 @@ export const ShortcutsModal = ({ open, onClose, darkMode }) => {
       ],
     },
     {
-      category: '👤 App & Help',
+      icon: (
+        <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      ),
+      category: 'App & Help',
       items: [
         { keys: ['P', 'Alt + P'], label: 'Toggle Profile Menu' },
         { keys: ['?', 'H'], label: 'Open Keyboard Shortcuts Guide' },
@@ -962,11 +989,14 @@ export const ShortcutsModal = ({ open, onClose, darkMode }) => {
           ) : (
             filteredGroups.map((group, idx) => (
               <div key={idx} className="space-y-2.5">
-                <h3 className={`text-xs font-bold uppercase tracking-wider ${
-                  darkMode ? 'text-blue-400' : 'text-blue-600'
-                }`}>
-                  {group.category}
-                </h3>
+                <div className="flex items-center gap-2">
+                  {group.icon}
+                  <h3 className={`text-xs font-bold uppercase tracking-wider ${
+                    darkMode ? 'text-blue-400' : 'text-blue-600'
+                  }`}>
+                    {group.category}
+                  </h3>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   {group.items.map((item, i) => (
                     <div

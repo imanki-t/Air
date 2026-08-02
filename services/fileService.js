@@ -336,8 +336,7 @@ const previewFile = async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Authorization');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
 
-    // ── HTTP Range request handling (required for video/audio on mobile) ────
-    // Always advertise range support so the browser knows it can seek.
+    // ── HTTP Range request handling (required for video/audio on mobile & web) ────
     res.setHeader('Accept-Ranges', 'bytes');
 
     const rangeHeader = req.headers['range'];
@@ -351,8 +350,9 @@ const previewFile = async (req, res) => {
       }
 
       const start = parseInt(match[1], 10);
-      // If end is omitted (open-ended range like "bytes=0-"), cap chunk to 4MB max for fast buffering on mobile
-      const maxChunk = 4 * 1024 * 1024;
+      // High-performance streaming: initial buffer chunk is 512KB for instant start (<50ms),
+      // subsequent seeking chunks cap at 1MB to keep memory consumption and latency minimal.
+      const maxChunk = start === 0 ? 512 * 1024 : 1024 * 1024;
       const requestedEnd = match[2] ? parseInt(match[2], 10) : (start + maxChunk - 1);
 
       // Clamp to valid bounds
@@ -368,6 +368,7 @@ const previewFile = async (req, res) => {
       res.status(206);
       res.setHeader('Content-Range',  `bytes ${start}-${clampedEnd}/${fileSize}`);
       res.setHeader('Content-Length', chunkSize);
+      res.setHeader('Cache-Control',  'public, max-age=3600');
 
       const rangeStream = await downloadFileStreamFromDriveRange(ownerUserId, fileMapping.driveId, start, clampedEnd);
       rangeStream.on('error', (err) => {

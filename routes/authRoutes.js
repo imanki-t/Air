@@ -53,8 +53,35 @@ const axios = require('axios');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const archiver = require('archiver');
+try {
+  archiver.registerFormat('zip-encrypted', require('archiver-zip-encrypted'));
+} catch (e) {
+  // Format already registered
+}
 const AdmZip = require('adm-zip');
 const { v4: uuidv4 } = require('uuid');
+
+// Helper: Retrieve or generate persistent long export password for user
+const getUserExportPassword = async (db, userId) => {
+  const ObjectId = mongoose.mongo.ObjectId;
+  const userIdStr = String(userId);
+  const userIdObj = ObjectId.isValid(userIdStr) ? new ObjectId(userIdStr) : null;
+  const userQuery = userIdObj ? { $or: [{ _id: userIdObj }, { _id: userIdStr }] } : { _id: userIdStr };
+
+  const user = await db.collection('users').findOne(userQuery);
+  if (user && user.exportPassword) {
+    return user.exportPassword;
+  }
+
+  // Generate strong 32-character hex password
+  const newPassword = crypto.randomBytes(16).toString('hex');
+  if (user) {
+    await db.collection('users').updateOne({ _id: user._id }, { $set: { exportPassword: newPassword } });
+  } else {
+    await db.collection('users').updateOne({ _id: userIdStr }, { $set: { exportPassword: newPassword } }, { upsert: true });
+  }
+  return newPassword;
+};
 const { authLimiter } = require('../middleware/rateLimitMiddleware');
 const {
   sendWelcomeEmail,
@@ -699,6 +726,9 @@ router.post('/export-data', authLimiter, async (req, res) => {
       });
     }
 
+    // Retrieve or generate persistent long export password for user
+    const exportPassword = await getUserExportPassword(db, decoded.userId);
+
     // 8-hour Cooldown: If an export was created in the last 8 hours, resend existing link
     const recent8hExport = await db.collection('export_tokens').findOne({
       userId: decoded.userId,
@@ -711,7 +741,8 @@ router.post('/export-data', authLimiter, async (req, res) => {
       sendExportEmail(
         { email: decoded.email, name: decoded.name },
         existingDownloadUrl,
-        recent8hExport.expiresAt
+        recent8hExport.expiresAt,
+        exportPassword
       ).catch((e) => console.error('[Export Email] Cooldown email error:', e.message));
 
       return res.json({
@@ -727,6 +758,7 @@ router.post('/export-data', authLimiter, async (req, res) => {
     await db.collection('export_tokens').insertOne({
       token: exportToken,
       exportKey,
+      exportPassword,
       userId: decoded.userId,
       email: decoded.email,
       createdAt: new Date(),
@@ -741,7 +773,8 @@ router.post('/export-data', authLimiter, async (req, res) => {
       sendExportEmail(
         { email: decoded.email, name: decoded.name },
         downloadUrl,
-        expiresAt
+        expiresAt,
+        exportPassword
       ).catch((e) => console.error('[Export Email] Async send error:', e.message));
     });
 
@@ -841,11 +874,17 @@ router.get('/export-download/:token', async (req, res) => {
       })),
     };
 
+    const exportPassword = exportDoc.exportPassword || (await getUserExportPassword(db, exportDoc.userId));
+
     const timestamp = Date.now();
     res.setHeader('Content-Disposition', `attachment; filename="airstream-export-${timestamp}.zip"`);
     res.setHeader('Content-Type', 'application/zip');
 
-    archive = archiver('zip', { zlib: { level: 6 } });
+    archive = archiver('zip-encrypted', {
+      zlib: { level: 6 },
+      encryptionMethod: 'aes256',
+      password: exportPassword,
+    });
     archive.on('error', (err) => {
       console.error('Archive error during export:', err);
       if (!res.headersSent) res.status(500).send('Export failed.');
@@ -893,12 +932,17 @@ router.post('/import-data', authLimiter, importUpload.single('exportFile'), asyn
       return res.status(400).json({ error: 'No file uploaded.' });
     }
 
+    const userExportPassword = await getUserExportPassword(db, decoded.userId);
     let zip;
     try {
-      zip = new AdmZip(req.file.path); // [HIGH-08] read from disk, not RAM
+      zip = new AdmZip(req.file.path, userExportPassword); // Decrypt with stored user export password
     } catch {
-      fs.unlink(req.file.path, () => {});
-      return res.status(400).json({ error: 'Invalid ZIP file. Please upload a valid Airstream export.' });
+      try {
+        zip = new AdmZip(req.file.path); // Fallback try without password
+      } catch {
+        fs.unlink(req.file.path, () => {});
+        return res.status(400).json({ error: 'Invalid or password-protected ZIP file. Unable to decrypt archive.' });
+      }
     }
 
     // [FIX] Helper so every validation early-return cleans up the temp file.

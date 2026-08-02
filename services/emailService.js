@@ -318,7 +318,7 @@ const sendWelcomeEmail = (user) =>
 // ─────────────────────────────────────────────────────────────────────────────
 // Export ready email
 // ─────────────────────────────────────────────────────────────────────────────
-const sendExportEmail = (user, downloadUrl, expiresAt) => {
+const sendExportEmail = (user, downloadUrl, expiresAt, exportPassword) => {
   const expiryStr = new Date(expiresAt).toLocaleDateString('en-US', {
     year: 'numeric', month: 'long', day: 'numeric',
   });
@@ -330,18 +330,24 @@ const sendExportEmail = (user, downloadUrl, expiresAt) => {
       subtitle: 'Data export ready',
       body: `
         <p>Hey <strong>${escHtml(user.name) || 'there'}</strong>,</p>
-        <p>Your Airstream data export has been prepared. Click the button below to download a ZIP archive of all your files.</p>
+        <p>Your Airstream data export has been prepared. Click the button below to download your password-protected ZIP archive.</p>
         <div class="btn-wrap">
           <a href="${downloadUrl}" class="btn">Download Your Data</a>
           <p class="btn-sub">Opens a direct ZIP download</p>
         </div>
+        ${exportPassword ? `
+        <div class="banner banner-warn" style="background: rgba(14,165,233,0.1); border-color: rgba(14,165,233,0.3);">
+          <div class="bicon">${svg.file}</div>
+          <div class="btext" style="color: #7dd3fc;">ZIP Archive Password: <strong style="font-family: monospace; background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 4px; color: #ffffff; letter-spacing: 0.05em;">${escHtml(exportPassword)}</strong></div>
+        </div>
+        ` : ''}
         <div class="banner banner-warn">
           <div class="bicon">${svg.clock}</div>
           <div class="btext">This link expires on <strong>${expiryStr}</strong>. Download before then.</div>
         </div>
         <p class="section-label">What is included</p>
         <div class="info-grid">
-          ${infoRow(svg.folder,  'All your uploaded files')}
+          ${infoRow(svg.folder,  'All your uploaded files (AES-256 encrypted)')}
           ${infoRow(svg.file,    'A <strong>manifest.json</strong> with file metadata')}
           ${infoRow(svg.refresh, 'This ZIP can be reimported back into Airstream')}
         </div>

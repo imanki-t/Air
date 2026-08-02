@@ -18,18 +18,20 @@
 
 const { google } = require('googleapis');
 
-const GMAIL_ENABLED =
-  process.env.GMAIL_USER &&
-  process.env.GMAIL_CLIENT_ID &&
-  process.env.GMAIL_CLIENT_SECRET &&
-  process.env.GMAIL_REFRESH_TOKEN;
+const isGmailConfigured = () =>
+  Boolean(
+    process.env.GMAIL_USER &&
+    process.env.GMAIL_CLIENT_ID &&
+    process.env.GMAIL_CLIENT_SECRET &&
+    process.env.GMAIL_REFRESH_TOKEN
+  );
 
 // ─── OAuth2 client ────────────────────────────────────────────────────────────
 const getOAuth2Client = () => {
   const client = new google.auth.OAuth2(
     process.env.GMAIL_CLIENT_ID,
     process.env.GMAIL_CLIENT_SECRET,
-    'https://developers.google.com/oauthplayground'
+    process.env.GMAIL_REDIRECT_URI || 'https://developers.google.com/oauthplayground'
   );
   client.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
   return client;
@@ -55,8 +57,8 @@ const escHtml = (str) =>
 
 // ─── Core send ────────────────────────────────────────────────────────────────
 const sendEmail = async ({ to, subject, html }) => {
-  if (!GMAIL_ENABLED) {
-    console.warn(`[Email] Gmail not configured — skipping email to ${to}: "${subject}"`);
+  if (!isGmailConfigured()) {
+    console.warn(`[Email] Gmail not configured (missing env vars: GMAIL_USER, GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, or GMAIL_REFRESH_TOKEN) — skipping email to ${to}: "${subject}"`);
     return false;
   }
 

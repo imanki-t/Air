@@ -79,7 +79,8 @@ const ImageViewerContainer = ({ src, filename }) => {
 
   return (
     <div
-      className="relative w-full max-w-4xl h-[68vh] sm:h-[75vh] bg-slate-950/95 border border-white/10 rounded-2xl overflow-hidden flex items-center justify-center select-none shadow-2xl backdrop-blur-2xl"
+      onClick={(e) => e.stopPropagation()}
+      className="relative w-full max-w-4xl h-[62vh] sm:h-[70vh] bg-slate-950/95 border border-white/10 rounded-2xl overflow-hidden flex items-center justify-center select-none shadow-2xl backdrop-blur-2xl cursor-default"
       onWheel={handleWheel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -395,7 +396,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const needsCredentials = !isDirectDrive && !hasStreamToken;
 
   return (
-    <div className="relative w-full flex flex-col items-center justify-center">
+    <div onClick={(e) => e.stopPropagation()} className="relative w-full flex flex-col items-center justify-center">
       {/* ── Ambient Cinema Glow ── */}
       <div className="absolute -inset-4 bg-gradient-to-r from-blue-600/30 via-indigo-500/20 to-cyan-500/30 rounded-3xl blur-3xl opacity-60 scale-105 pointer-events-none transition-all duration-700 animate-pulse" />
 
@@ -403,7 +404,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         ref={wrapRef}
         className={cn(
           "relative w-full bg-slate-950 overflow-hidden group border border-white/10 transition-all duration-300 shadow-2xl select-none flex flex-col items-center justify-center backdrop-blur-2xl rounded-2xl",
-          isFS ? "h-screen w-screen rounded-none max-w-none z-50" : isTheater ? "max-w-[1200px] max-h-[82vh]" : "max-w-[900px] xl:max-w-[1000px] max-h-[70vh] sm:max-h-[74vh]",
+          isFS ? "h-screen w-screen rounded-none max-w-none z-50" : isTheater ? "max-w-[1200px] max-h-[78vh]" : "max-w-[900px] xl:max-w-[1000px] max-h-[58vh] sm:max-h-[64vh]",
           !showCtrl && playing ? "cursor-none" : ""
         )}
         onMouseMove={nudgeControls}
@@ -413,7 +414,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         {/* ── Video Canvas Container ── */}
         <div
           className={cn(
-            "relative w-full max-h-[56vh] sm:max-h-[62vh] aspect-video flex items-center justify-center bg-black overflow-hidden",
+            "relative w-full max-h-[46vh] sm:max-h-[50vh] aspect-video flex items-center justify-center bg-black overflow-hidden",
             !showCtrl && playing ? "cursor-none" : "cursor-pointer"
           )}
           onClick={handleVideoClick}
@@ -911,7 +912,7 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
   const needsCredentials = !isDirectDrive && !hasStreamToken;
 
   return (
-    <div className="w-full max-w-[460px] bg-slate-900/80 border border-white/15 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl relative select-none flex flex-col gap-5">
+    <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[460px] bg-slate-900/80 border border-white/15 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl relative select-none flex flex-col gap-5 cursor-default">
       {/* ── Top Header ESC Hint ── */}
       <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
         <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Audio Player</span>
@@ -1631,10 +1632,10 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
               </div>
 
               {/* Main Content Area — Clicking anywhere outside media container closes viewer */}
-              <div className="flex-1 flex items-center justify-center overflow-hidden p-3 sm:p-5 cursor-pointer" onClick={() => setShowViewer(false)}>
-                <div onClick={(e) => e.stopPropagation()} className="w-full max-w-4xl xl:max-w-5xl max-h-full cursor-default flex items-center justify-center">
+              <div className="flex-1 flex items-center justify-center overflow-hidden p-2 sm:p-4 cursor-pointer" onClick={() => setShowViewer(false)}>
+                <div className="max-w-5xl max-h-full cursor-default flex items-center justify-center">
                   {isMediaLoading ? (
-                    <div className="flex flex-col items-center justify-center gap-3 p-8 bg-slate-950/60 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl">
+                    <div onClick={(e) => e.stopPropagation()} className="flex flex-col items-center justify-center gap-3 p-8 bg-slate-950/60 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl">
                       <svg className="animate-spin h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -1656,7 +1657,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                       {type === 'audio' && (
                         <CustomAudioPlayer 
                           src={streamUrl || proxyUrl || previewUrl} 
-                          fallbackSrc={proxyUrl || previewUrl} 
+                          fallbackSrc={proxyUrl || proxyUrl || previewUrl} 
                           filename={file.filename} 
                           fileSize={file.length} 
                         />
@@ -1666,8 +1667,8 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                 </div>
               </div>
 
-              <div className="flex-shrink-0 pb-3 text-center pointer-events-none">
-                <p className="text-white/20 text-[11px] tracking-wide">Press ESC or click outside container to close</p>
+              <div className="flex-shrink-0 pb-2.5 sm:pb-3 text-center pointer-events-none">
+                <p className="text-white/30 text-[11px] font-medium tracking-wide">Press ESC or click outside container to close</p>
               </div>
             </div>
           </div>

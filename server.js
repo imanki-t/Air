@@ -1,8 +1,10 @@
 // server.js
 
-const http = require('http');
 const express = require('express');
 const dotenv = require('dotenv');
+dotenv.config();
+
+const http = require('http');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
@@ -19,8 +21,6 @@ const protectRoute = require('./middleware/authMiddleware');
 const { shareLimiter } = require('./middleware/rateLimitMiddleware');
 const { scheduleCleanup, accessSharedFile } = require('./services/fileService');
 const { deleteFileFromDrive } = require('./services/driveService');
-
-dotenv.config();
 
 const app = express();
 

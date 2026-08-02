@@ -414,7 +414,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         {/* ── Video Canvas Container ── */}
         <div
           className={cn(
-            "relative w-full max-h-[46vh] sm:max-h-[50vh] aspect-video flex items-center justify-center bg-black overflow-hidden",
+            "relative w-full aspect-video min-h-[260px] sm:min-h-[360px] max-h-[46vh] sm:max-h-[50vh] flex items-center justify-center bg-black overflow-hidden",
             !showCtrl && playing ? "cursor-none" : "cursor-pointer"
           )}
           onClick={handleVideoClick}
@@ -1633,7 +1633,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
               {/* Main Content Area — Clicking anywhere outside media container closes viewer */}
               <div className="flex-1 flex items-center justify-center overflow-hidden p-2 sm:p-4 cursor-pointer" onClick={() => setShowViewer(false)}>
-                <div className="max-w-5xl max-h-full cursor-default flex items-center justify-center">
+                <div className="w-full max-w-4xl xl:max-w-5xl max-h-full cursor-default flex items-center justify-center">
                   {isMediaLoading ? (
                     <div onClick={(e) => e.stopPropagation()} className="flex flex-col items-center justify-center gap-3 p-8 bg-slate-950/60 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl">
                       <svg className="animate-spin h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24">

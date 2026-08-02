@@ -152,6 +152,25 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
     setUsingFallback(false);
   }, [src]);
 
+  // 60fps silky smooth video time & progress update loop
+  useEffect(() => {
+    let animId;
+    const update60fpsVideoProgress = () => {
+      if (videoRef.current && !videoRef.current.paused) {
+        setCurrentTime(videoRef.current.currentTime);
+        if (videoRef.current.buffered && videoRef.current.buffered.length > 0) {
+          setBuffered(videoRef.current.buffered.end(videoRef.current.buffered.length - 1));
+        }
+        animId = requestAnimationFrame(update60fpsVideoProgress);
+      }
+    };
+
+    if (playing) {
+      animId = requestAnimationFrame(update60fpsVideoProgress);
+    }
+    return () => cancelAnimationFrame(animId);
+  }, [playing]);
+
   const nudgeControls = useCallback(() => {
     setShowCtrl(true);
     clearTimeout(hideTimer.current);
@@ -467,22 +486,25 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
             <div className="absolute inset-y-0 left-0 right-0 bg-white/15 rounded-full h-1.5 group-hover/scrub:h-2 transition-all" />
             {/* Buffer bar */}
             <div className="absolute inset-y-0 left-0 bg-blue-400/30 rounded-full h-1.5 group-hover/scrub:h-2 transition-all" style={{ width: `${bufferPercent}%` }} />
-            {/* Progress bar */}
-            <div className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-600 to-sky-400 rounded-full h-1.5 group-hover/scrub:h-2 transition-all shadow-md" style={{ width: `${progressPercent}%` }} />
+            {/* Progress bar (60fps liquid tracking) */}
+            <div
+              className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-600 to-sky-400 rounded-full h-1.5 group-hover/scrub:h-2.5 transition-[width,height] duration-75 ease-linear shadow-md"
+              style={{ width: `${progressPercent}%` }}
+            />
             {/* Interactive Input Range */}
             <input
               type="range"
               min={0}
               max={duration || 0}
-              step={0.01}
+              step={0.001}
               value={currentTime}
               onChange={handleSeek}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
             />
-            {/* Scrubber Knob */}
+            {/* Scrubber Knob (Liquid 60fps movement) */}
             <div
-              className="absolute w-3.5 h-3.5 bg-white rounded-full shadow-lg scale-0 group-hover/scrub:scale-100 transition-transform pointer-events-none ring-2 ring-blue-500"
-              style={{ left: `calc(${progressPercent}% - 7px)` }}
+              className="absolute w-4 h-4 bg-white rounded-full shadow-xl scale-0 group-hover/scrub:scale-100 transition-[transform,left] duration-75 ease-linear pointer-events-none ring-2 ring-blue-500 z-20"
+              style={{ left: `calc(${progressPercent}% - 8px)` }}
             />
           </div>
 

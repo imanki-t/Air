@@ -1364,7 +1364,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
           ) : (
             <video
               src={`${previewUrl}#t=5`}
-              preload="metadata"
+              preload="none"
               muted
               playsInline
               className={`${imageVideoPreviewClasses} bg-black`}
@@ -1678,15 +1678,15 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                       )}
                       {type === 'video' && (
                         <CustomVideoPlayer 
-                          src={streamUrl || proxyUrl || previewUrl} 
-                          fallbackSrc={proxyUrl || previewUrl} 
+                          src={proxyUrl || previewUrl || streamUrl} 
+                          fallbackSrc={previewUrl} 
                           filename={file.filename} 
                         />
                       )}
                       {type === 'audio' && (
                         <CustomAudioPlayer 
-                          src={streamUrl || proxyUrl || previewUrl} 
-                          fallbackSrc={proxyUrl || proxyUrl || previewUrl} 
+                          src={proxyUrl || previewUrl || streamUrl} 
+                          fallbackSrc={previewUrl} 
                           filename={file.filename} 
                           fileSize={file.length} 
                         />

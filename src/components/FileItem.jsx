@@ -964,6 +964,21 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     }
   }, [showShare, showDeleteConfirm, showMenu, showViewer]);
 
+  // Lock body scroll when viewer modal is open
+  useEffect(() => {
+    if (showViewer) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, [showViewer]);
+
   useEffect(() => {
     if (showShare || showDeleteConfirm || showMenu || showViewer) {
       window.addEventListener('keydown', handleKeyDown);
@@ -1378,7 +1393,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
         const type = file.metadata.type;
         const previewUrl = `${backendUrl}/api/files/preview/${file._id}`;
         return (
-          <div className="fixed inset-0 z-[80] animate-fadeIn flex flex-col" style={{ background: 'rgba(8,14,28,0.96)', backdropFilter: 'blur(10px)' }} onClick={() => setShowViewer(false)} role="dialog" aria-modal="true" aria-label={`Viewing ${file.filename}`}>
+          <div className="fixed inset-0 z-[80] animate-fadeIn flex flex-col touch-none overscroll-none" style={{ background: 'rgba(8,14,28,0.96)', backdropFilter: 'blur(10px)' }} onClick={() => setShowViewer(false)} onTouchMove={(e) => e.preventDefault()} role="dialog" aria-modal="true" aria-label={`Viewing ${file.filename}`}>
             <div className="flex flex-col h-full w-full" onClick={e => e.stopPropagation()}>
               <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-4 border-b border-white/5 bg-slate-950/40 backdrop-blur-md">
                 <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">

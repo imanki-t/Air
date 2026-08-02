@@ -128,6 +128,12 @@ const Icon = {
       <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
     </svg>
   ),
+  Keyboard: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M8 16h8" />
+    </svg>
+  ),
 };
 
 // ─── Modal — renders via portal directly on body, bypasses all z-index stacking ──
@@ -198,6 +204,9 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
   const [importProgress, setImportProgress] = useState(0);   // files done
   const [importTotal, setImportTotal] = useState(0);         // total files
   const [importInProgress, setImportInProgress] = useState(false); // background running
+
+  // Shortcuts Modal
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
   // Delete
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -537,6 +546,12 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
               </button>
             </div>
 
+            {/* Shortcuts section */}
+            <div className={`py-1.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
+              <p className={`px-4 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Help & Shortcuts</p>
+              <MenuItem IconComp={Icon.Keyboard} label="Keyboard Shortcuts" onClick={() => { setOpen(false); setShowShortcutsModal(true); }} />
+            </div>
+
             {/* Data section */}
             <div className={`py-1.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
               <p className={`px-4 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Data</p>
@@ -787,7 +802,215 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
           </div>
         </div>
       </Modal>
+
+      {/* ── Shortcuts Modal ─────────────────────────────────────────────────── */}
+      <ShortcutsModal
+        open={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
+        darkMode={darkMode}
+      />
     </>
+  );
+};
+
+// ─── Exportable ShortcutsModal Component ──────────────────────────────────────
+export const ShortcutsModal = ({ open, onClose, darkMode }) => {
+  const [filterQuery, setFilterQuery] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  if (!open) return null;
+
+  const shortcutGroups = [
+    {
+      category: '🔍 Navigation & Search',
+      items: [
+        { keys: ['/', 'Ctrl + K'], label: 'Focus Search Bar' },
+        { keys: ['G'], label: 'Toggle Grid / List View' },
+        { keys: ['T'], label: 'Toggle Dark / Light Theme' },
+        { keys: ['R'], label: 'Refresh Files' },
+        { keys: ['Esc'], label: 'Close Modal / Clear Filter' },
+      ],
+    },
+    {
+      category: '📂 File Operations',
+      items: [
+        { keys: ['Enter', 'V'], label: 'View Selected File' },
+        { keys: ['D'], label: 'Download Selected File' },
+        { keys: ['S'], label: 'Share Selected File' },
+        { keys: ['Delete', 'X'], label: 'Delete Selected File' },
+        { keys: ['U', 'Ctrl + U'], label: 'Upload Files' },
+      ],
+    },
+    {
+      category: '👁️ Media Player Controls',
+      items: [
+        { keys: ['→'], label: 'Next Media Item' },
+        { keys: ['←'], label: 'Previous Media Item' },
+        { keys: ['Space', 'K'], label: 'Play / Pause Video or Audio' },
+        { keys: ['M'], label: 'Mute / Unmute Sound' },
+        { keys: ['J', 'L'], label: 'Skip -10s / +10s' },
+      ],
+    },
+    {
+      category: '🎯 Selection & Filtering',
+      items: [
+        { keys: ['Ctrl + A'], label: 'Select All Visible Files' },
+        { keys: ['Space'], label: 'Toggle Select File' },
+        { keys: ['1'], label: 'Filter Videos' },
+        { keys: ['2'], label: 'Filter Audios' },
+        { keys: ['3'], label: 'Filter Images' },
+        { keys: ['4'], label: 'Filter Documents' },
+        { keys: ['0'], label: 'Clear Category Filters' },
+      ],
+    },
+    {
+      category: '👤 App & Help',
+      items: [
+        { keys: ['P', 'Alt + P'], label: 'Toggle Profile Menu' },
+        { keys: ['?', 'H'], label: 'Open Keyboard Shortcuts Guide' },
+      ],
+    },
+  ];
+
+  const filteredGroups = shortcutGroups.map((group) => ({
+    ...group,
+    items: group.items.filter(
+      (item) =>
+        item.label.toLowerCase().includes(filterQuery.toLowerCase()) ||
+        item.keys.some((k) => k.toLowerCase().includes(filterQuery.toLowerCase()))
+    ),
+  })).filter((group) => group.items.length > 0);
+
+  return ReactDOM.createPortal(
+    <div
+      className="fixed inset-0 overflow-y-auto z-[99999] flex items-center justify-center p-3 sm:p-6 animate-fadeIn"
+      style={{ backgroundColor: 'rgba(8, 14, 28, 0.85)', backdropFilter: 'blur(10px)' }}
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Keyboard Shortcuts Guide"
+    >
+      <div
+        className={`relative w-full max-w-2xl rounded-3xl shadow-2xl border flex flex-col overflow-hidden transition-all duration-300 ${
+          darkMode ? 'bg-slate-900 border-white/15 text-white' : 'bg-white border-gray-200 text-gray-900'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxHeight: '88vh' }}
+      >
+        {/* Modal Header */}
+        <div className={`flex items-center justify-between px-5 sm:px-6 py-4 border-b flex-shrink-0 ${
+          darkMode ? 'border-white/10 bg-slate-950/50' : 'border-gray-100 bg-gray-50/80'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-md ${
+              darkMode ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'bg-blue-50 text-blue-600 border border-blue-200'
+            }`}>
+              <Icon.Keyboard className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold tracking-tight">Keyboard Shortcuts</h2>
+              <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Quickly navigate and manage files on mobile & PC
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className={`p-2 rounded-xl transition-all ${
+              darkMode ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
+            }`}
+            aria-label="Close shortcuts modal"
+          >
+            <Icon.X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Filter Input Bar */}
+        <div className={`px-5 sm:px-6 py-3 border-b flex-shrink-0 ${darkMode ? 'border-white/5 bg-slate-950/20' : 'border-gray-100 bg-gray-50/50'}`}>
+          <div className="relative w-full">
+            <input
+              type="text"
+              placeholder="Search shortcuts (e.g. Search, View, Upload)..."
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              className={`w-full pl-9 pr-4 py-2 rounded-xl text-xs sm:text-sm border outline-none transition-all ${
+                darkMode
+                  ? 'bg-slate-950/60 border-white/15 text-white placeholder-gray-500 focus:border-blue-500'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-600'
+              }`}
+            />
+            <svg className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Shortcut Groups Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 custom-scrollbar">
+          {filteredGroups.length === 0 ? (
+            <div className="text-center py-10 text-xs sm:text-sm opacity-60">
+              No shortcuts found matching "{filterQuery}"
+            </div>
+          ) : (
+            filteredGroups.map((group, idx) => (
+              <div key={idx} className="space-y-2.5">
+                <h3 className={`text-xs font-bold uppercase tracking-wider ${
+                  darkMode ? 'text-blue-400' : 'text-blue-600'
+                }`}>
+                  {group.category}
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                  {group.items.map((item, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all ${
+                        darkMode
+                          ? 'bg-slate-950/40 border-white/10 hover:border-white/20'
+                          : 'bg-gray-50/80 border-gray-200/80 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className={`text-xs font-medium ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                        {item.label}
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        {item.keys.map((k, ki) => (
+                          <kbd
+                            key={ki}
+                            className={`px-2 py-1 rounded-lg text-[11px] font-mono font-bold border shadow-sm ${
+                              darkMode
+                                ? 'bg-slate-800 border-white/20 text-blue-300'
+                                : 'bg-white border-gray-300 text-gray-700'
+                            }`}
+                          >
+                            {k}
+                          </kbd>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className={`px-6 py-3 border-t text-center flex-shrink-0 ${darkMode ? 'border-white/10 bg-slate-950/50' : 'border-gray-100 bg-gray-50/80'}`}>
+          <p className={`text-[11px] ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            Tip: Press <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-600/30 text-blue-300 border border-blue-500/30">?</kbd> anywhere in the app to view this guide
+          </p>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 

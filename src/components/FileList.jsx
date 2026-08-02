@@ -275,6 +275,114 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
     }
   }, [isEditingPage]);
 
+  // ─── Global Keyboard Shortcuts Listener ──────────────────────────────────────
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.isContentEditable
+      );
+
+      // Escape key: clear search or close active popups/modals
+      if (e.key === 'Escape') {
+        if (isInput) {
+          activeEl.blur();
+          return;
+        }
+        if (searchInput) setSearchInput('');
+        if (showSortOptions) setShowSortOptions(false);
+        if (showFolderPicker) setShowFolderPicker(false);
+        if (showDeleteConfirmModal) setShowDeleteConfirmModal(false);
+        if (showBatchShareModal) setShowBatchShareModal(false);
+        if (selectionMode) setSelectionMode(false);
+        return;
+      }
+
+      // If user is actively typing in an input field, skip single-key shortcuts
+      if (isInput) return;
+
+      const key = e.key.toLowerCase();
+      const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+
+      // 1. Focus Search Bar: '/' or 'Ctrl+K' / 'Cmd+K'
+      if (e.key === '/' || (isCmdOrCtrl && key === 'k')) {
+        e.preventDefault();
+        const searchInputEl = document.querySelector('input[aria-label="Search files"]');
+        if (searchInputEl) {
+          searchInputEl.focus();
+          searchInputEl.select();
+        }
+        return;
+      }
+
+      // 2. Upload Files: 'u' or 'Ctrl+U'
+      if ((isCmdOrCtrl && key === 'u') || key === 'u') {
+        e.preventDefault();
+        const fileInputEl = document.querySelector('input[type="file"]');
+        if (fileInputEl) fileInputEl.click();
+        return;
+      }
+
+      // 3. Open Profile Menu: 'p' or 'Alt+P'
+      if (key === 'p' || (e.altKey && key === 'p')) {
+        e.preventDefault();
+        const profileBtn = document.querySelector('button[aria-label="Profile menu"]');
+        if (profileBtn) profileBtn.click();
+        return;
+      }
+
+      // 4. Toggle View: 'g'
+      if (key === 'g') {
+        e.preventDefault();
+        setView((v) => (v === 'grid' ? 'list' : 'grid'));
+        return;
+      }
+
+      // 5. Refresh Files: 'r'
+      if (key === 'r' && !isCmdOrCtrl) {
+        e.preventDefault();
+        refresh?.();
+        return;
+      }
+
+      // 6. Select All Files: 'Ctrl+A' / 'Cmd+A'
+      if (isCmdOrCtrl && key === 'a') {
+        e.preventDefault();
+        setSelectionMode(true);
+        setSelectedFiles(files.map((f) => f._id));
+        return;
+      }
+
+      // 7. Category Filters: '1' (video), '2' (audio), '3' (image), '4' (document), '0' (all)
+      if (e.key === '1') { setFilter('video'); return; }
+      if (e.key === '2') { setFilter('audio'); return; }
+      if (e.key === '3') { setFilter('image'); return; }
+      if (e.key === '4') { setFilter('document'); return; }
+      if (e.key === '0') { setFilter('all'); return; }
+
+      // 8. Open Shortcuts Guide: '?' or 'h'
+      if (e.key === '?' || key === 'h') {
+        e.preventDefault();
+        const profileBtn = document.querySelector('button[aria-label="Profile menu"]');
+        if (profileBtn) {
+          profileBtn.click();
+          setTimeout(() => {
+            const shortcutsBtn = Array.from(document.querySelectorAll('button')).find((b) =>
+              b.textContent.includes('Keyboard Shortcuts')
+            );
+            if (shortcutsBtn) shortcutsBtn.click();
+          }, 100);
+        }
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [searchInput, showSortOptions, showFolderPicker, showDeleteConfirmModal, showBatchShareModal, selectionMode, selectedFiles, files, refresh]);
+
   // --- Filtering Logic ---
   // Optionally exclude files that already belong to a folder
   const folderFileIds = hideFolderFiles

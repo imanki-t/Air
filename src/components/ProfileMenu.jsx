@@ -646,7 +646,7 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
               <div>
                 <p className={`text-sm font-semibold ${darkMode ? 'text-green-400' : 'text-green-700'}`}>Export link sent</p>
                 <p className={`text-xs mt-1 ${darkMode ? 'text-green-500/80' : 'text-green-600'}`}>
-                  Check your email — the download link expires in 24 hours.
+                  Check your email — the download link expires in 72 hours.
                 </p>
               </div>
             </div>
@@ -655,7 +655,7 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
               <div className={`rounded-xl p-4 mb-4 space-y-3 ${darkMode ? 'bg-gray-800/60 border border-gray-700/60' : 'bg-gray-50 border border-gray-200'}`}>
                 <InfoRow icon={Icon.Mail} text="A download link will be sent to your email address" darkMode={darkMode} />
                 <InfoRow icon={Icon.FileZip} text="Contains all your uploaded files plus a manifest.json" darkMode={darkMode} />
-                <InfoRow icon={Icon.Clock} text="Link expires after 24 hours" darkMode={darkMode} />
+                <InfoRow icon={Icon.Clock} text="Link expires after 72 hours" darkMode={darkMode} />
                 <InfoRow icon={Icon.Import} text="The ZIP can be used to import data back into Airstream" darkMode={darkMode} />
               </div>
 

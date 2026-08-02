@@ -210,47 +210,49 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
     if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
 
     if (key === ' ' || key === 'k') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       togglePlay();
     } else if (key === 'f') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       toggleFS();
     } else if (key === 'p') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       togglePiP();
     } else if (key === 't') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       setIsTheater(prev => !prev);
     } else if (key === 'm') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       toggleMute();
     } else if (key === 'j') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       seekRelative(-10);
     } else if (key === 'l') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       seekRelative(10);
     } else if (key === '?') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       setShowHelp(prev => !prev);
     } else if (e.key === 'ArrowRight') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       seekRelative(5);
     } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       seekRelative(-5);
     } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       adjustVolume(0.1);
     } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       adjustVolume(-0.1);
+    } else if (e.key !== 'Escape') {
+      e.stopPropagation();
     }
   }, [volume, muted]);
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [handleKeyDown]);
 
   const autoPlayPendingRef = useRef(false);
@@ -404,7 +406,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         ref={wrapRef}
         className={cn(
           "relative w-full bg-slate-950 overflow-hidden group border border-white/10 transition-all duration-300 shadow-2xl select-none flex flex-col items-center justify-center backdrop-blur-2xl rounded-2xl",
-          isFS ? "h-screen w-screen rounded-none max-w-none z-50" : isTheater ? "max-w-[1200px] max-h-[82vh]" : "max-w-[900px] xl:max-w-[1000px] max-h-[70vh] sm:max-h-[74vh]",
+          isFS ? "h-screen w-screen rounded-none max-w-none z-50" : isTheater ? "max-w-[1100px] max-h-[82vh]" : "max-w-[760px] sm:max-w-[820px] max-h-[70vh] sm:max-h-[74vh]",
           !showCtrl && playing ? "cursor-none" : ""
         )}
         onMouseMove={nudgeControls}
@@ -731,29 +733,31 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
     if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
 
     if (key === ' ' || key === 'k') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       togglePlay();
     } else if (key === 'm') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       toggleMute();
     } else if (e.key === 'ArrowRight') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       seekRelative(5);
     } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       seekRelative(-5);
     } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       adjustVolume(0.1);
     } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       adjustVolume(-0.1);
+    } else if (e.key !== 'Escape') {
+      e.stopPropagation();
     }
   }, [volume, muted]);
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [handleKeyDown]);
 
   useEffect(() => {
@@ -1147,13 +1151,26 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     return () => window.removeEventListener('scroll', close, { capture: true });
   }, [showMenu]);
 
-  // Escape key events
+  // Escape key events & viewer shortcut isolation
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Escape') {
-      if (showViewer) { setShowViewer(false); return; }
+      if (showViewer) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        setShowViewer(false);
+        return;
+      }
       if (showShare) setShowShare(false);
       if (showDeleteConfirm) setShowDeleteConfirm(false);
       if (showMenu) setShowMenu(false);
+      return;
+    }
+
+    if (showViewer) {
+      if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        e.stopPropagation();
+      }
     }
   }, [showShare, showDeleteConfirm, showMenu, showViewer]);
 
@@ -1174,11 +1191,11 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
   useEffect(() => {
     if (showShare || showDeleteConfirm || showMenu || showViewer) {
-      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('keydown', handleKeyDown, { capture: true });
     } else {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
     }
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [showShare, showDeleteConfirm, showMenu, showViewer, handleKeyDown]);
 
   const download = async () => {
@@ -1633,7 +1650,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
               {/* Main Content Area — Clicking anywhere outside media container closes viewer */}
               <div className="flex-1 flex items-center justify-center overflow-hidden p-2 sm:p-4 cursor-pointer" onClick={() => setShowViewer(false)}>
-                <div className="w-full max-w-4xl xl:max-w-5xl max-h-full cursor-default flex items-center justify-center">
+                <div className="w-full max-w-3xl sm:max-w-4xl max-h-full cursor-default flex items-center justify-center">
                   {isMediaLoading ? (
                     <div onClick={(e) => e.stopPropagation()} className="flex flex-col items-center justify-center gap-3 p-8 bg-slate-950/60 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl">
                       <svg className="animate-spin h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24">

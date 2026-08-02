@@ -285,12 +285,13 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
         activeEl.isContentEditable
       );
 
+      // If user is actively typing in an input field or ANY modal/dialog/dropdown is open, skip shortcuts
+      const isModalOpen = !!document.querySelector('[role="dialog"]') ||
+                          document.body.style.overflow === 'hidden';
+      if (isInput || isModalOpen) return;
+
       // Escape key: clear search or close active popups/modals
       if (e.key === 'Escape') {
-        if (isInput) {
-          activeEl.blur();
-          return;
-        }
         if (searchInput) setSearchInput('');
         if (showSortOptions) setShowSortOptions(false);
         if (showFolderPicker) setShowFolderPicker(false);
@@ -299,11 +300,6 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
         if (selectionMode) setSelectionMode(false);
         return;
       }
-
-      // If user is actively typing in an input field or ANY modal/dialog/dropdown is open, skip shortcuts
-      const isModalOpen = !!document.querySelector('[role="dialog"]') ||
-                          document.body.style.overflow === 'hidden';
-      if (isInput || isModalOpen) return;
 
       const key = e.key.toLowerCase();
       const isCmdOrCtrl = e.ctrlKey || e.metaKey;

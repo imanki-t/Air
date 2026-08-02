@@ -259,6 +259,8 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
   useEffect(() => {
     const h = (e) => {
       if (e.key === 'Escape') {
+        const isModalOpen = !!document.querySelector('[role="dialog"]') || document.body.style.overflow === 'hidden';
+        if (isModalOpen) return;
         if (showSortOptions) { setShowSortOptions(false); return; }
         if (showDeleteConfirmModal || showRemoveConfirmModal || showBatchShareModal) return;
         onClose();

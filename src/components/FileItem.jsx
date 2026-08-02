@@ -26,6 +26,11 @@ class MediaViewerErrorBoundary extends React.Component {
             <div className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center font-bold text-xl">✕</div>
             <h3 className="text-base font-bold text-white">Playback Error</h3>
             <p className="text-xs text-white/60">An unexpected rendering issue occurred while initializing the media viewer.</p>
+            {this.state.error && (
+              <div className="w-full bg-black/60 border border-red-500/30 p-3 rounded-xl text-left overflow-x-auto">
+                <p className="text-[11px] font-mono text-red-300 break-all">{this.state.error.toString()}</p>
+              </div>
+            )}
             <button
               onClick={() => this.props.onClose && this.props.onClose()}
               className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg"

@@ -120,6 +120,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const [showCtrl, setShowCtrl] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
+  const [forcedOrientation, setForcedOrientation] = useState(null);
   const [isFS, setIsFS] = useState(false);
   const [isTheater, setIsTheater] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
@@ -134,6 +136,14 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 
   const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
   const hideTimer = useRef(null);
+
+  const applyOrientation = useCallback((overrideMode) => {
+    if (typeof window !== 'undefined' && window.screen && window.screen.orientation && window.screen.orientation.lock) {
+      const isLandscape = videoRef.current ? videoRef.current.videoWidth >= videoRef.current.videoHeight : true;
+      const targetMode = overrideMode || (isLandscape ? 'landscape' : 'portrait');
+      window.screen.orientation.lock(targetMode).catch(() => {});
+    }
+  }, []);
 
   // ── Smart Dynamic Fallback Mechanism for Direct Drive URLs ──
   const handleVideoError = useCallback(() => {
@@ -195,11 +205,19 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFS(!!document.fullscreenElement);
+      const inFS = !!document.fullscreenElement;
+      setIsFS(inFS);
+      if (inFS) {
+        applyOrientation(forcedOrientation);
+      } else {
+        if (typeof window !== 'undefined' && window.screen && window.screen.orientation && window.screen.orientation.unlock) {
+          try { window.screen.orientation.unlock(); } catch (_) {}
+        }
+      }
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
+  }, [applyOrientation, forcedOrientation]);
 
   // ── Keyboard Shortcuts inside Player Context ──
   const handleKeyDown = useCallback((e) => {
@@ -328,9 +346,15 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 
   const toggleFS = () => {
     if (!document.fullscreenElement) {
-      wrapRef.current?.requestFullscreen?.();
+      wrapRef.current?.requestFullscreen?.().then(() => {
+        applyOrientation(forcedOrientation);
+      }).catch(() => {});
     } else {
-      document.exitFullscreen?.();
+      document.exitFullscreen?.().then(() => {
+        if (typeof window !== 'undefined' && window.screen && window.screen.orientation && window.screen.orientation.unlock) {
+          try { window.screen.orientation.unlock(); } catch (_) {}
+        }
+      }).catch(() => {});
     }
   };
 
@@ -489,8 +513,9 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         {/* ── Liquid Glass Controller Bar ── */}
         <div
           className={cn(
-            "absolute bottom-2 sm:bottom-3 inset-x-2 sm:inset-x-3 bg-slate-950/85 border border-white/15 backdrop-blur-xl p-2 sm:p-4 rounded-xl sm:rounded-2xl flex flex-col gap-1.5 sm:gap-2.5 transition-all duration-300 z-30 shadow-2xl",
-            showCtrl ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
+            "w-full bg-slate-950/90 border-t border-white/15 sm:border sm:border-white/15 backdrop-blur-xl p-2.5 sm:p-4 sm:rounded-2xl flex flex-col gap-2 transition-all duration-300 z-30 shadow-2xl",
+            isFS ? "absolute bottom-2 sm:bottom-3 inset-x-2 sm:inset-x-3 rounded-xl sm:rounded-2xl" : "relative sm:absolute sm:bottom-2 sm:inset-x-2 sm:bottom-3 sm:inset-x-3 rounded-b-2xl sm:rounded-2xl",
+            !showCtrl && playing && isFS ? "opacity-0 translate-y-3 pointer-events-none" : "opacity-100 translate-y-0"
           )}
         >
           {/* ── YouTube Scrubber with Hover Time Tooltip ── */}
@@ -570,12 +595,12 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
             </div>
 
             <div className="flex items-center gap-1 sm:gap-3">
-              {/* Smooth Volume Control */}
+              {/* Volume Control: Tap to Mute/Unmute on Mobile, Hover Slider on Desktop */}
               <div className="flex items-center gap-1.5 group/volume">
-                <button onClick={toggleMute} className="p-1.5 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all">
+                <button onClick={toggleMute} className="p-1.5 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all" title={muted ? "Unmute" : "Mute"}>
                   {muted || volume === 0 ? <Icons.VolumeMute /> : <Icons.VolumeHigh />}
                 </button>
-                <div className="relative w-0 group-hover/volume:w-16 sm:group-hover/volume:w-20 transition-all duration-300 h-1.5 overflow-hidden flex items-center">
+                <div className="hidden sm:flex relative w-0 group-hover/volume:w-16 sm:group-hover/volume:w-20 transition-all duration-300 h-1.5 overflow-hidden items-center">
                   <div className="absolute inset-x-0 h-1.5 bg-white/20 rounded-full" />
                   <div className="absolute left-0 h-1.5 bg-blue-500 rounded-full" style={{ width: `${muted ? 0 : volume * 100}%` }} />
                   <input
@@ -590,8 +615,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                 </div>
               </div>
 
-              {/* Playback Speed Menu */}
-              <div className="relative" ref={speedRef}>
+              {/* Playback Speed Menu (Desktop only) */}
+              <div className="hidden sm:block relative" ref={speedRef}>
                 <button
                   onClick={() => setShowSpeedMenu(!showSpeedMenu)}
                   className="px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-xl border border-white/10 text-[11px] sm:text-xs font-semibold text-white/80 hover:text-white hover:bg-white/10 transition-all flex items-center gap-0.5 sm:gap-1"
@@ -618,6 +643,18 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                 )}
               </div>
 
+              {/* Mobile Settings Gear Button (Mobile only) */}
+              <button
+                onClick={() => setShowMobileSettings(true)}
+                className="sm:hidden p-1.5 rounded-xl border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
+                title="Player Settings"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+
               {/* Picture-in-Picture (Desktop only) */}
               <button onClick={togglePiP} className="hidden sm:inline-flex p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all" title="Picture-in-Picture (P)">
                 <Icons.PiP />
@@ -640,6 +677,86 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
             </div>
           </div>
         </div>
+
+        {/* ── Mobile Player Settings Modal Overlay ── */}
+        {showMobileSettings && (
+          <div className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-md flex items-end sm:items-center justify-center p-4 animate-fadeIn" onClick={() => setShowMobileSettings(false)}>
+            <div className="w-full max-w-sm bg-slate-900 border border-white/15 rounded-2xl p-5 shadow-2xl flex flex-col gap-4 text-white animate-slideUpFluid" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <h3 className="font-bold text-sm flex items-center gap-2">
+                  <span>⚙️ Player Settings</span>
+                </h3>
+                <button onClick={() => setShowMobileSettings(false)} className="text-white/60 hover:text-white p-1">
+                  ✕
+                </button>
+              </div>
+
+              {/* Playback Speed */}
+              <div>
+                <label className="text-xs font-semibold text-white/70 mb-2 block">Playback Speed</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => { handleSpeedSelect(s); setShowMobileSettings(false); }}
+                      className={cn(
+                        "py-2 text-xs font-bold rounded-xl border transition-all",
+                        speed === s ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
+                      )}
+                    >
+                      {s === 1 ? '1.0x Normal' : `${s}x`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Screen Rotation / Orientation Toggle */}
+              <div>
+                <label className="text-xs font-semibold text-white/70 mb-2 block">Screen Rotation</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => {
+                      setForcedOrientation('landscape');
+                      applyOrientation('landscape');
+                    }}
+                    className={cn(
+                      "py-2 text-xs font-bold rounded-xl border flex flex-col items-center gap-1 transition-all",
+                      forcedOrientation === 'landscape' ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
+                    )}
+                  >
+                    <span>🔄 Landscape</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setForcedOrientation('portrait');
+                      applyOrientation('portrait');
+                    }}
+                    className={cn(
+                      "py-2 text-xs font-bold rounded-xl border flex flex-col items-center gap-1 transition-all",
+                      forcedOrientation === 'portrait' ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
+                    )}
+                  >
+                    <span>📱 Portrait</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setForcedOrientation(null);
+                      if (typeof window !== 'undefined' && window.screen && window.screen.orientation && window.screen.orientation.unlock) {
+                        try { window.screen.orientation.unlock(); } catch (_) {}
+                      }
+                    }}
+                    className={cn(
+                      "py-2 text-xs font-bold rounded-xl border flex flex-col items-center gap-1 transition-all",
+                      forcedOrientation === null ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
+                    )}
+                  >
+                    <span>✨ Auto</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Shortcuts Help Modal Overlay ── */}
         {showHelp && (
@@ -1048,12 +1165,12 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
               <Icons.Repeat />
             </button>
 
-            {/* Volume */}
+            {/* Volume: Tap to Mute/Unmute on Mobile, Hover Slider on Desktop */}
             <div className="flex items-center gap-1 group/vol">
-              <button onClick={toggleMute} className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+              <button onClick={toggleMute} className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors" title={muted ? "Unmute" : "Mute"}>
                 {muted || volume === 0 ? <Icons.VolumeMute /> : <Icons.VolumeHigh />}
               </button>
-              <div className="relative w-0 group-hover/vol:w-16 transition-all duration-300 h-1.5 overflow-hidden flex items-center">
+              <div className="hidden sm:flex relative w-0 group-hover/vol:w-16 sm:group-hover/vol:w-20 transition-all duration-300 h-1.5 overflow-hidden items-center">
                 <div className="absolute inset-x-0 h-1.5 bg-white/20 rounded-full" />
                 <div className="absolute left-0 h-1.5 bg-blue-500 rounded-full" style={{ width: `${muted ? 0 : volume * 100}%` }} />
                 <input

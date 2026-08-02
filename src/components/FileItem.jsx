@@ -983,7 +983,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Download failed:', err);
-    } finally {
+    } fontally {
       setIsActionLoading(false);
       setTimeout(() => setDownloadProgress(0), 1200);
     }
@@ -1095,7 +1095,6 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
         <div className={containerBaseClasses}>
           <img
             src={previewUrl}
-            crossOrigin="use-credentials"
             alt={`Preview of ${file.filename}`}
             className={imageVideoPreviewClasses}
             loading="lazy"
@@ -1110,7 +1109,6 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
         <div className={containerBaseClasses}>
           <video
             src={`${previewUrl}#t=0.5`}
-            crossOrigin="use-credentials"
             preload="metadata"
             className={`${imageVideoPreviewClasses} bg-black`}
           />
@@ -1377,7 +1375,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                 <div onClick={e => e.stopPropagation()} className="w-full flex items-center justify-center">
                   {type === 'image' && (
                     <div className="max-w-[92vw] max-h-[78vh] rounded-2xl border border-white/5 overflow-hidden shadow-2xl bg-black flex items-center justify-center">
-                      <img src={previewUrl} crossOrigin="use-credentials" alt={file.filename} className="max-w-full max-h-full object-contain select-none" draggable={false} />
+                      <img src={previewUrl} alt={file.filename} className="max-w-full max-h-full object-contain select-none" draggable={false} />
                     </div>
                   )}
                   {type === 'video' && (

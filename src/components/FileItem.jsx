@@ -404,20 +404,26 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         className={cn(
           "relative w-full bg-slate-950 overflow-hidden group border border-white/10 transition-all duration-300 shadow-2xl select-none flex flex-col items-center justify-center backdrop-blur-2xl rounded-2xl",
           isFS ? "h-screen w-screen rounded-none max-w-none z-50" : isTheater ? "max-w-[1200px]" : "max-w-[900px]",
-          isFS && playing && !showCtrl ? "cursor-none" : ""
+          !showCtrl && playing ? "cursor-none" : ""
         )}
         onMouseMove={nudgeControls}
         onMouseLeave={() => playing && setShowCtrl(false)}
         onTouchStart={nudgeControls}
       >
         {/* ── Video Canvas Container ── */}
-        <div className="relative w-full aspect-video flex items-center justify-center bg-black overflow-hidden cursor-pointer" onClick={handleVideoClick}>
+        <div
+          className={cn(
+            "relative w-full aspect-video flex items-center justify-center bg-black overflow-hidden",
+            !showCtrl && playing ? "cursor-none" : "cursor-pointer"
+          )}
+          onClick={handleVideoClick}
+        >
           <video
             ref={videoRef}
             src={videoUrl}
             {...(needsCredentials ? { crossOrigin: 'use-credentials' } : {})}
             preload="auto"
-            className="w-full h-full object-contain"
+            className={cn("w-full h-full object-contain", !showCtrl && playing ? "cursor-none" : "")}
             onTimeUpdate={handleTimeUpdate}
             onDurationChange={() => videoRef.current && setDuration(videoRef.current.duration)}
             onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration)}

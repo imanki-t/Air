@@ -694,45 +694,99 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                 </div>
               </div>
 
-              {/* Playback Speed Menu (Desktop only) */}
-              <div className="hidden sm:block relative" ref={speedRef}>
+              {/* Unified Settings Menu: Speed / Loop / Rotation (rotation is mobile-only) */}
+              <div className="relative" ref={settingsRef}>
                 <button
-                  onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-                  className="px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-xl border border-white/10 text-[11px] sm:text-xs font-semibold text-white/80 hover:text-white hover:bg-white/10 transition-all flex items-center gap-0.5 sm:gap-1"
+                  onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                  className="p-1.5 sm:p-2 rounded-xl border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
+                  title="Player Settings"
+                  aria-haspopup="true"
+                  aria-expanded={showSettingsMenu}
                 >
-                  <span>{speed === 1 ? '1.0x' : `${speed}x`}</span>
+                  <Icons.Settings />
                 </button>
 
-                {showSpeedMenu && (
-                  <div className="absolute bottom-full right-0 mb-2 w-28 sm:w-32 rounded-xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl overflow-hidden z-40 shadow-2xl animate-slideUpFluid origin-bottom-right">
-                    {SPEEDS.map((s) => (
+                {showSettingsMenu && (
+                  <div className="absolute bottom-full right-0 mb-2 w-60 sm:w-64 max-w-[85vw] max-h-[70vh] overflow-y-auto rounded-2xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl shadow-2xl z-40 animate-slideUpFluid origin-bottom-right p-3 flex flex-col gap-4">
+                    {/* Playback Speed */}
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-white/40 mb-1.5 px-0.5">Playback Speed</p>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {SPEEDS.map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => handleSpeedSelect(s)}
+                            className={cn(
+                              "py-1.5 text-[11px] font-bold rounded-lg border transition-all",
+                              s === speed ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
+                            )}
+                          >
+                            {s === 1 ? '1x' : `${s}x`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Loop */}
+                    <div className="flex items-center justify-between px-0.5">
+                      <div className="flex items-center gap-2 text-white/80">
+                        <Icons.Repeat />
+                        <span className="text-xs font-semibold">Loop</span>
+                      </div>
                       <button
-                        key={s}
-                        onClick={() => handleSpeedSelect(s)}
-                        className={cn(
-                          "w-full px-3 py-1.5 text-left text-xs transition-colors font-medium flex items-center justify-between",
-                          s === speed ? "bg-blue-600 text-white font-bold" : "text-white/70 hover:bg-white/10 hover:text-white"
-                        )}
+                        onClick={toggleLoop}
+                        aria-pressed={isLooping}
+                        title="Toggle loop"
+                        className={cn("relative w-10 h-6 rounded-full border transition-colors", isLooping ? "bg-blue-600 border-blue-400" : "bg-white/10 border-white/15")}
                       >
-                        <span>{s === 1 ? 'Normal' : `${s}x`}</span>
-                        {s === speed && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        <span className={cn("absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform", isLooping ? "translate-x-4" : "translate-x-0")} />
                       </button>
-                    ))}
+                    </div>
+
+                    {/* Screen Rotation (mobile only, PC is unaffected) */}
+                    <div className="sm:hidden">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-white/40 mb-1.5 px-0.5">Screen Rotation</p>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <button
+                          onClick={() => {
+                            setForcedOrientation(null);
+                            if (typeof window !== 'undefined' && window.screen && window.screen.orientation && window.screen.orientation.unlock) {
+                              try { window.screen.orientation.unlock(); } catch (_) {}
+                            }
+                          }}
+                          className={cn(
+                            "py-2 text-[10px] font-bold rounded-xl border flex flex-col items-center gap-1 transition-all",
+                            forcedOrientation === null ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
+                          )}
+                        >
+                          <RotationIcons.Auto />
+                          <span>Auto</span>
+                        </button>
+                        <button
+                          onClick={() => { setForcedOrientation('landscape'); applyOrientation('landscape'); }}
+                          className={cn(
+                            "py-2 text-[10px] font-bold rounded-xl border flex flex-col items-center gap-1 transition-all",
+                            forcedOrientation === 'landscape' ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
+                          )}
+                        >
+                          <RotationIcons.Landscape />
+                          <span>Landscape</span>
+                        </button>
+                        <button
+                          onClick={() => { setForcedOrientation('portrait'); applyOrientation('portrait'); }}
+                          className={cn(
+                            "py-2 text-[10px] font-bold rounded-xl border flex flex-col items-center gap-1 transition-all",
+                            forcedOrientation === 'portrait' ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
+                          )}
+                        >
+                          <RotationIcons.Portrait />
+                          <span>Portrait</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
-
-              {/* Mobile Settings Gear Button (Mobile only) */}
-              <button
-                onClick={() => setShowMobileSettings(true)}
-                className="sm:hidden p-1.5 rounded-xl border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
-                title="Player Settings"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
 
               {/* Picture-in-Picture (Desktop only) */}
               <button onClick={togglePiP} className="hidden sm:inline-flex p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all" title="Picture-in-Picture (P)">

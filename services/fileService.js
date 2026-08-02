@@ -303,7 +303,8 @@ const previewFile = async (req, res) => {
       if (!allowed) return res.status(403).json({ error: 'Access denied.' });
     }
 
-    if (!fileMapping.driveId) return res.status(500).json({ error: 'File record is corrupt (missing storage ID).' });
+    const ownerUserId = fileMapping.userId || userId;
+    if (!fileMapping.driveId || !ownerUserId) return res.status(500).json({ error: 'File record is corrupt (missing storage ID or owner).' });
 
     const storedContentType = fileMapping.metadata?.contentType || 'application/octet-stream';
 
@@ -321,7 +322,7 @@ const previewFile = async (req, res) => {
     if (isUnsafe) {
       res.setHeader('Content-Type', 'application/octet-stream');
       res.setHeader('Content-Disposition', `attachment; filename="${safeFilename}"; filename*=UTF-8''${safeFilename}`);
-      const stream = await downloadFileStreamFromDrive(userId, fileMapping.driveId);
+      const stream = await downloadFileStreamFromDrive(ownerUserId, fileMapping.driveId);
       stream.on('error', (err) => { console.error('Drive preview stream error:', err); if (!res.headersSent) res.status(404).json({ error: 'File not found.' }); });
       res.on('close', () => stream.destroy()); // cleanup if client disconnects
       return stream.pipe(res);
@@ -363,7 +364,7 @@ const previewFile = async (req, res) => {
       res.setHeader('Content-Range',  `bytes ${start}-${clampedEnd}/${fileSize}`);
       res.setHeader('Content-Length', chunkSize);
 
-      const rangeStream = await downloadFileStreamFromDriveRange(userId, fileMapping.driveId, start, clampedEnd);
+      const rangeStream = await downloadFileStreamFromDriveRange(ownerUserId, fileMapping.driveId, start, clampedEnd);
       rangeStream.on('error', (err) => {
         console.error('Drive range stream error:', err);
         if (!res.headersSent) res.status(404).json({ error: 'File not found.' });
@@ -375,7 +376,7 @@ const previewFile = async (req, res) => {
     // ── Full file (no Range header, or fileSize unknown) ────────────────────
     if (fileSize) res.setHeader('Content-Length', fileSize);
 
-    const fullStream = await downloadFileStreamFromDrive(userId, fileMapping.driveId);
+    const fullStream = await downloadFileStreamFromDrive(ownerUserId, fileMapping.driveId);
     fullStream.on('error', (err) => {
       console.error('Drive preview stream error:', err);
       if (!res.headersSent) res.status(404).json({ error: 'File not found.' });
@@ -400,13 +401,24 @@ const getVideoStreamUrl = async (req, res) => {
     const userId = req.user?.userId;
 
     const fileMapping = await getFileMapping(fileId);
-    const { allowed } = checkOwnership(fileMapping, userId);
-    if (!allowed) return res.status(403).json({ error: 'Access denied.' });
+    if (!fileMapping) return res.status(404).json({ error: 'File not found.' });
 
-    if (!fileMapping.driveId) return res.status(500).json({ error: 'File record is corrupt (missing storage ID).' });
+    if (userId && fileMapping.userId) {
+      const { allowed } = checkOwnership(fileMapping, userId);
+      if (!allowed) return res.status(403).json({ error: 'Access denied.' });
+    }
 
-    const url = await getDirectStreamUrl(userId, fileMapping.driveId);
-    const proxyUrl = `/api/files/preview/${fileId}`;
+    const ownerUserId = fileMapping.userId || userId;
+    if (!fileMapping.driveId || !ownerUserId) return res.status(500).json({ error: 'File record is corrupt (missing storage ID or owner).' });
+
+    let url = null;
+    try {
+      url = await getDirectStreamUrl(ownerUserId, fileMapping.driveId);
+    } catch (e) {
+      console.warn("Direct stream URL failed (non-fatal), falling back to proxy stream:", e.message);
+    }
+    const backendUrl = process.env.BACKEND_URL || '';
+    const proxyUrl = `${backendUrl}/api/files/preview/${fileId}`;
     res.json({ url, proxyUrl });
   } catch (error) {
     console.error('getVideoStreamUrl error:', error);

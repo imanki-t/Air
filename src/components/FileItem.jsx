@@ -531,8 +531,17 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
               {/* Play/Pause Button */}
-              <button onClick={togglePlay} className="p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all">
-                {playing ? <Icons.Pause /> : <Icons.Play />}
+              <button onClick={togglePlay} className="p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all flex items-center justify-center">
+                {isBuffering && playing ? (
+                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : playing ? (
+                  <Icons.Pause />
+                ) : (
+                  <Icons.Play />
+                )}
               </button>
 
               {/* Skip 10s Replay / Forward */}
@@ -962,9 +971,19 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
           <div className="flex items-center gap-3">
             <button
               onClick={togglePlay}
-              className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white flex items-center justify-center shadow-xl transform active:scale-95 transition-all border border-white/20"
+              className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 text-white flex items-center justify-center shadow-xl transform active:scale-95 transition-all border border-white/20 relative"
+              title={playing ? "Pause" : "Play"}
             >
-              {playing ? <Icons.Pause /> : <Icons.Play />}
+              {isAudioLoading && playing ? (
+                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : playing ? (
+                <Icons.Pause />
+              ) : (
+                <Icons.Play />
+              )}
             </button>
 
             <button onClick={() => seekRelative(-10)} className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors">
@@ -1601,9 +1620,9 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                 </button>
               </div>
 
-              {/* Main Content Area */}
-              <div className="flex-1 flex items-center justify-center overflow-hidden p-2 sm:p-6" onClick={() => setShowViewer(false)}>
-                <div onClick={(e) => e.stopPropagation()} className="w-full flex items-center justify-center">
+              {/* Main Content Area — Clicking anywhere outside media container closes viewer */}
+              <div className="flex-1 flex items-center justify-center overflow-hidden p-2 sm:p-6 cursor-pointer" onClick={() => setShowViewer(false)}>
+                <div onClick={(e) => e.stopPropagation()} className="max-w-full max-h-full cursor-default flex items-center justify-center">
                   {isMediaLoading ? (
                     <div className="flex flex-col items-center justify-center gap-3 p-8 bg-slate-950/60 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl">
                       <svg className="animate-spin h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24">

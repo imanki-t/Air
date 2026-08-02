@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --vintage-border-color: white;
+}
+
+.dark-mode {
+  --vintage-border-color: #1f2937;
+}
+
+.vintage-btn {
+  @apply px-3 py-1 rounded-md text-white font-bold shadow-md;
+  font-family: 'Press Start 2P', cursive;
+  border: 2px dashed var(--vintage-border-color);
+  text-shadow: 1px 1px black;
+}
+
+.shadow-vintage {
+  box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.8);
+}
+
+.modern-btn {
+  @apply px-4 py-2 rounded-md font-medium transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+.dark .modern-btn {
+  @apply bg-purple-600 hover:bg-purple-700 focus:ring-purple-500 text-white;
+}
+
+.light .modern-btn {
+  @apply bg-purple-600 hover:bg-purple-700 focus:ring-purple-500 text-white;
+}
+
+.search-placeholder::placeholder {
+  font-size: 1.5rem;
+  position: relative;
+  top: -1px;
+}
+
+/* ── Fluid UI Animations & Micro-interactions ── */
+@keyframes springPop {
+  0% { transform: scale(0.92); opacity: 0; }
+  60% { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes slideUpFluid {
+  0% { transform: translateY(12px) scale(0.98); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.02); }
+}
+
+.animate-springPop {
+  animation: springPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-slideUpFluid {
+  animation: slideUpFluid 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pulseGlow {
+  animation: pulseGlow 4s ease-in-out infinite;
+}
+
+/* Fluid interactive feedback on click / hover */
+.fluid-click {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease-out;
+}
+
+.fluid-click:active {
+  transform: scale(0.94);
+}
+
+.fluid-toggle {
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Custom smooth scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

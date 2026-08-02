@@ -1,0 +1,1104 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import ReactDOM from 'react-dom';
+import axios from 'axios';
+import { io } from 'socket.io-client';
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+const formatBytes = (bytes) => {
+  if (bytes === null || bytes === undefined || isNaN(bytes) || bytes < 0) return '0 B';
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+};
+
+// ─── SVG Icons ────────────────────────────────────────────────────────────────
+const Icon = {
+  Export: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  ),
+  Import: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="19" x2="12" y2="5" />
+      <polyline points="5 12 12 5 19 12" />
+    </svg>
+  ),
+  Trash: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  ),
+  Logout: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  ),
+  Sun: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="5" />
+      <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+      <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    </svg>
+  ),
+  Moon: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  ),
+  Database: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M21 12c0 1.66-4.03 3-9 3S3 13.66 3 12" />
+      <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
+    </svg>
+  ),
+  Warning: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
+  Check: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  ),
+  Clock: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  ),
+  Refresh: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <polyline points="9 12 11 14 15 10" />
+    </svg>
+  ),
+  FileZip: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="12" y1="12" x2="12" y2="18" />
+      <line x1="9" y1="15" x2="15" y2="15" />
+    </svg>
+  ),
+  Plus: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  ),
+  Shield: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  ),
+  X: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  ),
+  Mail: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+      <polyline points="22,6 12,13 2,6" />
+    </svg>
+  ),
+  Folder: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    </svg>
+  ),
+  Monitor: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  ),
+  Keyboard: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M8 16h8" />
+    </svg>
+  ),
+};
+
+// ─── Modal — renders via portal directly on body, bypasses all z-index stacking ──
+const Modal = ({ open, onClose, darkMode, children }) => {
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  if (!open) return null;
+
+  return ReactDOM.createPortal(
+    <div
+      className="fixed inset-0 overflow-y-auto"
+      style={{ zIndex: 99999, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
+        <div
+          className={`relative w-full rounded-2xl shadow-2xl border sm:max-w-md ${
+            darkMode ? 'bg-gray-900 border-gray-700/80' : 'bg-white border-gray-200'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {children}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+// ─── Spinner ──────────────────────────────────────────────────────────────────
+const Spinner = ({ darkMode }) => (
+  <div className={`w-4 h-4 rounded-full border-2 border-t-transparent animate-spin ${darkMode ? 'border-blue-400' : 'border-white'}`} />
+);
+
+// ─── Info row used inside modals ──────────────────────────────────────────────
+const InfoRow = ({ icon: IconComp, text, darkMode }) => (
+  <div className="flex items-start gap-3">
+    <div className={`mt-0.5 flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+      <IconComp className={`w-3.5 h-3.5 ${darkMode ? 'text-gray-300' : 'text-gray-500'}`} />
+    </div>
+    <p className={`text-xs leading-relaxed pt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{text}</p>
+  </div>
+);
+
+// ─── Main component ───────────────────────────────────────────────────────────
+const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, onLogout, onFilesRefresh, hideFolderFiles, onHideFolderFilesToggle }) => {
+  const [open, setOpen] = useState(false);
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [stats, setStats] = useState({ fileCount: 0, storageUsed: 0, storageLimit: 0, driveQuota: null });
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  // Export
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportDone, setExportDone] = useState(false);
+  const [exportError, setExportError] = useState('');
+
+  // Import
+  const importInputRef = useRef(null);
+  const importTimeoutRef = useRef(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const [importError, setImportError] = useState('');
+  const [importProgress, setImportProgress] = useState(0);   // files done
+  const [importTotal, setImportTotal] = useState(0);         // total files
+  const [importInProgress, setImportInProgress] = useState(false); // background running
+
+  // Shortcuts Modal
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [touchSelect, setTouchSelect] = useState(() => {
+    if (typeof user?.touchSelect === 'boolean') return user.touchSelect;
+    const saved = localStorage.getItem('airstream_touch_select');
+    return saved === null ? true : saved === 'true';
+  });
+
+  useEffect(() => {
+    if (typeof user?.touchSelect === 'boolean') {
+      setTouchSelect(user.touchSelect);
+      localStorage.setItem('airstream_touch_select', String(user.touchSelect));
+    } else if (localStorage.getItem('airstream_touch_select') === null) {
+      localStorage.setItem('airstream_touch_select', 'true');
+    }
+  }, [user?.touchSelect]);
+
+  const toggleTouchSelect = async () => {
+    const next = !touchSelect;
+    setTouchSelect(next);
+    localStorage.setItem('airstream_touch_select', String(next));
+    window.dispatchEvent(new Event('storage'));
+    try {
+      await axios.patch(`${BACKEND_URL}/api/auth/preferences`, { touchSelect: next }, { withCredentials: true });
+    } catch (err) {
+      console.warn('Failed to persist touchSelect to DB:', err.message);
+    }
+  };
+
+  // Delete
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  const menuRef = useRef(null);
+  const backendUrl = BACKEND_URL;
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) { setOpen(false); setShowThemeMenu(false); }
+    };
+    if (open) document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [open]);
+
+  // Clean up the import socket/timeout if the modal is closed before completion
+  useEffect(() => {
+    return () => {
+      if (importTimeoutRef.current) {
+        clearTimeout(importTimeoutRef.current);
+        importTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoadingStats(true);
+    axios
+      .get(`${backendUrl}/api/auth/stats`, { withCredentials: true })
+      .then((res) => setStats(res.data))
+      .catch((err) => console.error('Stats fetch error:', err))
+      .finally(() => setLoadingStats(false));
+  }, [open, backendUrl]);
+
+  const appUsed       = stats.storageUsed || 0;
+  const driveLimit    = stats.driveQuota?.limit || stats.storageLimit || 0;
+  const driveTotal    = stats.driveQuota?.usage || 0;
+  const appPercent    = driveLimit > 0 ? Math.min(100, (appUsed / driveLimit) * 100) : 0;
+  const drivePercent  = driveLimit > 0 ? Math.min(100, (driveTotal / driveLimit) * 100) : 0;
+  const appBarColor   =
+    appPercent > 90 ? 'bg-red-500' :
+    appPercent > 70 ? 'bg-yellow-500' :
+    darkMode ? 'bg-blue-500' : 'bg-red-500';
+
+  const accentRing = darkMode ? 'focus:ring-blue-500' : 'focus:ring-red-400';
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
+  const handleThemeChange = (mode) => {
+    onThemeModeChange?.(mode);
+    setOpen(false);
+    setShowThemeMenu(false);
+  };
+  const handleLogout = async () => {
+    setOpen(false);
+    try { await axios.post(`${backendUrl}/api/auth/logout`, {}, { withCredentials: true }); } catch (_) {}
+    onLogout?.();
+  };
+
+  const handleOpenExport = () => {
+    setOpen(false); setExportDone(false); setExportError(''); setShowExportModal(true);
+  };
+  const handleConfirmExport = async () => {
+    setExportLoading(true); setExportError('');
+    try {
+      await axios.post(`${backendUrl}/api/auth/export-data`, {}, { withCredentials: true });
+      setExportDone(true);
+    } catch (err) {
+      setExportError(err.response?.data?.error || 'Export failed. Please try again.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleOpenImport = () => {
+    setOpen(false);
+    setImportResult(null);
+    setImportError('');
+    setImportProgress(0);
+    setImportTotal(0);
+    setImportInProgress(false);
+    setShowImportModal(true);
+  };
+
+  const handleImportFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setImportLoading(true);
+    setImportError('');
+    setImportProgress(0);
+    setImportTotal(0);
+    setImportInProgress(false);
+
+    try {
+      const formData = new FormData();
+      formData.append('exportFile', file);
+
+      // Upload ZIP — backend responds immediately with { total }
+      const res = await axios.post(`${backendUrl}/api/auth/import-data`, formData, {
+        withCredentials: true,
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      // Switch from spinner to live progress bar
+      setImportLoading(false);
+      setImportTotal(res.data.total);
+      setImportInProgress(true);
+
+      // Connect socket and listen for per-file progress
+      const socket = io(backendUrl, { withCredentials: true });
+
+      socket.on('importProgress', (data) => {
+        if (data.userId !== res.data.userId) return;
+        setImportProgress(data.imported + data.skipped);
+      });
+
+      socket.on('importComplete', (data) => {
+        clearTimeout(importTimeoutRef.current);
+        importTimeoutRef.current = null;
+        socket.disconnect();
+        setImportInProgress(false);
+        setImportResult(data);
+        onFilesRefresh?.();
+      });
+
+      // Safety timeout — treat as done after 10 min regardless
+      importTimeoutRef.current = setTimeout(() => {
+        socket.disconnect();
+        setImportInProgress(false);
+      }, 10 * 60 * 1000);
+
+    } catch (err) {
+      setImportLoading(false);
+      setImportError(err.response?.data?.error || 'Import failed. Please try again.');
+    }
+  };
+
+  const handleOpenDelete = () => {
+    setOpen(false); setDeleteConfirmText(''); setDeleteError(''); setShowDeleteModal(true);
+  };
+  const handleConfirmDelete = async () => {
+    if (deleteConfirmText !== 'DELETE') return;
+    setDeleteLoading(true); setDeleteError('');
+    try {
+      await axios.post(`${backendUrl}/api/auth/delete-account`, {}, { withCredentials: true });
+      setShowDeleteModal(false);
+      onLogout?.();
+    } catch (err) {
+      setDeleteError(err.response?.data?.error || 'Failed to schedule account deletion. Please try again.');
+      setDeleteLoading(false);
+    }
+  };
+
+  // ── Menu item ────────────────────────────────────────────────────────────────
+  const MenuItem = ({ IconComp, label, onClick, danger = false, disabled = false }) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150 text-left ${
+        danger
+          ? darkMode ? 'text-red-400 hover:bg-red-900/20' : 'text-red-600 hover:bg-red-50'
+          : darkMode ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-50'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+    >
+      <IconComp className="w-4 h-4 flex-shrink-0" />
+      <span>{label}</span>
+    </button>
+  );
+
+  // ── Modal header helper ──────────────────────────────────────────────────────
+  const ModalHeader = ({ IconComp, iconBg, iconColor, title, subtitle, onClose, closable = true }) => (
+    <div className={`flex items-start justify-between px-6 pt-6 pb-4 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
+          <IconComp className={`w-5 h-5 ${iconColor}`} />
+        </div>
+        <div>
+          <h2 className={`text-base font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h2>
+          {subtitle && <p className={`text-xs mt-0.5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{subtitle}</p>}
+        </div>
+      </div>
+      {closable && (
+        <button
+          onClick={onClose}
+          className={`ml-4 mt-0.5 p-1 rounded-lg transition-colors ${darkMode ? 'text-gray-500 hover:text-gray-300 hover:bg-gray-800' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'}`}
+        >
+          <Icon.X className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      {/* ── Profile dropdown ─────────────────────────────────────────────────── */}
+      <div className="relative" ref={menuRef}>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className={`flex items-center gap-2 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 ${accentRing}`}
+          aria-label="Profile menu"
+        >
+          {user?.picture ? (
+            <img
+              src={user.picture}
+              alt={user.name}
+              className={`w-9 h-9 rounded-full border-2 transition-all duration-200 ${
+                open
+                  ? darkMode ? 'border-blue-400' : 'border-red-400'
+                  : darkMode ? 'border-gray-600 hover:border-blue-400' : 'border-gray-300 hover:border-red-400'
+              }`}
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 ${
+              darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-700'
+            }`}>
+              {user?.name?.[0]?.toUpperCase() || 'U'}
+            </div>
+          )}
+          <svg
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''} ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {open && (
+          <>
+            {/* Mobile backdrop */}
+            <div className="fixed inset-0 z-40 sm:hidden" onClick={() => setOpen(false)} />
+            <div className={`
+              z-50 rounded-2xl border shadow-xl overflow-hidden
+              fixed left-1/2 -translate-x-1/2 top-16 w-[92vw]
+              sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-72 sm:translate-x-0 sm:fixed-none
+              ${darkMode ? 'bg-gray-900 border-gray-700/80 shadow-black/40' : 'bg-white border-gray-200 shadow-gray-200/80'}
+            `}>
+
+            {/* User info */}
+            <div className={`px-4 py-4 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
+              <div className="flex items-center gap-3">
+                {user?.picture ? (
+                  <img src={user.picture} alt={user.name} className="w-10 h-10 rounded-full" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-700'}`}>
+                    {user?.name?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className={`text-sm font-semibold truncate ${darkMode ? 'text-white' : 'text-gray-900'}`}>{user?.name}</p>
+                  <p className={`text-xs truncate ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{user?.email}</p>
+                </div>
+              </div>
+
+              {/* Storage bar — fixed height so dropdown never resizes */}
+              <div className="mt-3" style={{ minHeight: '52px' }}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Storage</span>
+                  <span className={`text-xs font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {driveLimit > 0
+                      ? `${formatBytes(driveTotal)} / ${formatBytes(driveLimit)}`
+                      : formatBytes(driveTotal)}
+                  </span>
+                </div>
+                {/* Single bar: total Google Drive usage against full capacity */}
+                <div className={`h-1.5 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${loadingStats ? (darkMode ? 'bg-gray-600' : 'bg-gray-300') : appBarColor}`}
+                    style={{ width: loadingStats ? '0%' : `${drivePercent}%` }}
+                  />
+                </div>
+                <div className={`mt-1.5 flex justify-between text-[10px] ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  <span>{loadingStats ? '—' : `${stats.fileCount} file${stats.fileCount !== 1 ? 's' : ''}`}</span>
+                  <span>{loadingStats ? 'Calculating…' : `${formatBytes(appUsed)} used by Airstream`}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Theme selector */}
+            <div className={`px-4 py-2.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'} relative`}>
+              <button
+                onClick={() => setShowThemeMenu(p => !p)}
+                className={`w-full flex items-center justify-between text-sm transition-colors duration-150 ${
+                  darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  {themeMode === 'dark' ? <Icon.Moon className="w-4 h-4" /> : themeMode === 'light' ? <Icon.Sun className="w-4 h-4" /> : <Icon.Monitor className="w-4 h-4" />}
+                  Theme
+                </span>
+                <span className={`flex items-center gap-1 text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  <span className="capitalize">{themeMode}</span>
+                  <svg className={`w-3.5 h-3.5 transition-transform ${showThemeMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </span>
+              </button>
+              {showThemeMenu && (
+                <div className={`mt-2 rounded-xl border overflow-hidden shadow-lg ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                  {[
+                    { mode: 'system', icon: Icon.Monitor, label: 'System' },
+                    { mode: 'dark',   icon: Icon.Moon,    label: 'Dark' },
+                    { mode: 'light',  icon: Icon.Sun,     label: 'Light' },
+                  ].map(({ mode, icon: Ic, label }) => (
+                    <button key={mode} onClick={() => handleThemeChange(mode)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
+                        themeMode === mode
+                          ? (darkMode ? 'bg-blue-600/20 text-blue-300' : 'bg-blue-50 text-blue-700 font-medium')
+                          : (darkMode ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100')
+                      }`}>
+                      <Ic className="w-4 h-4 flex-shrink-0" />
+                      {label}
+                      {themeMode === mode && <svg className="ml-auto w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Hide folder files toggle */}
+            <div className={`px-4 py-2.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
+              <button
+                onClick={() => { onHideFolderFilesToggle?.(); }}
+                className={`w-full flex items-center justify-between text-sm transition-colors duration-150 ${
+                  darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Icon.Folder className="w-4 h-4 text-blue-400" />
+                  Hide files in folders
+                </span>
+                <div className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${
+                  hideFolderFiles ? (darkMode ? 'bg-blue-600' : 'bg-blue-500') : (darkMode ? 'bg-gray-700' : 'bg-gray-300')
+                }`}>
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-200 ${
+                    hideFolderFiles ? 'translate-x-4' : 'translate-x-0.5'
+                  }`} />
+                </div>
+              </button>
+            </div>
+
+            {/* Double-click / Touch Select toggle */}
+            <div className={`px-4 py-2.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
+              <button
+                onClick={toggleTouchSelect}
+                className={`w-full flex items-center justify-between text-sm transition-colors duration-150 ${
+                  darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+                title="Double click/tap any file to select it and open the multiselect bar (enabled by default)"
+              >
+                <span className="flex items-center gap-2.5">
+                  {/* Simple Circle with Dot SVG */}
+                  <svg className="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="9" strokeWidth="2" />
+                    <circle cx="12" cy="12" r="3" fill="currentColor" />
+                  </svg>
+                  Double-click / Touch Select
+                </span>
+                <div className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${
+                  touchSelect ? (darkMode ? 'bg-blue-600' : 'bg-blue-500') : (darkMode ? 'bg-gray-700' : 'bg-gray-300')
+                }`}>
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-200 ${
+                    touchSelect ? 'translate-x-4' : 'translate-x-0.5'
+                  }`} />
+                </div>
+              </button>
+            </div>
+
+            {/* Shortcuts section */}
+            <div className={`py-1.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
+              <p className={`px-4 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Help & Shortcuts</p>
+              <MenuItem IconComp={Icon.Keyboard} label="Keyboard Shortcuts" onClick={() => { setOpen(false); setShowShortcutsModal(true); }} />
+            </div>
+
+            {/* Data section */}
+            <div className={`py-1.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
+              <p className={`px-4 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Data</p>
+              <MenuItem IconComp={Icon.Export} label="Export data" onClick={handleOpenExport} />
+              <MenuItem IconComp={Icon.Import} label="Import data" onClick={handleOpenImport} />
+              <MenuItem IconComp={Icon.Trash} label="Delete account" onClick={handleOpenDelete} danger />
+            </div>
+
+            {/* Logout */}
+            <div className="py-1.5">
+              <MenuItem IconComp={Icon.Logout} label="Sign out" onClick={handleLogout} />
+            </div>
+          </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Export Modal ──────────────────────────────────────────────────────── */}
+      <Modal open={showExportModal} onClose={() => !exportLoading && setShowExportModal(false)} darkMode={darkMode}>
+        <ModalHeader
+          IconComp={Icon.Export}
+          iconBg={darkMode ? 'bg-blue-900/40' : 'bg-blue-50'}
+          iconColor={darkMode ? 'text-blue-400' : 'text-blue-600'}
+          title="Export data"
+          subtitle="Download all your files as a ZIP archive"
+          onClose={() => !exportLoading && setShowExportModal(false)}
+          closable={false}
+        />
+
+        <div className={`px-6 py-5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          {exportDone ? (
+            <div className={`rounded-xl p-4 flex items-start gap-3 ${darkMode ? 'bg-green-900/20 border border-green-800/40' : 'bg-green-50 border border-green-200'}`}>
+              <Icon.Check className={`w-5 h-5 flex-shrink-0 mt-0.5 ${darkMode ? 'text-green-400' : 'text-green-600'}`} />
+              <div>
+                <p className={`text-sm font-semibold ${darkMode ? 'text-green-400' : 'text-green-700'}`}>Export link sent</p>
+                <p className={`text-xs mt-1 ${darkMode ? 'text-green-500/80' : 'text-green-600'}`}>
+                  Check your email — the download link expires in 24 hours.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className={`rounded-xl p-4 mb-4 space-y-3 ${darkMode ? 'bg-gray-800/60 border border-gray-700/60' : 'bg-gray-50 border border-gray-200'}`}>
+                <InfoRow icon={Icon.Mail} text="A download link will be sent to your email address" darkMode={darkMode} />
+                <InfoRow icon={Icon.FileZip} text="Contains all your uploaded files plus a manifest.json" darkMode={darkMode} />
+                <InfoRow icon={Icon.Clock} text="Link expires after 24 hours" darkMode={darkMode} />
+                <InfoRow icon={Icon.Import} text="The ZIP can be used to import data back into Airstream" darkMode={darkMode} />
+              </div>
+
+              {exportError && (
+                <p className={`text-xs mb-4 px-3 py-2.5 rounded-lg ${darkMode ? 'bg-red-900/20 text-red-400 border border-red-800/40' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                  {exportError}
+                </p>
+              )}
+            </>
+          )}
+
+          <div className="flex gap-2.5 mt-4">
+            <button
+              onClick={() => setShowExportModal(false)}
+              disabled={exportLoading}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                darkMode ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+              } disabled:opacity-50`}
+            >
+              {exportDone ? 'Close' : 'Cancel'}
+            </button>
+            {!exportDone && (
+              <button
+                onClick={handleConfirmExport}
+                disabled={exportLoading}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors flex items-center justify-center gap-2 ${
+                  darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'
+                } disabled:opacity-60`}
+              >
+                {exportLoading ? <><Spinner darkMode={darkMode} /> Sending…</> : 'Send export link'}
+              </button>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Import Modal ──────────────────────────────────────────────────────── */}
+      <Modal open={showImportModal} onClose={() => !importLoading && setShowImportModal(false)} darkMode={darkMode}>
+        <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={handleImportFileChange} />
+
+        <ModalHeader
+          IconComp={Icon.Import}
+          iconBg={darkMode ? 'bg-blue-900/40' : 'bg-blue-50'}
+          iconColor={darkMode ? 'text-blue-400' : 'text-blue-600'}
+          title="Import data"
+          subtitle="Restore files from an Airstream export ZIP"
+          onClose={() => !importLoading && setShowImportModal(false)}
+          closable={false}
+        />
+
+        <div className={`px-6 py-5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          {importLoading ? (
+            // Phase 1 — uploading the ZIP
+            <div className="text-center py-8">
+              <div className={`w-9 h-9 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-3 ${darkMode ? 'border-blue-400' : 'border-red-500'}`} />
+              <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Uploading ZIP…</p>
+              <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Preparing your files for import.</p>
+            </div>
+          ) : importInProgress ? (
+            // Phase 2 — background processing with live progress bar
+            <div className="py-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Importing files…</p>
+                <p className={`text-sm font-semibold ${darkMode ? 'text-blue-400' : 'text-red-600'}`}>
+                  {importProgress} / {importTotal}
+                </p>
+              </div>
+              <div className={`h-2.5 rounded-full overflow-hidden ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${darkMode ? 'bg-blue-500' : 'bg-red-500'}`}
+                  style={{ width: importTotal > 0 ? `${Math.round((importProgress / importTotal) * 100)}%` : '0%' }}
+                />
+              </div>
+              <p className={`text-xs mt-2 text-center ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Files are appearing in your dashboard as they import. You can close this.
+              </p>
+            </div>
+          ) : importResult ? (
+            <div className={`rounded-xl p-4 flex items-start gap-3 ${darkMode ? 'bg-green-900/20 border border-green-800/40' : 'bg-green-50 border border-green-200'}`}>
+              <Icon.Check className={`w-5 h-5 flex-shrink-0 mt-0.5 ${darkMode ? 'text-green-400' : 'text-green-600'}`} />
+              <div>
+                <p className={`text-sm font-semibold ${darkMode ? 'text-green-400' : 'text-green-700'}`}>Import complete</p>
+                <p className={`text-xs mt-1 ${darkMode ? 'text-green-500/80' : 'text-green-600'}`}>{importResult.message}</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className={`rounded-xl p-4 mb-4 space-y-3 ${darkMode ? 'bg-gray-800/60 border border-gray-700/60' : 'bg-gray-50 border border-gray-200'}`}>
+                <InfoRow icon={Icon.Import} text="Select your Airstream export ZIP file" darkMode={darkMode} />
+                <InfoRow icon={Icon.Plus} text="Files will be added to your current account" darkMode={darkMode} />
+                <InfoRow icon={Icon.Shield} text="Existing files will not be removed or replaced" darkMode={darkMode} />
+              </div>
+              {importError && (
+                <p className={`text-xs mb-4 px-3 py-2.5 rounded-lg ${darkMode ? 'bg-red-900/20 text-red-400 border border-red-800/40' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                  {importError}
+                </p>
+              )}
+            </>
+          )}
+
+          <div className="flex gap-2.5 mt-4">
+            <button
+              onClick={() => setShowImportModal(false)}
+              disabled={importLoading}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                darkMode ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+              } disabled:opacity-50`}
+            >
+              {importResult ? 'Close' : importInProgress ? 'Close' : 'Cancel'}
+            </button>
+            {!importResult && !importLoading && !importInProgress && (
+              <button
+                onClick={() => importInputRef.current?.click()}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors ${
+                  darkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                Choose ZIP file
+              </button>
+            )}
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Delete Account Modal ──────────────────────────────────────────────── */}
+      <Modal open={showDeleteModal} onClose={() => !deleteLoading && setShowDeleteModal(false)} darkMode={darkMode}>
+        <ModalHeader
+          IconComp={Icon.Warning}
+          iconBg={darkMode ? 'bg-red-900/40' : 'bg-red-50'}
+          iconColor="text-red-500"
+          title="Delete account"
+          subtitle="This action schedules permanent deletion of your account"
+          onClose={() => !deleteLoading && setShowDeleteModal(false)}
+          closable={false}
+        />
+
+        <div className={`px-6 py-5 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          <div className={`rounded-xl p-4 mb-5 space-y-3 ${darkMode ? 'bg-red-900/20 border border-red-800/40' : 'bg-red-50 border border-red-200'}`}>
+            <InfoRow
+              icon={Icon.Clock}
+              text={<>Your account will be <strong>permanently deleted in 7 days</strong></>}
+              darkMode={darkMode}
+            />
+            <InfoRow
+              icon={Icon.Refresh}
+              text="Sign back in within 7 days to cancel and restore your account"
+              darkMode={darkMode}
+            />
+            <InfoRow
+              icon={Icon.Export}
+              text="We recommend exporting your data before proceeding"
+              darkMode={darkMode}
+            />
+            <InfoRow
+              icon={Icon.Trash}
+              text="After 7 days, all files are permanently gone and unrecoverable"
+              darkMode={darkMode}
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className={`block text-xs font-medium mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Type <span className={`font-bold font-mono ${darkMode ? 'text-red-400' : 'text-red-600'}`}>DELETE</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETE"
+              disabled={deleteLoading}
+              className={`w-full px-3 py-2.5 rounded-xl text-sm border outline-none transition-colors font-mono ${
+                darkMode
+                  ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-600 focus:border-red-500'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-300 focus:border-red-500'
+              } disabled:opacity-50`}
+            />
+          </div>
+
+          {deleteError && (
+            <p className={`text-xs mb-4 px-3 py-2.5 rounded-lg ${darkMode ? 'bg-red-900/20 text-red-400 border border-red-800/40' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+              {deleteError}
+            </p>
+          )}
+
+          <div className="flex gap-2.5">
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              disabled={deleteLoading}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                darkMode ? 'bg-gray-800 hover:bg-gray-700 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+              } disabled:opacity-50`}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmDelete}
+              disabled={deleteConfirmText !== 'DELETE' || deleteLoading}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {deleteLoading ? <><div className="w-4 h-4 rounded-full border-2 border-t-transparent border-white animate-spin" /> Scheduling…</> : 'Delete my account'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Shortcuts Modal ─────────────────────────────────────────────────── */}
+      <ShortcutsModal
+        open={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
+        darkMode={darkMode}
+      />
+    </>
+  );
+};
+
+// ─── Exportable ShortcutsModal Component ──────────────────────────────────────
+export const ShortcutsModal = ({ open, onClose, darkMode }) => {
+  const [filterQuery, setFilterQuery] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  if (!open) return null;
+
+  const shortcutGroups = [
+    {
+      icon: (
+        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      ),
+      category: 'Navigation & Search',
+      items: [
+        { keys: ['/', 'Ctrl + K'], label: 'Focus Search Bar' },
+        { keys: ['G'], label: 'Toggle Grid / List View' },
+        { keys: ['T'], label: 'Toggle Dark / Light Theme' },
+        { keys: ['R'], label: 'Refresh Files' },
+        { keys: ['Esc'], label: 'Close Modal / Clear Filter' },
+      ],
+    },
+    {
+      icon: (
+        <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+      ),
+      category: 'File Operations',
+      items: [
+        { keys: ['Enter', 'V'], label: 'View Selected File' },
+        { keys: ['D'], label: 'Download Selected File' },
+        { keys: ['S'], label: 'Share Selected File' },
+        { keys: ['Delete', 'X'], label: 'Delete Selected File' },
+        { keys: ['U', 'Ctrl + U'], label: 'Upload Files' },
+      ],
+    },
+    {
+      icon: (
+        <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      category: 'Media Player Controls',
+      items: [
+        { keys: ['→'], label: 'Next Media Item' },
+        { keys: ['←'], label: 'Previous Media Item' },
+        { keys: ['Space', 'K'], label: 'Play / Pause Video or Audio' },
+        { keys: ['M'], label: 'Mute / Unmute Sound' },
+        { keys: ['J', 'L'], label: 'Skip -10s / +10s' },
+      ],
+    },
+    {
+      icon: (
+        <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      category: 'Selection & Filtering',
+      items: [
+        { keys: ['Ctrl + A'], label: 'Select All Visible Files' },
+        { keys: ['Space'], label: 'Toggle Select File' },
+        { keys: ['1'], label: 'Filter Videos' },
+        { keys: ['2'], label: 'Filter Audios' },
+        { keys: ['3'], label: 'Filter Images' },
+        { keys: ['4'], label: 'Filter Documents' },
+        { keys: ['0'], label: 'Clear Category Filters' },
+      ],
+    },
+    {
+      icon: (
+        <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      ),
+      category: 'App & Help',
+      items: [
+        { keys: ['P', 'Alt + P'], label: 'Toggle Profile Menu' },
+        { keys: ['?', 'H'], label: 'Open Keyboard Shortcuts Guide' },
+      ],
+    },
+  ];
+
+  const filteredGroups = shortcutGroups.map((group) => ({
+    ...group,
+    items: group.items.filter(
+      (item) =>
+        item.label.toLowerCase().includes(filterQuery.toLowerCase()) ||
+        item.keys.some((k) => k.toLowerCase().includes(filterQuery.toLowerCase()))
+    ),
+  })).filter((group) => group.items.length > 0);
+
+  return ReactDOM.createPortal(
+    <div
+      className="fixed inset-0 overflow-y-auto z-[99999] flex items-center justify-center p-3 sm:p-6 animate-fadeIn"
+      style={{ backgroundColor: 'rgba(8, 14, 28, 0.85)', backdropFilter: 'blur(10px)' }}
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Keyboard Shortcuts Guide"
+    >
+      <div
+        className={`relative w-full max-w-2xl rounded-3xl shadow-2xl border flex flex-col overflow-hidden transition-all duration-300 ${
+          darkMode ? 'bg-slate-900 border-white/15 text-white' : 'bg-white border-gray-200 text-gray-900'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxHeight: '88vh' }}
+      >
+        {/* Modal Header */}
+        <div className={`flex items-center justify-between px-5 sm:px-6 py-4 border-b flex-shrink-0 ${
+          darkMode ? 'border-white/10 bg-slate-950/50' : 'border-gray-100 bg-gray-50/80'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-md ${
+              darkMode ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'bg-blue-50 text-blue-600 border border-blue-200'
+            }`}>
+              <Icon.Keyboard className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold tracking-tight">Keyboard Shortcuts</h2>
+              <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                Quickly navigate and manage files on mobile & PC
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className={`p-2 rounded-xl transition-all ${
+              darkMode ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
+            }`}
+            aria-label="Close shortcuts modal"
+          >
+            <Icon.X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Filter Input Bar */}
+        <div className={`px-5 sm:px-6 py-3 border-b flex-shrink-0 ${darkMode ? 'border-white/5 bg-slate-950/20' : 'border-gray-100 bg-gray-50/50'}`}>
+          <div className="relative w-full">
+            <input
+              type="text"
+              placeholder="Search shortcuts (e.g. Search, View, Upload)..."
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              className={`w-full pl-9 pr-4 py-2 rounded-xl text-xs sm:text-sm border outline-none transition-all ${
+                darkMode
+                  ? 'bg-slate-950/60 border-white/15 text-white placeholder-gray-500 focus:border-blue-500'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-600'
+              }`}
+            />
+            <svg className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Shortcut Groups Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 custom-scrollbar">
+          {filteredGroups.length === 0 ? (
+            <div className="text-center py-10 text-xs sm:text-sm opacity-60">
+              No shortcuts found matching "{filterQuery}"
+            </div>
+          ) : (
+            filteredGroups.map((group, idx) => (
+              <div key={idx} className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  {group.icon}
+                  <h3 className={`text-xs font-bold uppercase tracking-wider ${
+                    darkMode ? 'text-blue-400' : 'text-blue-600'
+                  }`}>
+                    {group.category}
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                  {group.items.map((item, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl border transition-all ${
+                        darkMode
+                          ? 'bg-slate-950/40 border-white/10 hover:border-white/20'
+                          : 'bg-gray-50/80 border-gray-200/80 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className={`text-xs font-medium ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                        {item.label}
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        {item.keys.map((k, ki) => (
+                          <kbd
+                            key={ki}
+                            className={`px-2 py-1 rounded-lg text-[11px] font-mono font-bold border shadow-sm ${
+                              darkMode
+                                ? 'bg-slate-800 border-white/20 text-blue-300'
+                                : 'bg-white border-gray-300 text-gray-700'
+                            }`}
+                          >
+                            {k}
+                          </kbd>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Modal Footer */}
+        <div className={`px-6 py-3 border-t text-center flex-shrink-0 ${darkMode ? 'border-white/10 bg-slate-950/50' : 'border-gray-100 bg-gray-50/80'}`}>
+          <p className={`text-[11px] ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            Tip: Press <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-600/30 text-blue-300 border border-blue-500/30">?</kbd> anywhere in the app to view this guide
+          </p>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
+export default ProfileMenu;

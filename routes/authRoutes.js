@@ -56,7 +56,13 @@ const archiver = require('archiver');
 const AdmZip = require('adm-zip');
 const { v4: uuidv4 } = require('uuid');
 const { authLimiter } = require('../middleware/rateLimitMiddleware');
-const { sendWelcomeEmail, sendExportEmail, sendDeletionEmail } = require('../services/emailService');
+const {
+  sendWelcomeEmail,
+  sendExportEmail,
+  sendDeletionEmail,
+  sendNewIpAlertEmail,
+  sendNewDeviceAlertEmail,
+} = require('../services/emailService');
 const { safeObjectId } = require('../utils/driveUtils');
 const {
   uploadFileToDrive,
@@ -304,7 +310,32 @@ router.post('/google', authLimiter, async (req, res) => {
       user.email   = email;
     }
 
-    // ── Issue short-lived JWT (15 min) + rotating refresh token ─────────────
+    // ── Security Tracking: Extract IP & Device User-Agent ──
+    const rawIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1').split(',')[0].trim();
+    const userAgent = req.headers['user-agent'] || 'Unknown Device';
+
+    if (user.lastLoginIp && user.lastLoginIp !== rawIp) {
+      sendNewIpAlertEmail(user, rawIp, userAgent).catch((e) =>
+        console.error('[Security Email] New IP alert failed:', e.message)
+      );
+    }
+
+    const knownDevices = user.knownDevices || [];
+    if (userAgent && !knownDevices.includes(userAgent)) {
+      sendNewDeviceAlertEmail(user, 'New Device/Browser', userAgent, rawIp).catch((e) =>
+        console.error('[Security Email] New device alert failed:', e.message)
+      );
+    }
+
+    await db.collection('users').updateOne(
+      { googleId },
+      {
+        $set: { lastLoginIp: rawIp, updatedAt: new Date() },
+        $addToSet: { knownDevices: userAgent },
+      }
+    );
+
+    // ── Issue JWT + Refresh Token (30 Days if Remember Me, 45 Mins if Not) ──
     const currentTokenVersion = user.tokenVersion ?? 0;
     const tokenPayload = {
       userId:       user._id.toString(),
@@ -315,14 +346,20 @@ router.post('/google', authLimiter, async (req, res) => {
       tokenVersion: currentTokenVersion,
     };
 
-    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '15m' });
-    res.cookie('airstream_session', token, cookieOptions(rememberMe));
+    const tokenExpiry = rememberMe ? '30d' : '45m';
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: tokenExpiry });
+    const sessionCookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 45 * 60 * 1000;
+
+    res.cookie('airstream_session', token, {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge:   sessionCookieMaxAge,
+    });
 
     // Issue refresh token
     const refreshTokenValue = uuidv4();
-    const refreshExpiresAt = new Date(
-      Date.now() + (rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000)
-    );
+    const refreshExpiresAt = new Date(Date.now() + sessionCookieMaxAge);
     await db.collection('refresh_tokens').insertOne({
       token:     refreshTokenValue,
       userId:    user._id.toString(),
@@ -330,7 +367,12 @@ router.post('/google', authLimiter, async (req, res) => {
       expiresAt: refreshExpiresAt,
       used:      false,
     });
-    res.cookie('airstream_refresh', refreshTokenValue, cookieOptions(rememberMe));
+    res.cookie('airstream_refresh', refreshTokenValue, {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge:   sessionCookieMaxAge,
+    });
 
     return res.json({
       success: true,
@@ -642,23 +684,42 @@ router.post('/export-data', authLimiter, async (req, res) => {
       return res.status(err.status || 401).json({ error: err.message });
     }
 
-    // Rate-limit: one pending export at a time (created in last hour)
-    const recentExport = await db.collection('export_tokens').findOne({
+    // ── Export Limits: Max 3 per day (24h) + 8-hour cooldown ──
+    const last24hCount = await db.collection('export_tokens').countDocuments({
       userId: decoded.userId,
-      createdAt: { $gt: new Date(Date.now() - 60 * 60 * 1000) },
+      createdAt: { $gt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
     });
-    if (recentExport) {
+
+    if (last24hCount >= 3) {
       return res.status(429).json({
-        error: 'An export was already requested in the last hour. Please check your email.',
+        error: 'Daily export limit reached (maximum 3 exports per 24 hours). Please try again tomorrow.',
+      });
+    }
+
+    // 8-hour Cooldown: If an export was created in the last 8 hours, resend existing link
+    const recent8hExport = await db.collection('export_tokens').findOne({
+      userId: decoded.userId,
+      createdAt: { $gt: new Date(Date.now() - 8 * 60 * 60 * 1000) },
+      used: false,
+    });
+
+    if (recent8hExport) {
+      const existingDownloadUrl = `${process.env.BACKEND_URL}/api/auth/export-download/${recent8hExport.token}`;
+      sendExportEmail(
+        { email: decoded.email, name: decoded.name },
+        existingDownloadUrl,
+        recent8hExport.expiresAt
+      ).catch((e) => console.error('[Export Email] Cooldown email error:', e.message));
+
+      return res.json({
+        success: true,
+        message: 'An export link generated in the last 8 hours was resent to your email.',
       });
     }
 
     const exportToken = uuidv4();
-    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72 hours
-
-    // [SEC-03] 96-char random key embedded in the ZIP manifest and verified on
-    // import, proving the ZIP was produced by this server and not forged.
-    const exportKey = crypto.randomBytes(48).toString('hex'); // 48 bytes => 96 hex chars
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000);
+    const exportKey = crypto.randomBytes(48).toString('hex');
 
     await db.collection('export_tokens').insertOne({
       token: exportToken,
@@ -672,11 +733,14 @@ router.post('/export-data', authLimiter, async (req, res) => {
 
     const downloadUrl = `${process.env.BACKEND_URL}/api/auth/export-download/${exportToken}`;
 
-    await sendExportEmail(
-      { email: decoded.email, name: decoded.name },
-      downloadUrl,
-      expiresAt
-    );
+    // Background processing
+    setImmediate(() => {
+      sendExportEmail(
+        { email: decoded.email, name: decoded.name },
+        downloadUrl,
+        expiresAt
+      ).catch((e) => console.error('[Export Email] Async send error:', e.message));
+    });
 
     return res.json({ success: true });
   } catch (error) {

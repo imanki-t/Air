@@ -345,4 +345,83 @@ const sendDeletionEmail = (user, recoveryDeadline) => {
   });
 };
 
-module.exports = { sendEmail, sendWelcomeEmail, sendExportEmail, sendDeletionEmail };
+// ─────────────────────────────────────────────────────────────────────────────
+// Security: New IP detected email
+// ─────────────────────────────────────────────────────────────────────────────
+const sendNewIpAlertEmail = (user, ip, userAgent) => {
+  const timeStr = new Date().toLocaleString('en-US', { timeZoneName: 'short' });
+  return sendEmail({
+    to: user.email,
+    subject: 'Security Alert: New IP address signed in to your Airstream account',
+    html: shell({
+      subtitle: 'Security Alert — New IP Detected',
+      accentColor: '#d97706',
+      accentDark: '#b45309',
+      body: `
+        <p>Hey <strong>${escHtml(user.name) || 'there'}</strong>,</p>
+        <p>We detected a sign-in to your Airstream account from a new IP address.</p>
+        <div class="banner banner-warn">
+          <div class="bicon">${svg.warning}</div>
+          <div class="btext">New IP Address: <strong>${escHtml(ip)}</strong></div>
+        </div>
+        <p class="section-label">Sign-In Details</p>
+        <div class="info-grid">
+          ${infoRow(svg.profile, `<strong>Account:</strong> ${escHtml(user.email)}`)}
+          ${infoRow(svg.link,    `<strong>IP Address:</strong> ${escHtml(ip)}`)}
+          ${infoRow(svg.clock,   `<strong>Time:</strong> ${escHtml(timeStr)}`)}
+          ${infoRow(svg.file,    `<strong>Browser / App:</strong> ${escHtml(userAgent || 'Unknown device')}`)}
+        </div>
+        <p style="color:#94a3b8;font-size:13.5px;">If this was you, you can safely ignore this alert. If you did not sign in recently, please secure your account immediately.</p>
+        <div class="divider"></div>
+        <div class="footer">
+          <p>Security notification sent to: <strong style="color:#64748b;">${escHtml(user.email)}</strong></p>
+        </div>
+      `,
+    }),
+  });
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Security: New Device detected email
+// ─────────────────────────────────────────────────────────────────────────────
+const sendNewDeviceAlertEmail = (user, deviceName, userAgent, ip) => {
+  const timeStr = new Date().toLocaleString('en-US', { timeZoneName: 'short' });
+  return sendEmail({
+    to: user.email,
+    subject: 'Security Alert: New device logged in to your Airstream account',
+    html: shell({
+      subtitle: 'Security Alert — New Device Logged In',
+      accentColor: '#dc2626',
+      accentDark: '#991b1b',
+      body: `
+        <p>Hey <strong>${escHtml(user.name) || 'there'}</strong>,</p>
+        <p>A new device was used to log into your Airstream account.</p>
+        <div class="banner banner-danger">
+          <div class="bicon">${svg.warning}</div>
+          <div class="btext">Device: <strong>${escHtml(deviceName || 'Unknown Device')}</strong></div>
+        </div>
+        <p class="section-label">Login Details</p>
+        <div class="info-grid">
+          ${infoRow(svg.profile, `<strong>User:</strong> ${escHtml(user.name || user.email)}`)}
+          ${infoRow(svg.file,    `<strong>Device / User-Agent:</strong> ${escHtml(userAgent || 'Unknown')}`)}
+          ${infoRow(svg.link,    `<strong>IP Address:</strong> ${escHtml(ip || 'Unknown')}`)}
+          ${infoRow(svg.clock,   `<strong>Timestamp:</strong> ${escHtml(timeStr)}`)}
+        </div>
+        <p style="color:#94a3b8;font-size:13.5px;">If you recognize this device, no action is needed. If you did not log in from this device, please protect your Google account immediately.</p>
+        <div class="divider"></div>
+        <div class="footer">
+          <p>Security notification sent to: <strong style="color:#64748b;">${escHtml(user.email)}</strong></p>
+        </div>
+      `,
+    }),
+  });
+};
+
+module.exports = {
+  sendEmail,
+  sendWelcomeEmail,
+  sendExportEmail,
+  sendDeletionEmail,
+  sendNewIpAlertEmail,
+  sendNewDeviceAlertEmail,
+};

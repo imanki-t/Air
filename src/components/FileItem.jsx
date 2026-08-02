@@ -385,8 +385,9 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
     return h ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
   };
 
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const bufferPercent = duration > 0 ? (buffered / duration) * 100 : 0;
+  const durationVal = duration || (videoRef.current ? videoRef.current.duration : 0);
+  const progressPercent = durationVal > 0 ? Math.min(100, Math.max(0, (currentTime / durationVal) * 100)) : 0;
+  const bufferPercent = durationVal > 0 ? Math.min(100, Math.max(0, (buffered / durationVal) * 100)) : 0;
 
   // Decide if we should omit crossOrigin for direct Drive URLs to avoid CORS block
   const isDirectDrive = videoUrl && videoUrl.includes('googleapis.com');
@@ -581,7 +582,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                 </button>
 
                 {showSpeedMenu && (
-                  <div className="absolute bottom-full right-0 mb-2 w-32 rounded-xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl overflow-hidden z-40 shadow-2xl">
+                  <div className="absolute bottom-full right-0 mb-2 w-32 rounded-xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl overflow-hidden z-40 shadow-2xl animate-slideUpFluid origin-bottom-right">
                     {SPEEDS.map((s) => (
                       <button
                         key={s}
@@ -756,36 +757,8 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
 
   const autoPlayPendingRef = useRef(false);
 
-  // ── Web Audio API Sound Frequency & Loudness Analyzer ──
-  const initWebAudio = () => {
-    if (!audioRef.current || analyserRef.current) return;
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = audioCtxRef.current || new AudioCtx();
-      audioCtxRef.current = ctx;
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 64; // 32 frequency bands
-      analyser.smoothingTimeConstant = 0.8;
-      analyserRef.current = analyser;
-
-      if (!sourceRef.current) {
-        const source = ctx.createMediaElementSource(audioRef.current);
-        sourceRef.current = source;
-        source.connect(analyser);
-        analyser.connect(ctx.destination);
-      }
-    } catch (err) {
-      console.warn("Web Audio API CORS/Initialization:", err.message);
-    }
-  };
-
   const togglePlay = () => {
     if (!audioRef.current) return;
-    initWebAudio();
     if (audioRef.current.paused) {
       autoPlayPendingRef.current = true;
       setPlaying(true);
@@ -830,11 +803,15 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
       const barCount = Math.floor(width / (barWidth + gap));
       const dataArray = new Uint8Array(barCount);
 
-      if (analyserRef.current && playing) {
-        analyserRef.current.getByteFrequencyData(dataArray);
-      } else if (playing) {
+      if (playing) {
+        const time = Date.now() * 0.007 * speed;
         for (let i = 0; i < barCount; i++) {
-          dataArray[i] = 15 + Math.abs(Math.sin(i * 0.15 + Date.now() * 0.005)) * 60 + Math.random() * 10;
+          const wave1 = Math.sin(i * 0.22 + time * 1.5);
+          const wave2 = Math.cos(i * 0.35 - time * 2.1);
+          const wave3 = Math.sin(i * 0.12 + time * 0.9);
+          const norm = (wave1 + wave2 + wave3 + 3) / 6;
+          const volMult = muted ? 0 : volume;
+          dataArray[i] = Math.min(255, (25 + norm * 200 + Math.random() * 15) * volMult);
         }
       } else {
         for (let i = 0; i < barCount; i++) {
@@ -844,12 +821,12 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
 
       for (let i = 0; i < barCount; i++) {
         const val = dataArray[i];
-        const barHeight = Math.max(4, (val / 255) * height * 1.2);
+        const barHeight = Math.max(4, (val / 255) * height * 1.25);
         const x = i * (barWidth + gap);
         const y = height - barHeight;
 
         const grad = ctx.createLinearGradient(0, y, 0, height);
-        grad.addColorStop(0, '#60a5fa');
+        grad.addColorStop(0, '#38bdf8');
         grad.addColorStop(0.5, '#3b82f6');
         grad.addColorStop(1, '#1d4ed8');
         ctx.fillStyle = grad;
@@ -862,7 +839,7 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
 
     render();
     return () => cancelAnimationFrame(animationRef.current);
-  }, [playing]);
+  }, [playing, volume, muted, speed]);
 
   const handleTimeUpdate = () => {
     if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
@@ -1008,7 +985,7 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
                 {speed === 1 ? '1.0x' : `${speed}x`}
               </button>
               {showSpeedMenu && (
-                <div className="absolute bottom-full right-0 mb-2 w-28 rounded-xl bg-slate-950 border border-white/15 shadow-2xl overflow-hidden z-40 backdrop-blur-2xl">
+                <div className="absolute bottom-full right-0 mb-2 w-28 rounded-xl bg-slate-950/95 border border-white/15 shadow-2xl overflow-hidden z-40 backdrop-blur-2xl animate-slideUpFluid origin-bottom-right">
                   {SPEEDS.map((s) => (
                     <button
                       key={s}
@@ -1366,6 +1343,11 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     if (selectionMode) {
       e.preventDefault();
       onSelect(file._id);
+      return;
+    }
+    if (isTouchSelectEnabled()) {
+      e.preventDefault();
+      onSelect(file._id);
     }
   };
 
@@ -1375,11 +1357,9 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   };
 
   const handleDoubleClick = (e) => {
-    if (isTouchSelectEnabled()) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (onSelect) onSelect(file._id);
-    }
+    e.preventDefault();
+    e.stopPropagation();
+    if (onSelect) onSelect(file._id);
   };
 
   const handleTouchEnd = (e) => {

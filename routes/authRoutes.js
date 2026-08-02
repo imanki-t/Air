@@ -383,6 +383,7 @@ router.post('/google', authLimiter, async (req, res) => {
         picture,
         darkMode:        user.darkMode || false,
         hideFolderFiles: user.hideFolderFiles || false,
+        touchSelect:     user.touchSelect || false,
         themeMode:       user.themeMode || 'system',
         driveConnected:  !!(tokens.refresh_token || user.googleDriveRefreshToken),
       },
@@ -420,6 +421,7 @@ router.get('/me', async (req, res) => {
       picture: user.picture,
       darkMode: user.darkMode || false,
       hideFolderFiles: user.hideFolderFiles || false,
+      touchSelect: user.touchSelect || false,
       themeMode: user.themeMode || 'system',
       driveConnected: !!user.googleDriveRefreshToken,
     });
@@ -567,11 +569,12 @@ router.patch('/preferences', async (req, res) => {
       return res.status(err.status || 401).json({ error: err.message });
     }
 
-    const { darkMode, hideFolderFiles, themeMode } = req.body;
+    const { darkMode, hideFolderFiles, themeMode, touchSelect } = req.body;
 
     const updates = { updatedAt: new Date() };
     if (typeof darkMode === 'boolean') updates.darkMode = darkMode;
     if (typeof hideFolderFiles === 'boolean') updates.hideFolderFiles = hideFolderFiles;
+    if (typeof touchSelect === 'boolean') updates.touchSelect = touchSelect;
     if (typeof themeMode === 'string' && ['system','dark','light'].includes(themeMode)) updates.themeMode = themeMode;
 
     if (Object.keys(updates).length === 1) {

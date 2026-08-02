@@ -283,6 +283,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 
   // Decide if we should omit crossOrigin for direct Drive URLs to avoid CORS block
   const isDirectDrive = videoUrl && videoUrl.includes('googleapis.com');
+  const hasStreamToken = videoUrl && videoUrl.includes('?st=');
+  const needsCredentials = !isDirectDrive && !hasStreamToken;
 
   return (
     <div className="relative w-full flex flex-col items-center justify-center">
@@ -304,7 +306,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
           <video
             ref={videoRef}
             src={videoUrl}
-            {...(!isDirectDrive ? { crossOrigin: 'use-credentials' } : {})}
+            {...(needsCredentials ? { crossOrigin: 'use-credentials' } : {})}
             preload="auto"
             className="w-full h-full object-contain"
             onTimeUpdate={handleTimeUpdate}
@@ -536,7 +538,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 };
 
 // ─── Custom Liquid Glass Audio Dashboard Player with Real Visualizer ────────────
-const CustomAudioPlayer = ({ src, filename, fileSize }) => {
+const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
   const audioRef = useRef(null);
   const canvasRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -544,6 +546,9 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
   const sourceRef = useRef(null);
   const speedRef = useRef(null);
   const animationRef = useRef(null);
+
+  const [audioUrl, setAudioUrl] = useState(src);
+  const [usingFallback, setUsingFallback] = useState(false);
 
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -598,6 +603,21 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  useEffect(() => {
+    setAudioUrl(src);
+    setUsingFallback(false);
+  }, [src]);
+
+  const handleAudioError = useCallback(() => {
+    if (!usingFallback && fallbackSrc && audioUrl !== fallbackSrc) {
+      console.warn('Audio direct stream failed. Falling back to proxy URL...');
+      setUsingFallback(true);
+      setAudioUrl(fallbackSrc);
+    } else {
+      console.error('Audio player encountered an unrecoverable error.');
+    }
+  }, [usingFallback, fallbackSrc, audioUrl]);
 
   const togglePlay = () => {
     if (!audioRef.current) return;
@@ -739,7 +759,9 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
   };
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const isDirectDrive = src && src.includes('googleapis.com');
+  const isDirectDrive = audioUrl && audioUrl.includes('googleapis.com');
+  const hasStreamToken = audioUrl && audioUrl.includes('?st=');
+  const needsCredentials = !isDirectDrive && !hasStreamToken;
 
   return (
     <div className="w-full max-w-[460px] bg-slate-900/80 border border-white/15 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl relative select-none flex flex-col gap-5">
@@ -875,14 +897,15 @@ const CustomAudioPlayer = ({ src, filename, fileSize }) => {
 
       <audio
         ref={audioRef}
-        src={src}
-        {...(!isDirectDrive ? { crossOrigin: 'use-credentials' } : {})}
+        src={audioUrl}
+        {...(needsCredentials ? { crossOrigin: 'use-credentials' } : {})}
         onTimeUpdate={handleTimeUpdate}
         onDurationChange={() => audioRef.current && setDuration(audioRef.current.duration)}
         onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration)}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
+        onError={handleAudioError}
       />
     </div>
   );
@@ -901,6 +924,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [showViewer, setShowViewer] = useState(false);
   const [streamUrl, setStreamUrl] = useState(null);
+  const [proxyUrl, setProxyUrl] = useState(null);
 
   const menuRef = useRef(null);
   const shareModalRef = useRef(null);
@@ -1032,12 +1056,14 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   const openViewer = async () => {
     setShowMenu(false);
     setStreamUrl(null);
+    setProxyUrl(null);
     setShowViewer(true);
     const type = file.metadata?.type;
     if (type === 'video' || type === 'audio') {
       try {
         const res = await axios.get(`${backendUrl}/api/files/stream-url/${file._id}`);
         if (res.data?.url) setStreamUrl(res.data.url);
+        if (res.data?.proxyUrl) setProxyUrl(res.data.proxyUrl);
       } catch (err) {
         console.warn('Could not retrieve direct stream URL, falling back to secure preview proxy:', err.message);
       }
@@ -1380,14 +1406,15 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                   )}
                   {type === 'video' && (
                     <CustomVideoPlayer 
-                      src={streamUrl || previewUrl} 
-                      fallbackSrc={previewUrl} 
+                      src={streamUrl || proxyUrl || previewUrl} 
+                      fallbackSrc={proxyUrl || previewUrl} 
                       filename={file.filename} 
                     />
                   )}
                   {type === 'audio' && (
                     <CustomAudioPlayer 
-                      src={streamUrl || previewUrl} 
+                      src={streamUrl || proxyUrl || previewUrl} 
+                      fallbackSrc={proxyUrl || previewUrl} 
                       filename={file.filename} 
                       fileSize={file.length} 
                     />

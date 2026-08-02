@@ -435,39 +435,6 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
     }
   };
 
-  const toggleMute = () => {
-    if (!videoRef.current) return;
-    const nextMute = !muted;
-    setMuted(nextMute);
-    videoRef.current.muted = nextMute;
-  };
-
-  const toggleFS = () => {
-    if (!document.fullscreenElement) {
-      wrapRef.current?.requestFullscreen?.().then(() => {
-        applyOrientation(forcedOrientation);
-      }).catch(() => {});
-    } else {
-      document.exitFullscreen?.().then(() => {
-        if (typeof window !== 'undefined' && window.screen && window.screen.orientation && window.screen.orientation.unlock) {
-          try { window.screen.orientation.unlock(); } catch (_) {}
-        }
-      }).catch(() => {});
-    }
-  };
-
-  const togglePiP = async () => {
-    try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-      } else if (videoRef.current && document.pictureInPictureEnabled) {
-        await videoRef.current.requestPictureInPicture();
-      }
-    } catch (e) {
-      console.warn("Picture-in-picture failed:", e);
-    }
-  };
-
   const handleSpeedSelect = (s) => {
     setSpeed(s);
     setShowSettingsMenu(false);
@@ -943,39 +910,6 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize, thumbnail }) 
     };
   }, []);
 
-  const handleKeyDown = useCallback((e) => {
-    if (!audioRef.current) return;
-    const key = e.key.toLowerCase();
-    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
-
-    if (key === ' ' || key === 'k') {
-      e.preventDefault(); e.stopPropagation();
-      togglePlay();
-    } else if (key === 'm') {
-      e.preventDefault(); e.stopPropagation();
-      toggleMute();
-    } else if (e.key === 'ArrowRight') {
-      e.preventDefault(); e.stopPropagation();
-      seekRelative(5);
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault(); e.stopPropagation();
-      seekRelative(-5);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault(); e.stopPropagation();
-      adjustVolume(0.1);
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault(); e.stopPropagation();
-      adjustVolume(-0.1);
-    } else if (e.key !== 'Escape') {
-      e.stopPropagation();
-    }
-  }, [volume, muted]);
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown, { capture: true });
-    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [handleKeyDown]);
-
   const autoPlayPendingRef = useRef(false);
 
   const togglePlay = useCallback(() => {
@@ -1142,13 +1076,6 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize, thumbnail }) 
       audioRef.current.volume = v;
       audioRef.current.muted = (v === 0);
     }
-  };
-
-  const toggleMute = () => {
-    if (!audioRef.current) return;
-    const nextMuted = !muted;
-    setMuted(nextMuted);
-    audioRef.current.muted = nextMuted;
   };
 
   const handleSpeedSelect = (s) => {

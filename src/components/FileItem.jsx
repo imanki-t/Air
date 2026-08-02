@@ -1,9 +1,44 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
 
 // Utility for conditional class names
 const cn = (...classes) => classes.filter(Boolean).join(' ');
+
+// Error Boundary for Media Player to prevent uncaught white screen crashes
+class MediaViewerErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("MediaViewerErrorBoundary caught an error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed inset-0 z-[9999] bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center select-none" style={{ background: 'rgba(8,14,28,0.98)' }}>
+          <div className="max-w-md w-full bg-slate-900 border border-white/15 p-6 rounded-3xl shadow-2xl flex flex-col items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center font-bold text-xl">✕</div>
+            <h3 className="text-base font-bold text-white">Playback Error</h3>
+            <p className="text-xs text-white/60">An unexpected rendering issue occurred while initializing the media viewer.</p>
+            <button
+              onClick={() => this.props.onClose && this.props.onClose()}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all shadow-lg"
+            >
+              Close Viewer
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Robust file type detector (handles metadata, direct type, mimetype, and file extension)
 const getFileType = (f) => {
@@ -1817,64 +1852,70 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       {showViewer && (() => {
         const type = getFileType(file);
         if (type !== 'video' && type !== 'audio' && type !== 'image') return null;
-        const previewUrl = `${backendUrl}/api/files/preview/${file._id}`;
-        return (
-          <div className="fixed inset-0 z-[80] animate-fadeIn flex flex-col touch-none overscroll-none bg-slate-950 text-white" style={{ background: 'rgba(8,14,28,0.96)', backdropFilter: 'blur(10px)' }} onClick={() => setShowViewer(false)} onTouchMove={(e) => e.preventDefault()} role="dialog" aria-modal="true" aria-label={`Viewing ${file.filename}`}>
-            <div className="flex flex-col h-full w-full bg-slate-950 text-white">
-              {/* Header Bar */}
-              <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-4 border-b border-white/5 bg-slate-950/40 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                  <span className={cn('flex-shrink-0 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 sm:px-2.5 sm:py-1 rounded border', type === 'image' ? 'bg-blue-600/20 border-blue-500/40 text-blue-300' : type === 'video' ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300' : 'bg-sky-600/20 border-sky-500/40 text-sky-300')}>
-                    {type}
-                  </span>
-                  <h2 className="text-white/90 text-xs sm:text-sm font-semibold truncate" title={file.filename}>{file.filename}</h2>
+        const safeBackendUrl = backendUrl || '';
+        const previewUrl = `${safeBackendUrl}/api/files/preview/${file._id}`;
+        
+        return ReactDOM.createPortal(
+          <MediaViewerErrorBoundary onClose={() => setShowViewer(false)}>
+            <div className="fixed inset-0 z-[9999] animate-fadeIn flex flex-col touch-none overscroll-none bg-slate-950 text-white" style={{ background: 'rgba(8,14,28,0.96)', backdropFilter: 'blur(10px)' }} onClick={() => setShowViewer(false)} onTouchMove={(e) => e.preventDefault()} role="dialog" aria-modal="true" aria-label={`Viewing ${file.filename}`}>
+              <div className="flex flex-col h-full w-full bg-slate-950 text-white">
+                {/* Header Bar */}
+                <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-4 border-b border-white/5 bg-slate-950/40 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                    <span className={cn('flex-shrink-0 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 sm:px-2.5 sm:py-1 rounded border', type === 'image' ? 'bg-blue-600/20 border-blue-500/40 text-blue-300' : type === 'video' ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300' : 'bg-sky-600/20 border-sky-500/40 text-sky-300')}>
+                      {type}
+                    </span>
+                    <h2 className="text-white/90 text-xs sm:text-sm font-semibold truncate" title={file.filename}>{file.filename}</h2>
+                  </div>
+                  <button onClick={() => setShowViewer(false)} className="flex-shrink-0 ml-2 p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all" aria-label="Close viewer" title="Close (Esc)">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
                 </div>
-                <button onClick={() => setShowViewer(false)} className="flex-shrink-0 ml-2 p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all" aria-label="Close viewer" title="Close (Esc)">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
 
-              {/* Main Content Area — Clicking anywhere outside media container closes viewer */}
-              <div className="flex-1 flex items-center justify-center overflow-hidden p-2 sm:p-4 cursor-pointer" onClick={() => setShowViewer(false)}>
-                <div className="w-full max-w-3xl sm:max-w-4xl max-h-full cursor-default flex items-center justify-center">
-                  {isMediaLoading ? (
-                    <div onClick={(e) => e.stopPropagation()} className="flex flex-col items-center justify-center gap-3 p-8 bg-slate-950/60 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl">
-                      <svg className="animate-spin h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      <span className="text-xs font-bold tracking-widest text-blue-400">INITIALIZING FAST STREAM...</span>
-                    </div>
-                  ) : (
-                    <>
-                      {type === 'image' && (
-                        <ImageViewerContainer src={previewUrl} filename={file.filename} />
-                      )}
-                      {type === 'video' && (
-                        <CustomVideoPlayer 
-                          src={proxyUrl || previewUrl || streamUrl} 
-                          fallbackSrc={previewUrl} 
-                          filename={file.filename} 
-                        />
-                      )}
-                      {type === 'audio' && (
-                        <CustomAudioPlayer 
-                          src={proxyUrl || previewUrl || streamUrl} 
-                          fallbackSrc={previewUrl} 
-                          filename={file.filename} 
-                          fileSize={file.length} 
-                        />
-                      )}
-                    </>
-                  )}
+                {/* Main Content Area — Clicking anywhere outside media container closes viewer */}
+                <div className="flex-1 flex items-center justify-center overflow-hidden p-2 sm:p-4 cursor-pointer" onClick={() => setShowViewer(false)}>
+                  <div className="w-full max-w-3xl sm:max-w-4xl max-h-full cursor-default flex items-center justify-center">
+                    {isMediaLoading ? (
+                      <div onClick={(e) => e.stopPropagation()} className="flex flex-col items-center justify-center gap-3 p-8 bg-slate-950/60 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl">
+                        <svg className="animate-spin h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <span className="text-xs font-bold tracking-widest text-blue-400">INITIALIZING FAST STREAM...</span>
+                      </div>
+                    ) : (
+                      <>
+                        {type === 'image' && (
+                          <ImageViewerContainer src={previewUrl} filename={file.filename} />
+                        )}
+                        {type === 'video' && (
+                          <CustomVideoPlayer 
+                            src={proxyUrl || previewUrl || streamUrl} 
+                            fallbackSrc={previewUrl} 
+                            filename={file.filename} 
+                          />
+                        )}
+                        {type === 'audio' && (
+                          <CustomAudioPlayer 
+                            src={proxyUrl || previewUrl || streamUrl} 
+                            fallbackSrc={previewUrl} 
+                            filename={file.filename} 
+                            fileSize={file.length} 
+                            thumbnail={file.metadata?.thumbnail || file.thumbnail || file.poster || file.albumArt || file.metadata?.cover}
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex-shrink-0 pb-2.5 sm:pb-3 text-center pointer-events-none">
-                <p className="text-white/30 text-[11px] font-medium tracking-wide">Press ESC or click outside container to close</p>
+                <div className="flex-shrink-0 pb-2.5 sm:pb-3 text-center pointer-events-none">
+                  <p className="text-white/30 text-[11px] font-medium tracking-wide">Press ESC or click outside container to close</p>
+                </div>
               </div>
             </div>
-          </div>
+          </MediaViewerErrorBoundary>,
+          document.body
         );
       })()}
 

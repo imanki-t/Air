@@ -176,6 +176,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const [buffered, setBuffered] = useState(0);
   const [showCtrl, setShowCtrl] = useState(true);
   const [speed, setSpeed] = useState(1);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [activeSettingsView, setActiveSettingsView] = useState('main');
   const [isLooping, setIsLooping] = useState(false);

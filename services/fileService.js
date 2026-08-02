@@ -330,8 +330,11 @@ const previewFile = async (req, res) => {
 
     res.setHeader('Content-Type', servedContentType);
     res.setHeader('Cache-Control', 'private, max-age=86400');
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const allowedOrigin = process.env.FRONTEND_URL || '*';
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Authorization');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
 
     // ── HTTP Range request handling (required for video/audio on mobile) ────
     // Always advertise range support so the browser knows it can seek.
@@ -417,8 +420,16 @@ const getVideoStreamUrl = async (req, res) => {
     } catch (e) {
       console.warn("Direct stream URL failed (non-fatal), falling back to proxy stream:", e.message);
     }
+    // Generate a short-lived stream token so <video>/<audio> tags can authenticate
+    // via URL parameter instead of cookies (which fail cross-origin).
+    const jwt = require('jsonwebtoken');
+    const streamToken = jwt.sign(
+      { userId: ownerUserId, fileId },
+      process.env.JWT_SECRET,
+      { expiresIn: '2h', algorithm: 'HS256' }
+    );
     const backendUrl = process.env.BACKEND_URL || '';
-    const proxyUrl = `${backendUrl}/api/files/preview/${fileId}`;
+    const proxyUrl = `${backendUrl}/api/files/preview/${fileId}?st=${streamToken}`;
     res.json({ url, proxyUrl });
   } catch (error) {
     console.error('getVideoStreamUrl error:', error);

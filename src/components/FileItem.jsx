@@ -187,6 +187,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const [hoverTime, setHoverTime] = useState(null);
   const [hoverPos, setHoverPos] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
 
   // Quick skip ripple animations
   const [leftRipple, setLeftRipple] = useState(false);

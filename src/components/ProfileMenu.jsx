@@ -208,6 +208,16 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
 
   // Shortcuts Modal
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [touchSelect, setTouchSelect] = useState(() => {
+    return localStorage.getItem('airstream_touch_select') === 'true';
+  });
+
+  const toggleTouchSelect = () => {
+    const next = !touchSelect;
+    setTouchSelect(next);
+    localStorage.setItem('airstream_touch_select', String(next));
+    window.dispatchEvent(new Event('storage'));
+  };
 
   // Delete
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -543,6 +553,27 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
                 </span>
                 <div className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${hideFolderFiles ? (darkMode ? 'bg-blue-600' : 'bg-red-500') : 'bg-gray-300'}`}>
                   <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${hideFolderFiles ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                </div>
+              </button>
+            </div>
+
+            {/* Double-click / Touch Select toggle */}
+            <div className={`px-4 py-2.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
+              <button
+                onClick={toggleTouchSelect}
+                className={`w-full flex items-center justify-between text-sm transition-colors duration-150 ${
+                  darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+                title="Double click/tap any file to select it and open the multiselect bar"
+              >
+                <span className="flex items-center gap-2.5">
+                  <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5-2-4-4 2 2-7M9 11l4-8 2 1-2 7" />
+                  </svg>
+                  Double-click / Touch Select
+                </span>
+                <div className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${touchSelect ? (darkMode ? 'bg-blue-600' : 'bg-red-500') : 'bg-gray-300'}`}>
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${touchSelect ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </div>
               </button>
             </div>

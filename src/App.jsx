@@ -316,7 +316,7 @@ function App() {
                       <UploadForm refresh={fetchFiles} darkMode={darkMode} />
                     </div>
                     {/* Desktop: 50/50 split — upload + notes */}
-                    <div className="hidden lg:grid lg:grid-cols-2 gap-4 xl:gap-6">
+                    <div className="hidden lg:grid lg:grid-cols-2 gap-4 xl:gap-6 items-stretch">
                       <UploadForm refresh={fetchFiles} darkMode={darkMode} />
                       <UserNotesDashboard user={user} darkMode={darkMode} />
                     </div>

@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import axios from 'axios';
 
@@ -535,13 +535,13 @@ const UploadForm = ({ refresh, darkMode }) => {
  const isMultipleFilesSelected = files.length > 1;
 
  return (
-   <form
-     onSubmit={handleUpload}
-     className={cn(
-       'mb-6 p-6 rounded-xl shadow-lg w-full mx-auto max-w-7xl my-4 border transition-colors duration-300',
-       darkMode ? 'bg-gray-900 text-gray-200 border-gray-700' : 'bg-white text-gray-800 border-gray-200'
-     )}
-   >
+    <form
+      onSubmit={handleUpload}
+      className={cn(
+        'h-full flex flex-col justify-between p-5 sm:p-6 rounded-2xl shadow-xl w-full border transition-all duration-300',
+        darkMode ? 'bg-slate-900/90 text-gray-200 border-slate-800' : 'bg-white text-gray-800 border-gray-200 shadow-gray-200/50'
+      )}
+    >
      <h3 className={cn('text-2xl font-semibold mb-6 text-center', darkMode ? 'text-white' : 'text-gray-900')}>
      </h3>
 

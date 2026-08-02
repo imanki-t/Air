@@ -1274,6 +1274,8 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     );
   };
 
+  const lastTouchTimeRef = useRef(0);
+
   const handleItemClick = (e) => {
     const menuButton = e.currentTarget.querySelector('[aria-label="File options"]');
     if (menuButton && menuButton.contains(e.target)) {
@@ -1285,12 +1287,32 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     }
   };
 
+  const handleDoubleClick = (e) => {
+    const touchSelectEnabled = localStorage.getItem('airstream_touch_select') === 'true';
+    if (touchSelectEnabled) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (onSelect) onSelect(file._id);
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    const touchSelectEnabled = localStorage.getItem('airstream_touch_select') === 'true';
+    if (!touchSelectEnabled) return;
+    const now = Date.now();
+    if (now - lastTouchTimeRef.current < 300) {
+      e.preventDefault();
+      if (onSelect) onSelect(file._id);
+    }
+    lastTouchTimeRef.current = now;
+  };
+
   return (
     <>
       {/* ── File Card Container ── */}
       <div
         className={cn(
-          "relative text-sm rounded-xl shadow-md border transition-all duration-200 ease-in-out",
+          "relative text-sm rounded-xl shadow-md border transition-all duration-200 ease-in-out select-none",
           isSelected
             ? `ring-2 ring-offset-1 ${darkMode ? 'ring-blue-500 bg-gray-750 border-blue-700' : 'ring-blue-600 bg-blue-50 border-blue-400'}`
             : `${darkMode ? 'bg-gray-800 border-gray-700 hover:border-gray-600' : 'bg-white border-gray-200 hover:border-gray-300'}`,
@@ -1303,6 +1325,8 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
           showMenu ? 'z-30' : 'z-10'
         )}
         onClick={handleItemClick}
+        onDoubleClick={handleDoubleClick}
+        onTouchEnd={handleTouchEnd}
         role="listitem"
         aria-selected={isSelected}
       >

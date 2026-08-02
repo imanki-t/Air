@@ -107,6 +107,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const videoRef = useRef(null);
   const wrapRef = useRef(null);
   const speedRef = useRef(null);
+  const settingsRef = useRef(null);
   const hoverScrubRef = useRef(null);
 
   const [videoUrl, setVideoUrl] = useState(src);
@@ -119,8 +120,9 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const [buffered, setBuffered] = useState(0);
   const [showCtrl, setShowCtrl] = useState(true);
   const [speed, setSpeed] = useState(1);
-  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
-  const [showMobileSettings, setShowMobileSettings] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [activeSettingsView, setActiveSettingsView] = useState('main');
+  const [isLooping, setIsLooping] = useState(false);
   const [forcedOrientation, setForcedOrientation] = useState(null);
   const [isFS, setIsFS] = useState(false);
   const [isTheater, setIsTheater] = useState(false);
@@ -190,10 +192,18 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
     }
   }, []);
 
+  const toggleLoop = () => {
+    const nextLoop = !isLooping;
+    setIsLooping(nextLoop);
+    if (videoRef.current) {
+      videoRef.current.loop = nextLoop;
+    }
+  };
+
   useEffect(() => {
     const handleOutsideClick = (e) => {
-      if (speedRef.current && !speedRef.current.contains(e.target)) {
-        setShowSpeedMenu(false);
+      if (settingsRef.current && !settingsRef.current.contains(e.target)) {
+        setShowSettingsMenu(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -372,7 +382,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 
   const handleSpeedSelect = (s) => {
     setSpeed(s);
-    setShowSpeedMenu(false);
+    setShowSettingsMenu(false);
     if (videoRef.current) videoRef.current.playbackRate = s;
   };
 
@@ -1136,18 +1146,18 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
               </button>
               {showSpeedMenu && (
                 <div className="absolute bottom-full right-0 mb-2 w-28 rounded-xl bg-slate-950/95 border border-white/15 shadow-2xl overflow-hidden z-40 backdrop-blur-2xl animate-slideUpFluid origin-bottom-right">
-                  {SPEEDS.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => handleSpeedSelect(s)}
-                      className={cn(
-                        "w-full px-3 py-1.5 text-left text-xs transition-colors",
-                        s === speed ? "bg-blue-600 text-white font-bold" : "text-white/70 hover:bg-white/10 hover:text-white"
-                      )}
-                    >
-                      {s === 1 ? 'Normal' : `${s}x`}
-                    </button>
-                  ))}
+                    {SPEEDS.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => handleSpeedSelect(s)}
+                        className={cn(
+                          "w-full px-3 py-1.5 text-left text-xs transition-colors font-medium",
+                          s === speed ? "bg-blue-600 text-white font-bold" : "text-white/70 hover:bg-white/10 hover:text-white"
+                        )}
+                      >
+                        {`${s}x`}
+                      </button>
+                    ))}
                 </div>
               )}
             </div>

@@ -609,7 +609,7 @@ const UploadForm = ({ refresh, darkMode }) => {
      )}
 
      <input
-       id="fileInput"
+       id={fileInputId}
        type="file"
        ref={fileInputRef}
        onChange={handleFileInputChange}

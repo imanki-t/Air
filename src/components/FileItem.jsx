@@ -803,7 +803,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 };
 
 // ─── Custom Liquid Glass Audio Dashboard Player with Real Visualizer ────────────
-const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
+const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize, thumbnail }) => {
   const audioRef = useRef(null);
   const canvasRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -1065,12 +1065,18 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
               </svg>
             </div>
           )}
-          {/* Vinyl grooves */}
-          <div className="absolute inset-1 rounded-full border border-white/10 pointer-events-none" />
-          <div className="absolute inset-3 rounded-full border border-white/10 pointer-events-none" />
-          <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-600 to-sky-400 border border-white/40 flex items-center justify-center shadow-inner">
-            <div className="w-1.5 h-1.5 rounded-full bg-slate-950" />
-          </div>
+          {thumbnail ? (
+            <img src={thumbnail} alt={`Album art of ${filename}`} className="w-full h-full object-cover rounded-full" />
+          ) : (
+            <>
+              {/* Vinyl grooves */}
+              <div className="absolute inset-1 rounded-full border border-white/10 pointer-events-none" />
+              <div className="absolute inset-3 rounded-full border border-white/10 pointer-events-none" />
+              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-600 to-sky-400 border border-white/40 flex items-center justify-center shadow-inner">
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-950" />
+              </div>
+            </>
+          )}
         </div>
 
         <div className="min-w-0 flex-1">
@@ -1504,6 +1510,27 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
           </div>
         </div>
       );
+    }
+
+    if (type === 'audio') {
+      const audioThumb = file.metadata?.thumbnail || file.thumbnail || file.poster || file.albumArt || file.metadata?.cover;
+      if (audioThumb) {
+        return (
+          <div className={containerBaseClasses}>
+            <img
+              src={audioThumb}
+              alt={`Album art of ${file.filename}`}
+              className={imageVideoPreviewClasses}
+              loading="lazy"
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all duration-300">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white/90 drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8.118v3.764a1 1 0 001.555.832l3.197-1.882a1 1 0 000-1.664l-3.197-1.882z" clipRule="evenodd" />
+              </svg>
+            </div>
+          </div>
+        );
+      }
     }
 
     const fileExtension = file.filename.split('.').pop().toUpperCase();

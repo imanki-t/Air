@@ -325,6 +325,8 @@ const previewFile = async (req, res) => {
 
     res.setHeader('Content-Type', servedContentType);
     res.setHeader('Cache-Control', 'private, max-age=86400');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Authorization');
 
     // ── HTTP Range request handling (required for video/audio on mobile) ────
     // Always advertise range support so the browser knows it can seek.
@@ -400,7 +402,8 @@ const getVideoStreamUrl = async (req, res) => {
     if (!fileMapping.driveId) return res.status(500).json({ error: 'File record is corrupt (missing storage ID).' });
 
     const url = await getDirectStreamUrl(userId, fileMapping.driveId);
-    res.json({ url });
+    const proxyUrl = `/api/files/preview/${fileId}`;
+    res.json({ url, proxyUrl });
   } catch (error) {
     console.error('getVideoStreamUrl error:', error);
     res.status(500).json({ error: 'Failed to generate stream URL.' });

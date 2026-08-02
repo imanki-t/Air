@@ -39,9 +39,19 @@ const buildOAuth2Client = (accessToken, refreshToken) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Return a Drive-ready OAuth2 client for a given userId.
-// Persists any freshly-refreshed access_token back to MongoDB.
+// Uses an in-memory cache (5-minute TTL) to avoid redundant MongoDB lookups
+// during high-frequency HTTP 206 media range requests.
 // ─────────────────────────────────────────────────────────────────────────────
+const driveClientCache = new Map();
+
 const getUserDriveClient = async (userId) => {
+  const cacheKey = String(userId);
+  const cached = driveClientCache.get(cacheKey);
+  const now = Date.now();
+  if (cached && (now - cached.timestamp < 5 * 60 * 1000)) {
+    return cached.auth;
+  }
+
   const ObjectId = mongoose.mongo.ObjectId;
   const db = mongoose.connection.db;
 
@@ -68,6 +78,7 @@ const getUserDriveClient = async (userId) => {
     }
   });
 
+  driveClientCache.set(cacheKey, { auth, timestamp: now });
   return auth;
 };
 

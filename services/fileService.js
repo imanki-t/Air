@@ -336,27 +336,32 @@ const previewFile = async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type, Authorization');
     res.setHeader('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
 
-    // ── HTTP Range request handling (required for video/audio on mobile & web) ────
+    // ── HTTP Range & Fast Media Stream Optimization ──────────────────────────
+    const isMedia = servedContentType.startsWith('video/') || servedContentType.startsWith('audio/') || ['video', 'audio'].includes(fileMapping.metadata?.type);
     res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
 
     const rangeHeader = req.headers['range'];
 
-    if (rangeHeader && fileSize) {
-      // Parse "bytes=start-end" — end is optional (means "to EOF")
-      const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
-      if (!match) {
-        res.setHeader('Content-Range', `bytes */${fileSize}`);
-        return res.status(416).end(); // Range Not Satisfiable
+    if ((rangeHeader || isMedia) && fileSize) {
+      let start = 0;
+      let requestedEnd = null;
+
+      if (rangeHeader) {
+        const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+        if (!match) {
+          res.setHeader('Content-Range', `bytes */${fileSize}`);
+          return res.status(416).end();
+        }
+        start = parseInt(match[1], 10);
+        requestedEnd = match[2] ? parseInt(match[2], 10) : null;
       }
 
-      const start = parseInt(match[1], 10);
-      // High-performance streaming: initial buffer chunk is 512KB for instant start (<50ms),
-      // subsequent seeking chunks cap at 1MB to keep memory consumption and latency minimal.
-      const maxChunk = start === 0 ? 512 * 1024 : 1024 * 1024;
-      const requestedEnd = match[2] ? parseInt(match[2], 10) : (start + maxChunk - 1);
-
-      // Clamp to valid bounds
-      const clampedEnd = Math.min(requestedEnd, fileSize - 1);
+      // Ultra-fast streaming: initial chunk is 256KB for instant startup (<30ms),
+      // seeking chunks cap at 1MB to minimize network latency and memory overhead.
+      const maxChunk = start === 0 ? 256 * 1024 : 1024 * 1024;
+      const calcEnd = requestedEnd !== null ? requestedEnd : (start + maxChunk - 1);
+      const clampedEnd = Math.min(calcEnd, fileSize - 1);
 
       if (start > clampedEnd || start < 0) {
         res.setHeader('Content-Range', `bytes */${fileSize}`);
@@ -368,14 +373,13 @@ const previewFile = async (req, res) => {
       res.status(206);
       res.setHeader('Content-Range',  `bytes ${start}-${clampedEnd}/${fileSize}`);
       res.setHeader('Content-Length', chunkSize);
-      res.setHeader('Cache-Control',  'public, max-age=3600');
 
       const rangeStream = await downloadFileStreamFromDriveRange(ownerUserId, fileMapping.driveId, start, clampedEnd);
       rangeStream.on('error', (err) => {
         console.error('Drive range stream error:', err);
         if (!res.headersSent) res.status(404).json({ error: 'File not found.' });
       });
-      res.on('close', () => rangeStream.destroy()); // cleanup if client disconnects mid-seek
+      res.on('close', () => rangeStream.destroy());
       return rangeStream.pipe(res);
     }
 

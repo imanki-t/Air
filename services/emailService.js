@@ -26,6 +26,19 @@ const isGmailConfigured = () =>
     process.env.GMAIL_REFRESH_TOKEN
   );
 
+// ─── Startup config check ─────────────────────────────────────────────────────
+// Log clearly at startup so deployment logs show whether email is functional.
+if (isGmailConfigured()) {
+  console.log('[Email] Gmail API configured — emails will be sent via', process.env.GMAIL_USER);
+} else {
+  const missing = ['GMAIL_USER', 'GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN']
+    .filter((k) => !process.env[k]);
+  console.warn(
+    `[Email] Gmail NOT configured — missing env var(s): ${missing.join(', ')}. ` +
+    'All emails will be silently skipped until these are set.'
+  );
+}
+
 // ─── OAuth2 client ────────────────────────────────────────────────────────────
 const getOAuth2Client = () => {
   const client = new google.auth.OAuth2(
@@ -64,6 +77,26 @@ const sendEmail = async ({ to, subject, html }) => {
 
   try {
     const auth  = getOAuth2Client();
+
+    // Explicitly refresh the access token before sending. This catches expired
+    // or revoked refresh tokens early with a clear error message, instead of
+    // letting the Gmail API call fail with a cryptic 401.
+    try {
+      await auth.getAccessToken();
+    } catch (tokenErr) {
+      const msg = tokenErr.message || '';
+      if (msg.includes('invalid_grant') || msg.includes('Token has been expired or revoked')) {
+        console.error(
+          `[Email] CRITICAL: Gmail refresh token is expired or revoked. ` +
+          `Re-generate GMAIL_REFRESH_TOKEN via OAuth Playground. ` +
+          `Skipping email to ${to}: "${subject}"`
+        );
+      } else {
+        console.error(`[Email] Failed to obtain access token: ${msg}. Skipping email to ${to}: "${subject}"`);
+      }
+      return false;
+    }
+
     const gmail = google.gmail({ version: 'v1', auth });
 
     // Encode the HTML body as base64 — this is what makes the download button
@@ -97,7 +130,22 @@ const sendEmail = async ({ to, subject, html }) => {
     console.log(`[Email] Sent to ${to}: "${subject}"`);
     return true;
   } catch (err) {
-    console.error(`[Email] Failed to send to ${to}:`, err.message);
+    // Provide more specific error messages for common failure modes
+    const msg = err.message || '';
+    if (err.code === 403 || msg.includes('insufficient')) {
+      console.error(
+        `[Email] Gmail API permission denied (403). Ensure the Gmail API is enabled ` +
+        `in Google Cloud Console and the sender account has granted access. ` +
+        `Error: ${msg}`
+      );
+    } else if (err.code === 401 || msg.includes('invalid_grant')) {
+      console.error(
+        `[Email] Gmail authentication failed (401). The refresh token may be ` +
+        `expired or revoked. Re-generate GMAIL_REFRESH_TOKEN. Error: ${msg}`
+      );
+    } else {
+      console.error(`[Email] Failed to send to ${to}: ${msg}`);
+    }
     return false;
   }
 };

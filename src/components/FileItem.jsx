@@ -13,8 +13,20 @@ const Icons = {
   VolumeMute: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6 4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"/></svg>,
   FullscreenExit: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9V4.5M15 9h4.5M15 9l5.25-5.25M15 15v4.5M15 15h4.5M15 15l5.25 5.25"/></svg>,
   FullscreenEnter: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75v4.5m0-4.5h-4.5m4.5 0L15 9M20.25 20.25v-4.5m0 4.5h-4.5m4.5 0l-6-6"/></svg>,
-  Forward10: () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8zm-1.1 11h-1.2v-4.3l-1.3.4v-.9l2.4-.8h.1v5.6zm4.6-2.3c0 .5-.1.9-.3 1.3s-.4.6-.7.8-.7.3-1.1.3-1-.1-1.3-.3-.6-.5-.7-.9-.2-.9-.2-1.4v-1.1c0-.5.1-1 .3-1.4s.4-.6.7-.8.7-.3 1.1-.3 1 .1 1.3.3.6.5.7.9.2.9.2 1.4v1.2zm-1.2-1.5c0-.4-.1-.7-.2-.9s-.3-.3-.6-.3-.5.1-.6.3-.2.5-.2.9v1.6c0 .4.1.7.2.9s.3.3.6.3.5-.1.6-.3.2-.5.2-.9v-1.6z"/></svg>,
-  Replay10: () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8zm-1.1 11h-1.2v-4.3l-1.3.4v-.9l2.4-.8h.1v5.6zm4.6-2.3c0 .5-.1.9-.3 1.3s-.4.6-.7.8-.7.3-1.1.3-1-.1-1.3-.3-.6-.5-.7-.9-.2-.9-.2-1.4v-1.1c0-.5.1-1 .3-1.4s.4-.6.7-.8.7-.3 1.1-.3 1 .1 1.3.3.6.5.7.9.2.9.2 1.4v1.2zm-1.2-1.5c0-.4-.1-.7-.2-.9s-.3-.3-.6-.3-.5.1-.6.3-.2.5-.2.9v1.6c0 .4.1.7.2.9s.3.3.6.3.5-.1.6-.3.2-.5.2-.9v-1.6z" transform="scale(-1, 1) translate(-24, 0)"/></svg>,
+  Forward10: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 3a9 9 0 1 1 -8.44 6" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12.5 3v4.5M12.5 3h-4.5" />
+      <text x="12" y="15.5" textAnchor="middle" fill="currentColor" stroke="none" fontSize="7.5" fontWeight="bold" fontFamily="sans-serif">10</text>
+    </svg>
+  ),
+  Replay10: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11.5 3a9 9 0 1 0 8.44 6" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11.5 3v4.5M11.5 3h4.5" />
+      <text x="12" y="15.5" textAnchor="middle" fill="currentColor" stroke="none" fontSize="7.5" fontWeight="bold" fontFamily="sans-serif">10</text>
+    </svg>
+  ),
   Settings: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a6.723 6.723 0 0 1 0 .255c-.008.378.137.75.43.99l1.005.831a1.125 1.125 0 0 1 .26 1.43l-1.297 2.247a1.125 1.125 0 0 1-1.37.491l-1.216-.456c-.356-.133-.751-.072-1.076.124a6.57 6.57 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 0 1 0-.255c.007-.378-.138-.75-.43-.99l-1.004-.831a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.645-.869l.214-1.28Z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>,
   PiP: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11v6a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h6m6 0v4m0-4h-4m4 0L13 11"/></svg>,
   Theater: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 18h16M4 12h16"/></svg>,
@@ -622,8 +634,7 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
   const togglePlay = () => {
     if (!audioRef.current) return;
     if (audioRef.current.paused) {
-      setupAudioContext();
-      audioRef.current.play().catch(() => {});
+      audioRef.current.play().catch((err) => console.warn("Audio play prevented:", err));
     } else {
       audioRef.current.pause();
     }
@@ -640,26 +651,6 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
     setVolume(newVol);
     audioRef.current.volume = newVol;
     setMuted(newVol === 0);
-  };
-
-  const setupAudioContext = () => {
-    if (audioCtxRef.current) return;
-    try {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      const ctx = new AudioContextClass();
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 128;
-      
-      const source = ctx.createMediaElementSource(audioRef.current);
-      source.connect(analyser);
-      analyser.connect(ctx.destination);
-
-      audioCtxRef.current = ctx;
-      analyserRef.current = analyser;
-      sourceRef.current = source;
-    } catch (e) {
-      console.warn("Web Audio API CORS fallback activated.");
-    }
   };
 
   useEffect(() => {
@@ -925,6 +916,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   const [showViewer, setShowViewer] = useState(false);
   const [streamUrl, setStreamUrl] = useState(null);
   const [proxyUrl, setProxyUrl] = useState(null);
+  const [isMediaLoading, setIsMediaLoading] = useState(false);
 
   const menuRef = useRef(null);
   const shareModalRef = useRef(null);
@@ -1060,12 +1052,15 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     setShowViewer(true);
     const type = file.metadata?.type;
     if (type === 'video' || type === 'audio') {
+      setIsMediaLoading(true);
       try {
         const res = await axios.get(`${backendUrl}/api/files/stream-url/${file._id}`);
         if (res.data?.url) setStreamUrl(res.data.url);
         if (res.data?.proxyUrl) setProxyUrl(res.data.proxyUrl);
       } catch (err) {
         console.warn('Could not retrieve direct stream URL, falling back to secure preview proxy:', err.message);
+      } finally {
+        setIsMediaLoading(false);
       }
     }
   };
@@ -1385,45 +1380,57 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
         return (
           <div className="fixed inset-0 z-[80] animate-fadeIn flex flex-col" style={{ background: 'rgba(8,14,28,0.96)', backdropFilter: 'blur(10px)' }} onClick={() => setShowViewer(false)} role="dialog" aria-modal="true" aria-label={`Viewing ${file.filename}`}>
             <div className="flex flex-col h-full w-full" onClick={e => e.stopPropagation()}>
-              <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-white/5 bg-slate-950/40 backdrop-blur-md">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className={cn('flex-shrink-0 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded border', type === 'image' ? 'bg-blue-600/20 border-blue-500/40 text-blue-300' : type === 'video' ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300' : 'bg-sky-600/20 border-sky-500/40 text-sky-300')}>
+              <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-4 border-b border-white/5 bg-slate-950/40 backdrop-blur-md">
+                <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                  <span className={cn('flex-shrink-0 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 sm:px-2.5 sm:py-1 rounded border', type === 'image' ? 'bg-blue-600/20 border-blue-500/40 text-blue-300' : type === 'video' ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300' : 'bg-sky-600/20 border-sky-500/40 text-sky-300')}>
                     {type}
                   </span>
-                  <h2 className="text-white/90 text-sm font-semibold truncate" title={file.filename}>{file.filename}</h2>
+                  <h2 className="text-white/90 text-xs sm:text-sm font-semibold truncate" title={file.filename}>{file.filename}</h2>
                 </div>
-                <button onClick={() => setShowViewer(false)} className="flex-shrink-0 ml-3 p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all" aria-label="Close viewer" title="Close (Esc)">
+                <button onClick={() => setShowViewer(false)} className="flex-shrink-0 ml-2 p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all" aria-label="Close viewer" title="Close (Esc)">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
 
-              <div className="flex-1 flex items-center justify-center overflow-hidden p-6" onClick={() => setShowViewer(false)}>
+              <div className="flex-1 flex items-center justify-center overflow-hidden p-2 sm:p-6" onClick={() => setShowViewer(false)}>
                 <div onClick={e => e.stopPropagation()} className="w-full flex items-center justify-center">
-                  {type === 'image' && (
-                    <div className="max-w-[92vw] max-h-[78vh] rounded-2xl border border-white/5 overflow-hidden shadow-2xl bg-black flex items-center justify-center">
-                      <img src={previewUrl} alt={file.filename} className="max-w-full max-h-full object-contain select-none" draggable={false} />
+                  {isMediaLoading ? (
+                    <div className="flex flex-col items-center justify-center gap-3 p-8 bg-slate-950/60 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl">
+                      <svg className="animate-spin h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <span className="text-xs font-bold tracking-widest text-blue-400">INITIALIZING FAST STREAM...</span>
                     </div>
-                  )}
-                  {type === 'video' && (
-                    <CustomVideoPlayer 
-                      src={streamUrl || proxyUrl || previewUrl} 
-                      fallbackSrc={proxyUrl || previewUrl} 
-                      filename={file.filename} 
-                    />
-                  )}
-                  {type === 'audio' && (
-                    <CustomAudioPlayer 
-                      src={streamUrl || proxyUrl || previewUrl} 
-                      fallbackSrc={proxyUrl || previewUrl} 
-                      filename={file.filename} 
-                      fileSize={file.length} 
-                    />
+                  ) : (
+                    <>
+                      {type === 'image' && (
+                        <div className="max-w-[95vw] max-h-[82vh] rounded-2xl border border-white/5 overflow-hidden shadow-2xl bg-black flex items-center justify-center">
+                          <img src={previewUrl} alt={file.filename} className="max-w-full max-h-full object-contain select-none" draggable={false} />
+                        </div>
+                      )}
+                      {type === 'video' && (
+                        <CustomVideoPlayer 
+                          src={streamUrl || proxyUrl || previewUrl} 
+                          fallbackSrc={proxyUrl || previewUrl} 
+                          filename={file.filename} 
+                        />
+                      )}
+                      {type === 'audio' && (
+                        <CustomAudioPlayer 
+                          src={streamUrl || proxyUrl || previewUrl} 
+                          fallbackSrc={proxyUrl || previewUrl} 
+                          filename={file.filename} 
+                          fileSize={file.length} 
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               </div>
 
-              <div className="flex-shrink-0 pb-4 text-center pointer-events-none">
-                <p className="text-white/20 text-xs tracking-wide">Press ESC or click outside to close</p>
+              <div className="flex-shrink-0 pb-3 text-center pointer-events-none">
+                <p className="text-white/20 text-[11px] tracking-wide">Press ESC or click outside to close</p>
               </div>
             </div>
           </div>

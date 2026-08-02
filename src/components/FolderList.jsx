@@ -1,5 +1,6 @@
 // src/components/FolderList.jsx
 import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+import ReactDOM from 'react-dom';
 import FileItem from './FileItem';
 import axios from 'axios';
 import JSZip from 'jszip';
@@ -11,17 +12,23 @@ const cn = (...classes) => classes.filter(Boolean).join(' ');
 // ─────────────────────────────────────────────────────────────────────────────
 const FOLDER_COLORS = [
   { name: 'Indigo',  value: '#6366f1' },
-  { name: 'Blue',   value: '#3b82f6' },
-  { name: 'Sky',    value: '#0ea5e9' },
-  { name: 'Teal',   value: '#14b8a6' },
-  { name: 'Green',  value: '#22c55e' },
-  { name: 'Lime',   value: '#84cc16' },
-  { name: 'Yellow', value: '#eab308' },
-  { name: 'Orange', value: '#f97316' },
-  { name: 'Red',    value: '#ef4444' },
-  { name: 'Pink',   value: '#ec4899' },
-  { name: 'Purple', value: '#a855f7' },
-  { name: 'Gray',   value: '#6b7280' },
+  { name: 'Blue',    value: '#3b82f6' },
+  { name: 'Sky',     value: '#0ea5e9' },
+  { name: 'Teal',    value: '#14b8a6' },
+  { name: 'Green',   value: '#22c55e' },
+  { name: 'Lime',    value: '#84cc16' },
+  { name: 'Yellow',  value: '#eab308' },
+  { name: 'Orange',  value: '#f97316' },
+  { name: 'Red',     value: '#ef4444' },
+  { name: 'Rose',    value: '#f43f5e' },
+  { name: 'Pink',    value: '#ec4899' },
+  { name: 'Purple',  value: '#a855f7' },
+  { name: 'Violet',  value: '#8b5cf6' },
+  { name: 'Cyan',    value: '#06b6d4' },
+  { name: 'Emerald', value: '#10b981' },
+  { name: 'Amber',   value: '#f59e0b' },
+  { name: 'Slate',   value: '#475569' },
+  { name: 'Gray',    value: '#6b7280' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -259,10 +266,9 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
   useEffect(() => {
     const h = (e) => {
       if (e.key === 'Escape') {
-        const isModalOpen = !!document.querySelector('[role="dialog"]') || document.body.style.overflow === 'hidden';
-        if (isModalOpen) return;
         if (showSortOptions) { setShowSortOptions(false); return; }
         if (showDeleteConfirmModal || showRemoveConfirmModal || showBatchShareModal) return;
+        if (document.querySelector('[aria-label^="Viewing "]')) return;
         onClose();
       }
     };
@@ -391,8 +397,8 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col" role="dialog" aria-modal="true" aria-label={`Folder: ${folder.name}`}>
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-[9999] flex flex-col" role="dialog" aria-modal="true" aria-label={`Folder: ${folder.name}`}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
@@ -733,7 +739,8 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
           </div>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 };
 

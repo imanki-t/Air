@@ -257,16 +257,13 @@ const UploadForm = ({ refresh, darkMode }) => {
        formData,
        {
          signal: controller.signal,
+         withCredentials: true,
          headers: {
            'Content-Type': 'multipart/form-data'
          },
          onUploadProgress: (event) => {
-           if (!event.total) {
-             setMessage('Unable to calculate upload progress. Upload is continuing...');
-             return;
-           }
-
-           const percent = Math.round((event.loaded * 100) / event.total);
+           const total = event.total || event.bytes || fileToUpload.size || 1;
+           const percent = Math.min(100, Math.max(0, Math.round((event.loaded * 100) / total)));
            setProgress(percent);
 
            const now = Date.now();

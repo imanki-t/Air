@@ -604,8 +604,8 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
               </button>
             </div>
 
-            {/* Shortcuts section */}
-            <div className={`py-1.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
+            {/* Shortcuts section (desktop only) */}
+            <div className={`hidden sm:block py-1.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
               <p className={`px-4 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Help & Shortcuts</p>
               <MenuItem IconComp={Icon.Keyboard} label="Keyboard Shortcuts" onClick={() => { setOpen(false); setShowShortcutsModal(true); }} />
             </div>

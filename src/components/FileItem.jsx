@@ -489,7 +489,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         {/* ── Liquid Glass Controller Bar ── */}
         <div
           className={cn(
-            "absolute bottom-3 inset-x-3 bg-slate-950/75 border border-white/15 backdrop-blur-xl p-3 sm:p-4 rounded-2xl flex flex-col gap-2.5 transition-all duration-300 z-30 shadow-2xl",
+            "absolute bottom-2 sm:bottom-3 inset-x-2 sm:inset-x-3 bg-slate-950/85 border border-white/15 backdrop-blur-xl p-2 sm:p-4 rounded-xl sm:rounded-2xl flex flex-col gap-1.5 sm:gap-2.5 transition-all duration-300 z-30 shadow-2xl",
             showCtrl ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
           )}
         >
@@ -538,9 +538,9 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 
           {/* ── Controls Row ── */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1 sm:gap-3">
               {/* Play/Pause Button */}
-              <button onClick={togglePlay} className="p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all flex items-center justify-center">
+              <button onClick={togglePlay} className="p-1.5 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all flex items-center justify-center">
                 {isBuffering && playing ? (
                   <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -554,28 +554,28 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
               </button>
 
               {/* Skip 10s Replay / Forward */}
-              <button onClick={() => seekRelative(-10)} className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all" title="-10 seconds (J)">
+              <button onClick={() => seekRelative(-10)} className="p-1.5 sm:p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all" title="-10 seconds (J)">
                 <Icons.Replay10 />
               </button>
-              <button onClick={() => seekRelative(10)} className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all" title="+10 seconds (L)">
+              <button onClick={() => seekRelative(10)} className="p-1.5 sm:p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all" title="+10 seconds (L)">
                 <Icons.Forward10 />
               </button>
 
               {/* Time Display */}
-              <div className="text-xs text-white/80 font-mono tracking-wider ml-1">
+              <div className="text-[10px] sm:text-xs text-white/80 font-mono tracking-wider ml-0.5 sm:ml-1 whitespace-nowrap">
                 <span>{fmtTime(currentTime)}</span>
-                <span className="mx-1 text-white/30">/</span>
+                <span className="mx-0.5 sm:mx-1 text-white/30">/</span>
                 <span>{fmtTime(duration)}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-1 sm:gap-3">
               {/* Smooth Volume Control */}
               <div className="flex items-center gap-1.5 group/volume">
-                <button onClick={toggleMute} className="p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all">
+                <button onClick={toggleMute} className="p-1.5 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all">
                   {muted || volume === 0 ? <Icons.VolumeMute /> : <Icons.VolumeHigh />}
                 </button>
-                <div className="relative w-0 group-hover/volume:w-20 transition-all duration-300 h-1.5 overflow-hidden flex items-center">
+                <div className="relative w-0 group-hover/volume:w-16 sm:group-hover/volume:w-20 transition-all duration-300 h-1.5 overflow-hidden flex items-center">
                   <div className="absolute inset-x-0 h-1.5 bg-white/20 rounded-full" />
                   <div className="absolute left-0 h-1.5 bg-blue-500 rounded-full" style={{ width: `${muted ? 0 : volume * 100}%` }} />
                   <input
@@ -594,13 +594,13 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
               <div className="relative" ref={speedRef}>
                 <button
                   onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-                  className="px-2 py-1.5 rounded-xl border border-white/10 text-xs font-semibold text-white/80 hover:text-white hover:bg-white/10 transition-all flex items-center gap-1"
+                  className="px-1.5 sm:px-2 py-1 sm:py-1.5 rounded-xl border border-white/10 text-[11px] sm:text-xs font-semibold text-white/80 hover:text-white hover:bg-white/10 transition-all flex items-center gap-0.5 sm:gap-1"
                 >
                   <span>{speed === 1 ? '1.0x' : `${speed}x`}</span>
                 </button>
 
                 {showSpeedMenu && (
-                  <div className="absolute bottom-full right-0 mb-2 w-32 rounded-xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl overflow-hidden z-40 shadow-2xl animate-slideUpFluid origin-bottom-right">
+                  <div className="absolute bottom-full right-0 mb-2 w-28 sm:w-32 rounded-xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl overflow-hidden z-40 shadow-2xl animate-slideUpFluid origin-bottom-right">
                     {SPEEDS.map((s) => (
                       <button
                         key={s}
@@ -618,8 +618,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                 )}
               </div>
 
-              {/* Picture-in-Picture */}
-              <button onClick={togglePiP} className="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all" title="Picture-in-Picture (P)">
+              {/* Picture-in-Picture (Desktop only) */}
+              <button onClick={togglePiP} className="hidden sm:inline-flex p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all" title="Picture-in-Picture (P)">
                 <Icons.PiP />
               </button>
 
@@ -629,7 +629,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
               </button>
 
               {/* Fullscreen */}
-              <button onClick={toggleFS} className="p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all" title="Fullscreen (F)">
+              <button onClick={toggleFS} className="p-1.5 sm:p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all" title="Fullscreen (F)">
                 {isFS ? <Icons.FullscreenExit /> : <Icons.FullscreenEnter />}
               </button>
 
@@ -1351,13 +1351,25 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     }
 
     if (type === 'video') {
+      const existingThumb = file.metadata?.thumbnail || file.thumbnail || file.poster;
       return (
         <div className={containerBaseClasses}>
-          <video
-            src={`${previewUrl}#t=0.5`}
-            preload="metadata"
-            className={`${imageVideoPreviewClasses} bg-black`}
-          />
+          {existingThumb ? (
+            <img
+              src={existingThumb}
+              alt={`Thumbnail of ${file.filename}`}
+              className={imageVideoPreviewClasses}
+              loading="lazy"
+            />
+          ) : (
+            <video
+              src={`${previewUrl}#t=5`}
+              preload="metadata"
+              muted
+              playsInline
+              className={`${imageVideoPreviewClasses} bg-black`}
+            />
+          )}
           <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all duration-300">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-white/70 drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8.118v3.764a1 1 0 001.555.832l3.197-1.882a1 1 0 000-1.664l-3.197-1.882z" clipRule="evenodd" />
@@ -1406,15 +1418,15 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   const handleDoubleClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onSelect) onSelect(file._id);
+    setShowMenu((prev) => !prev);
   };
 
   const handleTouchEnd = (e) => {
-    if (!isTouchSelectEnabled()) return;
     const now = Date.now();
     if (now - lastTouchTimeRef.current < 300) {
       e.preventDefault();
-      if (onSelect) onSelect(file._id);
+      e.stopPropagation();
+      setShowMenu((prev) => !prev);
     }
     lastTouchTimeRef.current = now;
   };

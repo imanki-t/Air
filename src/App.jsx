@@ -293,7 +293,7 @@ function App() {
         }} />
       )}
 
-      <main className={`flex-grow relative z-10 pb-4 ${hideHeader ? '' : 'px-2 sm:px-4'}`}>
+      <main className={`flex-grow relative z-10 pt-4 sm:pt-6 pb-4 ${hideHeader ? '' : 'px-2 sm:px-4'}`}>
         <Routes>
           <Route path="/" element={<Homepage isLoggedIn={isLoggedIn} />} />
           <Route
@@ -310,7 +310,7 @@ function App() {
                       {error}
                     </div>
                   )}
-                  <div className="mb-6">
+                  <div className="w-full max-w-7xl mx-auto mb-6">
                     {/* Mobile: full-width upload box only */}
                     <div className="block lg:hidden">
                       <UploadForm refresh={fetchFiles} darkMode={darkMode} />

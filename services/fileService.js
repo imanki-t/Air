@@ -296,8 +296,12 @@ const previewFile = async (req, res) => {
     const userId = req.user?.userId;
 
     const fileMapping = await getFileMapping(fileId);
-    const { allowed } = checkOwnership(fileMapping, userId);
-    if (!allowed) return res.status(403).json({ error: 'Access denied.' });
+    if (!fileMapping) return res.status(404).json({ error: 'File not found.' });
+
+    if (userId && fileMapping.userId) {
+      const { allowed } = checkOwnership(fileMapping, userId);
+      if (!allowed) return res.status(403).json({ error: 'Access denied.' });
+    }
 
     if (!fileMapping.driveId) return res.status(500).json({ error: 'File record is corrupt (missing storage ID).' });
 

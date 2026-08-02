@@ -74,8 +74,13 @@ const protectRoute = async (req, res, next) => {
     return res.status(403).json({ error: 'Access denied. Unauthorized origin.' });
   }
 
-  const token = req.cookies && req.cookies.airstream_session;
+  const token = (req.cookies && req.cookies.airstream_session) || req.query.st || req.query.token;
   if (!token) {
+    if (isMediaGetRoute) {
+      // Browser <img> / <video> tags omit third-party cookies in cross-origin setups.
+      // Allow media preview/stream GET routes to proceed to controller.
+      return next();
+    }
     return res.status(401).json({ error: 'Not authenticated. Please sign in.' });
   }
 

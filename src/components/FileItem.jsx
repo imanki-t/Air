@@ -252,12 +252,22 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
+  const autoPlayPendingRef = useRef(false);
+
   const togglePlay = () => {
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
-      videoRef.current.play().catch(() => {});
+      autoPlayPendingRef.current = true;
+      setPlaying(true);
+      videoRef.current.play().then(() => {
+        autoPlayPendingRef.current = false;
+      }).catch((err) => {
+        console.warn("Video play deferred until media buffer arrives:", err.message);
+      });
     } else {
+      autoPlayPendingRef.current = false;
       videoRef.current.pause();
+      setPlaying(false);
     }
   };
 
@@ -415,7 +425,15 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
             onEnded={() => setPlaying(false)}
             onWaiting={() => setIsBuffering(true)}
             onPlaying={() => setIsBuffering(false)}
-            onCanPlay={() => setIsBuffering(false)}
+            onCanPlay={() => {
+              setIsBuffering(false);
+              if (autoPlayPendingRef.current && videoRef.current && videoRef.current.paused) {
+                videoRef.current.play().then(() => {
+                  autoPlayPendingRef.current = false;
+                  setPlaying(true);
+                }).catch((err) => console.warn('Video auto-play onCanPlay deferred:', err.message));
+              }
+            }}
             onError={handleVideoError}
           />
 
@@ -736,12 +754,50 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
     }
   }, [usingFallback, fallbackSrc, audioUrl]);
 
+  const autoPlayPendingRef = useRef(false);
+
+  // ── Web Audio API Sound Frequency & Loudness Analyzer ──
+  const initWebAudio = () => {
+    if (!audioRef.current || analyserRef.current) return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = audioCtxRef.current || new AudioCtx();
+      audioCtxRef.current = ctx;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 64; // 32 frequency bands
+      analyser.smoothingTimeConstant = 0.8;
+      analyserRef.current = analyser;
+
+      if (!sourceRef.current) {
+        const source = ctx.createMediaElementSource(audioRef.current);
+        sourceRef.current = source;
+        source.connect(analyser);
+        analyser.connect(ctx.destination);
+      }
+    } catch (err) {
+      console.warn("Web Audio API CORS/Initialization:", err.message);
+    }
+  };
+
   const togglePlay = () => {
     if (!audioRef.current) return;
+    initWebAudio();
     if (audioRef.current.paused) {
-      audioRef.current.play().catch((err) => console.warn("Audio play prevented:", err));
+      autoPlayPendingRef.current = true;
+      setPlaying(true);
+      audioRef.current.play().then(() => {
+        autoPlayPendingRef.current = false;
+      }).catch((err) => {
+        console.warn("Audio play deferred until media buffer is ready:", err.message);
+      });
     } else {
+      autoPlayPendingRef.current = false;
       audioRef.current.pause();
+      setPlaying(false);
     }
   };
 
@@ -1012,7 +1068,16 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize }) => {
         onTimeUpdate={handleTimeUpdate}
         onDurationChange={() => audioRef.current && setDuration(audioRef.current.duration)}
         onLoadedMetadata={() => { if (audioRef.current) setDuration(audioRef.current.duration); setIsAudioLoading(false); }}
-        onCanPlay={() => setIsAudioLoading(false)}
+        onCanPlay={() => {
+          setIsAudioLoading(false);
+          if (autoPlayPendingRef.current && audioRef.current && audioRef.current.paused) {
+            initWebAudio();
+            audioRef.current.play().then(() => {
+              autoPlayPendingRef.current = false;
+              setPlaying(true);
+            }).catch((err) => console.warn('Audio auto-play onCanPlay deferred:', err.message));
+          }
+        }}
         onWaiting={() => setIsAudioLoading(true)}
         onPlay={() => { setPlaying(true); setIsAudioLoading(false); }}
         onPause={() => setPlaying(false)}

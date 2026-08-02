@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useId } from 'react';
 import { io } from 'socket.io-client';
 import axios from 'axios';
 
@@ -12,6 +12,8 @@ const MAX_FILES_SELECTED = 10;
 const UPLOADED_FILES_DISPLAY_TIMEOUT = 5000;
 
 const UploadForm = ({ refresh, darkMode }) => {
+ const reactId = useId();
+ const fileInputId = `fileInput-${reactId}`;
  const [files, setFiles] = useState([]);
  const [uploadedFiles, setUploadedFiles] = useState([]);
  const [currentFileIndex, setCurrentFileIndex] = useState(0);
@@ -579,7 +581,7 @@ const UploadForm = ({ refresh, darkMode }) => {
 
      {!isUploading && (
        <label
-         htmlFor="fileInput"
+         htmlFor={fileInputId}
          className={cn(
            'block w-full cursor-pointer px-4 py-8 rounded-lg mb-5 text-center transition-colors duration-200 ease-in-out border-2 border-dashed',
            darkMode
@@ -607,7 +609,7 @@ const UploadForm = ({ refresh, darkMode }) => {
      )}
 
      <input
-       id="fileInput"
+       id={fileInputId}
        type="file"
        ref={fileInputRef}
        onChange={handleFileInputChange}

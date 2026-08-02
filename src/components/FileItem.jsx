@@ -5,6 +5,22 @@ import { QRCodeSVG } from 'qrcode.react';
 // Utility for conditional class names
 const cn = (...classes) => classes.filter(Boolean).join(' ');
 
+// Robust file type detector (handles metadata, direct type, mimetype, and file extension)
+const getFileType = (f) => {
+  if (!f) return 'unknown';
+  if (f.metadata?.type) return f.metadata.type;
+  if (f.type) return f.type;
+  const mime = (f.contentType || f.mimetype || '').toLowerCase();
+  if (mime.startsWith('video/')) return 'video';
+  if (mime.startsWith('audio/')) return 'audio';
+  if (mime.startsWith('image/')) return 'image';
+  const ext = (f.filename || '').split('.').pop().toLowerCase();
+  if (['mp4', 'mkv', 'webm', 'mov', 'avi', 'm4v', '3gp', 'flv'].includes(ext)) return 'video';
+  if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(ext)) return 'audio';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext)) return 'image';
+  return 'unknown';
+};
+
 // ─── Custom Premium Icons ───────────────────────────────────────────────────
 const Icons = {
   Play: () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M8 5v14l11-7z"/></svg>,
@@ -439,8 +455,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
       <div
         ref={wrapRef}
         className={cn(
-          "relative w-full bg-slate-950 overflow-hidden group border border-white/10 transition-all duration-300 shadow-2xl select-none flex flex-col items-center justify-center backdrop-blur-2xl rounded-2xl",
-          isFS ? "h-screen w-screen rounded-none max-w-none z-50" : isTheater ? "max-w-[1100px] max-h-[82vh]" : "max-w-[760px] sm:max-w-[820px] max-h-[70vh] sm:max-h-[74vh]",
+          "relative w-full bg-slate-950 text-white overflow-hidden group border border-white/10 transition-all duration-300 shadow-2xl select-none flex flex-col items-center justify-center backdrop-blur-2xl rounded-2xl",
+          isFS ? "fixed inset-0 h-screen w-screen rounded-none max-w-none z-[9999] bg-black text-white" : isTheater ? "max-w-[1100px] max-h-[82vh]" : "max-w-[760px] sm:max-w-[820px] max-h-[70vh] sm:max-h-[74vh]",
           !showCtrl && playing ? "cursor-none" : ""
         )}
         onMouseMove={nudgeControls}
@@ -450,7 +466,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         {/* ── Video Canvas Container ── */}
         <div
           className={cn(
-            "relative w-full aspect-video max-h-[56vh] sm:max-h-[62vh] flex items-center justify-center bg-black overflow-hidden",
+            "relative w-full flex items-center justify-center bg-black overflow-hidden",
+            isFS ? "h-full w-full max-h-none aspect-auto" : "aspect-video max-h-[56vh] sm:max-h-[62vh]",
             !showCtrl && playing ? "cursor-none" : "cursor-pointer"
           )}
           onClick={handleVideoClick}
@@ -1408,7 +1425,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     setStreamUrl(null);
     setProxyUrl(null);
     setShowViewer(true);
-    const type = file.metadata?.type;
+    const type = getFileType(file);
     if (type === 'video' || type === 'audio') {
       setIsMediaLoading(true);
       try {
@@ -1420,6 +1437,8 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       } finally {
         setIsMediaLoading(false);
       }
+    } else {
+      setIsMediaLoading(false);
     }
   };
 
@@ -1795,12 +1814,13 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       )}
 
       {/* ── Dynamic Media Viewer Overlays ── */}
-      {showViewer && (file.metadata?.type === 'image' || file.metadata?.type === 'video' || file.metadata?.type === 'audio') && (() => {
-        const type = file.metadata.type;
+      {showViewer && (() => {
+        const type = getFileType(file);
+        if (type !== 'video' && type !== 'audio' && type !== 'image') return null;
         const previewUrl = `${backendUrl}/api/files/preview/${file._id}`;
         return (
-          <div className="fixed inset-0 z-[80] animate-fadeIn flex flex-col touch-none overscroll-none" style={{ background: 'rgba(8,14,28,0.96)', backdropFilter: 'blur(10px)' }} onClick={() => setShowViewer(false)} onTouchMove={(e) => e.preventDefault()} role="dialog" aria-modal="true" aria-label={`Viewing ${file.filename}`}>
-            <div className="flex flex-col h-full w-full">
+          <div className="fixed inset-0 z-[80] animate-fadeIn flex flex-col touch-none overscroll-none bg-slate-950 text-white" style={{ background: 'rgba(8,14,28,0.96)', backdropFilter: 'blur(10px)' }} onClick={() => setShowViewer(false)} onTouchMove={(e) => e.preventDefault()} role="dialog" aria-modal="true" aria-label={`Viewing ${file.filename}`}>
+            <div className="flex flex-col h-full w-full bg-slate-950 text-white">
               {/* Header Bar */}
               <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-4 border-b border-white/5 bg-slate-950/40 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">

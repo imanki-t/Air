@@ -646,15 +646,12 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 
           {/* ── Buffer / Loader Indicator ── */}
           {isBuffering && (
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 backdrop-blur-md pointer-events-none z-20">
-              <div className="flex flex-col items-center gap-3 bg-black/40 px-6 py-4 rounded-2xl border border-white/10 shadow-2xl">
-                <svg className="animate-spin h-10 w-10 text-blue-500" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+              <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-lg">
+                <svg className="animate-spin h-6 w-6 text-white/80" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                <span className="text-xs font-semibold text-blue-400 tracking-wider">
-                  {isDirectDrive ? 'FAST DIRECT DRIVE STREAMING...' : 'BUFFERING...'}
-                </span>
               </div>
             </div>
           )}
@@ -1622,6 +1619,7 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize, thumbnail }) 
 // ─── Main FileItem Component ──────────────────────────────────────────────────
 const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, selectionMode, viewType }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const fileName = file?.filename || file?.name || 'File';
 
   const [showShare, setShowShare] = useState(false);
   const [shareLink, setShareLink] = useState('');
@@ -1976,7 +1974,8 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       }
     }
 
-    const fileExtension = file.filename.split('.').pop().toUpperCase();
+    const fileName = file?.filename || file?.name || 'File';
+    const fileExtension = (fileName.includes('.') ? fileName.split('.').pop() : 'FILE').toUpperCase();
     return (
       <div className={`${containerBaseClasses} flex flex-col items-center justify-center`}>
         <FileTypeIcon type={type} darkMode={darkMode} size={isListView ? "h-8 w-8 sm:h-10 w-10" : "h-10 w-10"} />
@@ -2082,8 +2081,8 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
           <>
             {renderPreview(true)}
             <div className="flex flex-col flex-grow min-w-0">
-              <h3 title={file.filename} className={cn("font-medium text-sm truncate mb-1", darkMode ? 'text-gray-100' : 'text-gray-800')}>
-                {file.filename}
+              <h3 title={fileName} className={cn("font-medium text-sm truncate mb-1", darkMode ? 'text-gray-100' : 'text-gray-800')}>
+                {fileName}
               </h3>
               <div className={cn("text-xs mt-0.5", darkMode ? 'text-gray-400' : 'text-gray-500')}>
                 <p className="truncate">{formatSize(file.length)}</p>
@@ -2119,8 +2118,8 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
           <div className="flex flex-col h-full">
             {renderPreview(false)}
             <div className="p-3 pt-2 flex flex-col flex-grow">
-              <h3 title={file.filename} className={cn("font-medium text-sm truncate mb-1", darkMode ? 'text-gray-100' : 'text-gray-800')}>
-                {file.filename}
+              <h3 title={fileName} className={cn("font-medium text-sm truncate mb-1", darkMode ? 'text-gray-100' : 'text-gray-800')}>
+                {fileName}
               </h3>
               <div className={cn("text-xs mt-0.5", darkMode ? 'text-gray-400' : 'text-gray-500')}>
                 <p className="truncate">{formatSize(file.length)}</p>

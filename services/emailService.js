@@ -252,7 +252,39 @@ const shell = ({ subtitle, accentColor = '#dc2626', accentDark = '#b91c1c', body
     }
     .btn-sub { color: #475569; font-size: 11px; text-align: center; margin-top: 8px; margin-bottom: 4px; }
     .banner { border-radius: 10px; padding: 14px 16px; margin: 16px 0; display: flex; align-items: flex-start; gap: 12px; }
-    .banner-warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,1// ─────────────────────────────────────────────────────────────────────────────
+    .banner-warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25); }
+    .banner-warn .btext { color: #fcd34d; font-size: 13.5px; line-height: 1.55; }
+    .banner-warn .btext strong { color: #fde68a; }
+    .banner-danger { background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.25); }
+    .banner-danger .btext { color: #fca5a5; font-size: 13.5px; line-height: 1.55; }
+    .banner-danger .btext strong { color: #fecaca; }
+    .bicon { flex-shrink: 0; margin-top: 2px; }
+    .divider { height: 1px; background: rgba(255,255,255,0.06); margin: 24px 0; }
+    .footer { padding: 18px 32px 24px; border-top: 1px solid rgba(255,255,255,0.06); }
+    .footer p { color: #475569; font-size: 12px; line-height: 1.6; }
+    @media (max-width: 600px) {
+      body { padding: 20px 12px 40px; }
+      .header { padding: 22px 20px 18px; }
+      .body { padding: 24px 20px; }
+      .footer { padding: 16px 20px 20px; }
+      .btn { padding: 13px 28px; font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper"><div class="card">
+  <div class="header">
+    <div class="header-inner">
+      <div>${logoSvg}</div>
+      <div class="header-text"><h1>Airstream</h1><p>${subtitle}</p></div>
+    </div>
+  </div>
+  <div class="body">${body}</div>
+</div></div>
+</body>
+</html>`;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Device, UA Parser, Geolocation & Timestamp Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 const parseDeviceInfo = (userAgent = '') => {
@@ -550,66 +582,6 @@ const sendNewDeviceAlertEmail = async (user, deviceName, userAgent, ip) => {
           ${infoRow(svg.storage, `<strong>Device Type:</strong> ${escHtml(device.deviceType)}`)}
           ${infoRow(svg.link,    `<strong>IP Address (Number):</strong> ${escHtml(geo.ipNumber)}`)}
           ${infoRow(svg.link,    `<strong>IP Location (Place):</strong> ${escHtml(geo.location)}`)}
-          ${infoRow(svg.clock,   `<strong>Timestamp:</strong> ${escHtml(timeStr)}`)}
-        </div>
-        <p style="color:#94a3b8;font-size:13.5px;">If you recognize this device, no action is needed. If you did not log in from this device, please protect your Google account immediately.</p>
-        <div class="divider"></div>
-        <div class="footer">
-          <p>Security notification sent to: <strong style="color:#64748b;">${escHtml(user.email)}</strong> &nbsp;&middot;&nbsp; ${escHtml(timeStr)}</p>
-        </div>
-      `,
-    }),
-  });
-};
-
-module.exports = {
-  sendEmail,
-  sendWelcomeEmail,
-  sendExportEmail,
-  sendDeletionEmail,
-  sendNewIpAlertEmail,
-  sendNewDeviceAlertEmail,
-};,   `<strong>Timestamp:</strong> ${escHtml(timeStr)}`)}
-        </div>
-        <p style="color:#94a3b8;font-size:13.5px;">If this was you, you can safely ignore this alert. If you did not sign in recently, please secure your account immediately.</p>
-        <div class="divider"></div>
-        <div class="footer">
-          <p>Security notification sent to: <strong style="color:#64748b;">${escHtml(user.email)}</strong> &nbsp;&middot;&nbsp; ${escHtml(timeStr)}</p>
-        </div>
-      `,
-    }),
-  });
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Security: New Device detected email
-// ─────────────────────────────────────────────────────────────────────────────
-const sendNewDeviceAlertEmail = (user, deviceName, userAgent, ip) => {
-  const device = parseDeviceInfo(userAgent);
-  const formattedIp = formatIpAddress(ip);
-  const timeStr = formatTimestamp();
-  const displayDevice = deviceName && deviceName !== 'New Device/Browser' ? deviceName : device.deviceName;
-
-  return sendEmail({
-    to: user.email,
-    subject: 'Security Alert: New device logged in to your Airstream account',
-    html: shell({
-      subtitle: 'Security Alert — New Device Logged In',
-      accentColor: '#dc2626',
-      accentDark: '#991b1b',
-      body: `
-        <p>Hey <strong>${escHtml(user.name) || 'there'}</strong>,</p>
-        <p>A new device was used to log into your Airstream account.</p>
-        <div class="banner banner-danger">
-          <div class="bicon">${svg.warning}</div>
-          <div class="btext">Device Detected: <strong>${escHtml(displayDevice)}</strong></div>
-        </div>
-        <p class="section-label">Login Details</p>
-        <div class="info-grid">
-          ${infoRow(svg.profile, `<strong>Recipient Email:</strong> ${escHtml(user.email)}`)}
-          ${infoRow(svg.file,    `<strong>Device Name:</strong> ${escHtml(displayDevice)}`)}
-          ${infoRow(svg.storage, `<strong>Device Type:</strong> ${escHtml(device.deviceType)}`)}
-          ${infoRow(svg.link,    `<strong>IP Address:</strong> ${escHtml(formattedIp)}`)}
           ${infoRow(svg.clock,   `<strong>Timestamp:</strong> ${escHtml(timeStr)}`)}
         </div>
         <p style="color:#94a3b8;font-size:13.5px;">If you recognize this device, no action is needed. If you did not log in from this device, please protect your Google account immediately.</p>

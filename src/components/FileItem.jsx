@@ -1636,12 +1636,12 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   const [customThumb, setCustomThumb] = useState(() => {
     try {
       if (!fileId) return null;
-      return (
-        file?.metadata?.customIcon ||
-        file?.customIcon ||
-        localStorage.getItem(`airstream_custom_thumb_${fileId}`) ||
-        null
-      );
+      const driveId = file?.metadata?.customIconDriveId || file?.customIconDriveId;
+      const safeBackend = backendUrl || '';
+      if (driveId) return `${safeBackend}/api/files/icon/${driveId}`;
+      const url = file?.metadata?.customIconUrl || file?.customIconUrl || file?.metadata?.customIcon || file?.customIcon;
+      if (url) return url.startsWith('/') ? `${safeBackend}${url}` : url;
+      return null;
     } catch (_) { return null; }
   });
 
@@ -1675,12 +1675,6 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     const reader = new FileReader();
     reader.onload = async (evt) => {
       const dataUrl = evt.target.result;
-      try {
-        localStorage.setItem(`airstream_custom_thumb_${fileId}`, dataUrl);
-      } catch (err) {
-        console.warn('LocalStorage save error:', err);
-      }
-      setCustomThumb(dataUrl);
       setShowMenu(false);
       try {
         const token = localStorage.getItem('token');
@@ -1689,7 +1683,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
             withCredentials: true,
             headers: token ? { Authorization: `Bearer ${token}` } : {},
           };
-          await axios.patch(
+          const res = await axios.patch(
             `${backendUrl}/api/files/${fileId}/icon`,
             { customIcon: dataUrl },
             config
@@ -1699,9 +1693,20 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
               { customIcon: dataUrl },
               config
             );
-          }).catch(() => {});
+          });
+          if (res?.data?.customIconUrl) {
+            setCustomThumb(`${backendUrl}${res.data.customIconUrl}`);
+          } else if (res?.data?.customIconDriveId) {
+            setCustomThumb(`${backendUrl}/api/files/icon/${res.data.customIconDriveId}`);
+          } else {
+            setCustomThumb(dataUrl);
+          }
+        } else {
+          setCustomThumb(dataUrl);
         }
-      } catch (_) {}
+      } catch (_) {
+        setCustomThumb(dataUrl);
+      }
       if (refresh) refresh();
     };
     reader.readAsDataURL(chosen);
@@ -1709,9 +1714,6 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
   const removeCustomThumb = async (e) => {
     if (e && e.stopPropagation) e.stopPropagation();
-    try {
-      if (fileId) localStorage.removeItem(`airstream_custom_thumb_${fileId}`);
-    } catch (_) {}
     setCustomThumb(null);
     setShowMenu(false);
     try {

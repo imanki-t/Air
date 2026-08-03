@@ -184,12 +184,13 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
       console.log("Connected to WebSocket");
     });
 
-    socket.on("refreshFileList", () => {
-      console.log("Received refreshFileList event");
-      refresh(); // Refresh files when event received
+    // Bandwidth optimization: do not trigger full refresh() on file upload
+    socket.on("fileAdded", (newFile) => {
+      console.log("Received new file notification");
+      // Optional incremental handler if needed
     });
 
-    // ─── NEW: listen for folder updates ────────────────────────────────────
+    // ─── listen for folder updates ────────────────────────────────────
     socket.on("refreshFolderList", () => {
       if (onFoldersChanged) onFoldersChanged();
     });
@@ -198,7 +199,7 @@ const FileList = ({ files = [], refresh, darkMode, isLoading, folders = [], onFo
     return () => {
       socket.disconnect();
     };
-  }, [refresh]); // Added refresh to dependency array
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {

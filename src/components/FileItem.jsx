@@ -590,8 +590,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         {/* ── Liquid Glass Controller Bar ── */}
         <div
           className={cn(
-            "w-full bg-slate-950/90 border-t border-white/15 sm:border sm:border-white/15 backdrop-blur-xl p-2.5 sm:p-4 sm:rounded-2xl flex flex-col gap-2 transition-all duration-300 z-30 shadow-2xl",
-            isFS ? "absolute bottom-2 sm:bottom-3 inset-x-2 sm:inset-x-3 rounded-xl sm:rounded-2xl" : "relative sm:absolute sm:bottom-2 sm:inset-x-2 sm:bottom-3 sm:inset-x-3 rounded-b-2xl sm:rounded-2xl",
+            "w-full bg-slate-950/90 border-t border-white/15 sm:border sm:border-white/15 backdrop-blur-xl p-2 sm:p-4 sm:rounded-2xl flex flex-col gap-1.5 sm:gap-2 transition-all duration-300 z-30 shadow-2xl overflow-hidden max-w-full",
+            isFS ? "absolute bottom-2 sm:bottom-3 inset-x-2 sm:inset-x-3 rounded-xl sm:rounded-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]" : "relative sm:absolute sm:bottom-2 sm:inset-x-2 sm:bottom-3 sm:inset-x-3 rounded-b-2xl sm:rounded-2xl",
             !showCtrl && playing && isFS ? "opacity-0 translate-y-3 pointer-events-none" : "opacity-100 translate-y-0"
           )}
         >
@@ -639,10 +639,10 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
           </div>
 
           {/* ── Controls Row ── */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1 sm:gap-3">
+          <div className="flex items-center justify-between w-full min-w-0 gap-1 sm:gap-2">
+            <div className="flex items-center gap-1 sm:gap-2.5 min-w-0 shrink">
               {/* Play/Pause Button */}
-              <button onClick={togglePlay} className="p-1.5 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all flex items-center justify-center">
+              <button onClick={togglePlay} className="p-1 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all flex items-center justify-center shrink-0">
                 {isBuffering && playing ? (
                   <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -655,26 +655,26 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                 )}
               </button>
 
-              {/* Skip 10s Replay / Forward */}
-              <button onClick={() => seekRelative(-10)} className="p-1.5 sm:p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all" title="-10 seconds (J)">
+              {/* Skip 10s Replay / Forward (Compact padding for mobile) */}
+              <button onClick={() => seekRelative(-10)} className="p-1 sm:p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all shrink-0" title="-10 seconds (J)">
                 <Icons.Replay10 />
               </button>
-              <button onClick={() => seekRelative(10)} className="p-1.5 sm:p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all" title="+10 seconds (L)">
+              <button onClick={() => seekRelative(10)} className="p-1 sm:p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all shrink-0" title="+10 seconds (L)">
                 <Icons.Forward10 />
               </button>
 
               {/* Time Display */}
-              <div className="text-[10px] sm:text-xs text-white/80 font-mono tracking-wider ml-0.5 sm:ml-1 whitespace-nowrap">
+              <div className="text-[10px] sm:text-xs text-white/80 font-mono tracking-wider ml-0.5 whitespace-nowrap shrink-0">
                 <span>{fmtTime(currentTime)}</span>
-                <span className="mx-0.5 sm:mx-1 text-white/30">/</span>
+                <span className="mx-0.5 text-white/30">/</span>
                 <span>{fmtTime(duration)}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-3">
+            <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
               {/* Volume Control: Tap to Mute/Unmute on Mobile, Hover Slider on Desktop */}
-              <div className="flex items-center gap-1.5 group/volume">
-                <button onClick={toggleMute} className="p-1.5 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all" title={muted ? "Unmute" : "Mute"}>
+              <div className="flex items-center gap-1 group/volume shrink-0">
+                <button onClick={toggleMute} className="p-1 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all" title={muted ? "Unmute" : "Mute"}>
                   {muted || volume === 0 ? <Icons.VolumeMute /> : <Icons.VolumeHigh />}
                 </button>
                 <div className="hidden sm:flex relative w-0 group-hover/volume:w-16 sm:group-hover/volume:w-20 transition-all duration-300 h-1.5 overflow-hidden items-center">

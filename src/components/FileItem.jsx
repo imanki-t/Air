@@ -2010,18 +2010,34 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     }
     if (selectionMode) {
       e.preventDefault();
-      onSelect(file._id);
+      onSelect(fileId);
       return;
     }
     if (isTouchSelectEnabled()) {
       e.preventDefault();
-      onSelect(file._id);
+      onSelect(fileId);
     }
   };
 
   const isTouchSelectEnabled = () => {
     const saved = localStorage.getItem('airstream_touch_select');
     return saved === null ? true : saved === 'true';
+  };
+
+  const handleDoubleClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowMenu((prev) => !prev);
+  };
+
+  const handleTouchEnd = (e) => {
+    const now = Date.now();
+    if (now - lastTouchTimeRef.current < 300) {
+      e.preventDefault();
+      e.stopPropagation();
+      setShowMenu((prev) => !prev);
+    }
+    lastTouchTimeRef.current = now;
   };
 
   const renderKebabMenuItems = () => (

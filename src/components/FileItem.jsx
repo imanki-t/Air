@@ -192,6 +192,26 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const [hoverTime, setHoverTime] = useState(null);
   const [hoverPos, setHoverPos] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
+  // Detect real touch/mobile devices via pointer type rather than viewport width alone,
+  // so rotating a phone to landscape for fullscreen playback doesn't cross the `sm:` width
+  // breakpoint and wrongly reveal desktop-only controls (Theater / Help).
+  const [isCoarsePointer, setIsCoarsePointer] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(pointer: coarse)').matches
+      : false
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(pointer: coarse)');
+    const handler = (e) => setIsCoarsePointer(e.matches);
+    if (mq.addEventListener) mq.addEventListener('change', handler);
+    else mq.addListener(handler);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', handler);
+      else mq.removeListener(handler);
+    };
+  }, []);
 
   // Quick skip ripple animations
   const [leftRipple, setLeftRipple] = useState(false);

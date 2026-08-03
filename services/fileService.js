@@ -196,19 +196,27 @@ const getFiles = async (req, res) => {
       .sort({ createdAt: -1 })
       .toArray();
 
-    const formattedFiles = files.map((file) => ({
-      _id: file._id,
-      length: file.metadata?.size ? parseInt(file.metadata.size) : 0,
-      chunkSize: 261120,
-      uploadDate: file.metadata?.uploadDate || file.createdAt,
-      filename: file.metadata?.filename,
-      contentType: file.metadata?.contentType,
-      customIcon: file.metadata?.customIcon || file.customIcon || null,
-      metadata: {
-        ...file.metadata,
-        customIcon: file.metadata?.customIcon || file.customIcon || null,
-      },
-    }));
+    const formattedFiles = files.map((file) => {
+      const driveId = file.metadata?.customIconDriveId || file.customIconDriveId || null;
+      const iconUrl = driveId ? `/api/files/icon/${driveId}` : (file.metadata?.customIconUrl || file.customIconUrl || file.metadata?.customIcon || file.customIcon || null);
+      return {
+        _id: file._id,
+        length: file.metadata?.size ? parseInt(file.metadata.size) : 0,
+        chunkSize: 261120,
+        uploadDate: file.metadata?.uploadDate || file.createdAt,
+        filename: file.metadata?.filename,
+        contentType: file.metadata?.contentType,
+        customIconDriveId: driveId,
+        customIconUrl: iconUrl,
+        customIcon: iconUrl,
+        metadata: {
+          ...file.metadata,
+          customIconDriveId: driveId,
+          customIconUrl: iconUrl,
+          customIcon: iconUrl,
+        },
+      };
+    });
 
     res.json(formattedFiles);
   } catch (error) {
@@ -742,7 +750,28 @@ const scheduleCleanup = async () => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Update custom icon / thumbnail for a file mapping in MongoDB
+// Stream custom file icon from Google Drive
+// ─────────────────────────────────────────────────────────────────────────────
+const getIconStream = async (req, res) => {
+  try {
+    const iconId = req.params.iconId;
+    const userId = req.user?.userId;
+
+    if (!userId) return res.status(401).json({ error: 'Not authenticated.' });
+    if (!iconId) return res.status(400).json({ error: 'Icon ID is required.' });
+
+    const stream = await downloadFileStreamFromDrive(userId, iconId);
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+    stream.pipe(res);
+  } catch (error) {
+    console.error('Error fetching icon stream:', error);
+    res.status(404).json({ error: 'Icon not found.' });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Update custom icon / thumbnail for a file mapping in Google Drive & MongoDB
 // ─────────────────────────────────────────────────────────────────────────────
 const updateFileIcon = async (req, res) => {
   try {
@@ -759,19 +788,91 @@ const updateFileIcon = async (req, res) => {
     const objectId = safeObjectId(fileId);
     if (!objectId) return res.status(400).json({ error: 'Invalid file ID.' });
 
-    await db.collection('drive_mappings').updateOne(
-      { _id: objectId },
-      {
-        $set: {
-          'metadata.customIcon': customIcon || null,
-          'metadata.thumbnail': customIcon || null,
-          customIcon: customIcon || null,
-          updatedAt: new Date(),
-        },
-      }
-    );
+    const existingIconDriveId = mapping.metadata?.customIconDriveId || mapping.customIconDriveId;
 
-    res.json({ success: true, fileId, customIcon: customIcon || null });
+    if (customIcon || req.file) {
+      let buffer, mimeType = 'image/png';
+      if (typeof customIcon === 'string' && customIcon.startsWith('data:')) {
+        const matches = customIcon.match(/^data:(image\/[a-zA-Z0-9\+\-\.]+);base64,(.+)$/);
+        if (matches) {
+          mimeType = matches[1];
+          buffer = Buffer.from(matches[2], 'base64');
+        } else {
+          buffer = Buffer.from(customIcon, 'base64');
+        }
+      } else if (req.file) {
+        buffer = req.file.buffer || (await toBuffer(req.file.stream));
+        mimeType = req.file.mimetype || 'image/png';
+      } else {
+        buffer = Buffer.from(customIcon || '', 'utf-8');
+      }
+
+      // Delete existing custom icon from Google Drive if present
+      if (existingIconDriveId) {
+        await deleteFileFromDrive(userId, existingIconDriveId).catch(() => {});
+      }
+
+      // Upload icon image to Google Drive
+      const iconFilename = `icon_${fileId}_${Date.now()}.png`;
+      const iconDriveId = await uploadFileToDrive(userId, iconFilename, mimeType, buffer);
+      const iconUrl = `/api/files/icon/${iconDriveId}`;
+
+      // Save ONLY the Google Drive icon ID & stream URL in MongoDB
+      await db.collection('drive_mappings').updateOne(
+        { _id: objectId },
+        {
+          $set: {
+            'metadata.customIconDriveId': iconDriveId,
+            'metadata.customIconUrl': iconUrl,
+            'metadata.customIcon': iconUrl,
+            customIconDriveId: iconDriveId,
+            customIconUrl: iconUrl,
+            customIcon: iconUrl,
+            updatedAt: new Date(),
+          },
+          $unset: {
+            'metadata.thumbnail': '',
+          },
+        }
+      );
+
+      res.json({
+        success: true,
+        fileId,
+        customIconDriveId: iconDriveId,
+        customIconUrl: iconUrl,
+        customIcon: iconUrl,
+      });
+    } else {
+      // Removing custom icon
+      if (existingIconDriveId) {
+        await deleteFileFromDrive(userId, existingIconDriveId).catch(() => {});
+      }
+
+      await db.collection('drive_mappings').updateOne(
+        { _id: objectId },
+        {
+          $unset: {
+            'metadata.customIconDriveId': '',
+            'metadata.customIconUrl': '',
+            'metadata.customIcon': '',
+            'metadata.thumbnail': '',
+            customIconDriveId: '',
+            customIconUrl: '',
+            customIcon: '',
+          },
+          $set: { updatedAt: new Date() },
+        }
+      );
+
+      res.json({
+        success: true,
+        fileId,
+        customIconDriveId: null,
+        customIconUrl: null,
+        customIcon: null,
+      });
+    }
   } catch (error) {
     console.error('Update file icon error:', error);
     res.status(500).json({ error: 'Failed to update file icon.' });
@@ -787,6 +888,7 @@ module.exports = {
   getVideoStreamUrl,
   deleteFile,
   updateFileIcon,
+  getIconStream,
   generateShareLink,
   accessSharedFile,
   uploadAndShareZip,

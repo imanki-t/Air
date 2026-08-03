@@ -143,10 +143,13 @@ io.on('connection', (socket) => {
     }
   };
 
-  socket.on('fileUploaded', async () => {
+  socket.on('fileUploaded', async (fileData) => {
     if (!await revalidateSocket()) return;
-    // Emit only to this user's room, not all connected clients
-    io.to(userId).emit('refreshFileList');
+    // Bandwidth optimization: stop broadcasting full list refresh across all devices.
+    // Optionally notify other sessions of the single file item if provided.
+    if (fileData && typeof fileData === 'object') {
+      socket.to(userId).emit('fileAdded', fileData);
+    }
   });
 
   socket.on('folderUpdated', async () => {

@@ -65,9 +65,12 @@ router.delete('/cleanup/:fileId', apiLimiter, controller.cleanupIncompleteUpload
 // Delete file
 router.delete('/:id', apiLimiter, controller.deleteFile); 
 
+// Custom icon stream route
+router.get('/icon/:iconId', downloadLimiter, controller.getIconStream);
+
 // Update custom icon / thumbnail
-router.patch('/:id/icon', apiLimiter, controller.updateFileIcon);
-router.patch('/:id', apiLimiter, controller.updateFileIcon);
+router.patch('/:id/icon', apiLimiter, upload.single('icon'), attachStreamAndCleanup, controller.updateFileIcon);
+router.patch('/:id', apiLimiter, upload.single('icon'), attachStreamAndCleanup, controller.updateFileIcon);
 
 // Generate share link
 router.post('/share/:id', apiLimiter, controller.generateShareLink); 

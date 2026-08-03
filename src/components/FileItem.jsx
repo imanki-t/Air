@@ -1684,12 +1684,22 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       setShowMenu(false);
       try {
         const token = localStorage.getItem('token');
-        if (token && backendUrl) {
+        if (backendUrl && fileId) {
+          const config = {
+            withCredentials: true,
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          };
           await axios.patch(
-            `${backendUrl}/api/files/${fileId}`,
-            { customIcon: dataUrl, metadata: { ...(file?.metadata || {}), customIcon: dataUrl } },
-            { headers: { Authorization: `Bearer ${token}` } }
-          ).catch(() => {});
+            `${backendUrl}/api/files/${fileId}/icon`,
+            { customIcon: dataUrl },
+            config
+          ).catch(() => {
+            return axios.patch(
+              `${backendUrl}/api/files/${fileId}`,
+              { customIcon: dataUrl },
+              config
+            );
+          }).catch(() => {});
         }
       } catch (_) {}
       if (refresh) refresh();
@@ -1706,12 +1716,22 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     setShowMenu(false);
     try {
       const token = localStorage.getItem('token');
-      if (token && backendUrl && fileId) {
+      if (backendUrl && fileId) {
+        const config = {
+          withCredentials: true,
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        };
         await axios.patch(
-          `${backendUrl}/api/files/${fileId}`,
-          { customIcon: null, metadata: { ...(file?.metadata || {}), customIcon: null } },
-          { headers: { Authorization: `Bearer ${token}` } }
-        ).catch(() => {});
+          `${backendUrl}/api/files/${fileId}/icon`,
+          { customIcon: null },
+          config
+        ).catch(() => {
+          return axios.patch(
+            `${backendUrl}/api/files/${fileId}`,
+            { customIcon: null },
+            config
+          );
+        }).catch(() => {});
       }
     } catch (_) {}
     if (refresh) refresh();

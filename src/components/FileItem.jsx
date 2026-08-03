@@ -546,7 +546,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         ref={wrapRef}
         className={cn(
           "relative w-full bg-slate-950 text-white overflow-hidden group border border-white/10 transition-all duration-300 shadow-2xl select-none flex flex-col items-center justify-center backdrop-blur-2xl rounded-2xl",
-          isFS ? "fixed inset-0 h-screen w-screen rounded-none max-w-none z-[9999] bg-black text-white" : isTheater ? "max-w-[1100px] max-h-[82vh]" : "max-w-[760px] sm:max-w-[820px] max-h-[70vh] sm:max-h-[74vh]",
+          isFS ? "fixed top-0 left-0 right-0 bottom-0 m-0 h-[100dvh] w-[100dvw] max-h-[100dvh] max-w-none rounded-none z-[9999] bg-black text-white" : isTheater ? "max-w-[1100px] max-h-[82vh]" : "max-w-[760px] sm:max-w-[820px] max-h-[70vh] sm:max-h-[74vh]",
           !showCtrl && playing ? "cursor-none" : ""
         )}
         onMouseMove={nudgeControls}

@@ -173,6 +173,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const wrapRef = useRef(null);
   const settingsRef = useRef(null);
   const hoverScrubRef = useRef(null);
+  const ambientCanvasRef = useRef(null);
+  const [ambientSupported, setAmbientSupported] = useState(true);
 
   const [videoUrl, setVideoUrl] = useState(src);
   const [usingFallback, setUsingFallback] = useState(false);
@@ -268,6 +270,31 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
     }
     return () => cancelAnimationFrame(animId);
   }, [playing]);
+
+  // Real YouTube-style 60fps Canvas Ambient Glow Loop
+  useEffect(() => {
+    let animId;
+    const drawAmbientFrame = () => {
+      if (isAmbient && playing && videoRef.current && ambientCanvasRef.current) {
+        const canvas = ambientCanvasRef.current;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (ctx && videoRef.current.readyState >= 2) {
+          try {
+            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+            setAmbientSupported(true);
+          } catch (_) {
+            setAmbientSupported(false);
+          }
+        }
+        animId = requestAnimationFrame(drawAmbientFrame);
+      }
+    };
+
+    if (playing && isAmbient) {
+      animId = requestAnimationFrame(drawAmbientFrame);
+    }
+    return () => cancelAnimationFrame(animId);
+  }, [playing, isAmbient]);
 
   const nudgeControls = useCallback(() => {
     setShowCtrl(true);
@@ -537,9 +564,23 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 
   return (
     <div onClick={(e) => e.stopPropagation()} className="relative w-full flex flex-col items-center justify-center">
-      {/* ── Ambient Cinema Glow ── */}
+      {/* ── Real Dynamic YouTube-Style Ambient Glow Canvas ── */}
       {isAmbient && (
-        <div className="absolute -inset-4 bg-gradient-to-r from-blue-600/30 via-indigo-500/20 to-cyan-500/30 rounded-3xl blur-3xl opacity-60 scale-105 pointer-events-none transition-all duration-700 animate-pulse" />
+        <div className="absolute -inset-6 sm:-inset-10 pointer-events-none z-0 overflow-hidden flex items-center justify-center">
+          <canvas
+            ref={ambientCanvasRef}
+            width={64}
+            height={36}
+            className={cn(
+              "w-full h-full object-cover rounded-3xl blur-2xl sm:blur-3xl transition-opacity duration-700 scale-125 opacity-70",
+              !ambientSupported && "hidden"
+            )}
+          />
+          {/* Fallback Cinema Ambient Glow if video canvas is tainted by CORS */}
+          {!ambientSupported && (
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 via-indigo-500/30 to-cyan-500/40 rounded-3xl blur-3xl opacity-70 scale-110 animate-pulse transition-all duration-700" />
+          )}
+        </div>
       )}
 
       <div
@@ -630,56 +671,58 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         {/* ── Liquid Glass Controller Bar ── */}
         <div
           className={cn(
-            "w-full bg-slate-950/90 border-t border-white/15 sm:border sm:border-white/15 backdrop-blur-xl p-2 sm:p-3 sm:rounded-2xl flex flex-col gap-1.5 sm:gap-2 transition-all duration-300 z-30 shadow-2xl max-w-full overflow-visible",
+            "w-full bg-slate-950/95 border-t border-white/15 sm:border sm:border-white/15 backdrop-blur-2xl px-3.5 sm:px-5 py-2.5 sm:py-3.5 sm:rounded-2xl flex flex-col gap-1.5 sm:gap-2 transition-all duration-300 z-30 shadow-2xl max-w-full overflow-visible",
             isFS ? "absolute bottom-2 sm:bottom-3 inset-x-2 sm:inset-x-3 rounded-xl sm:rounded-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]" : "relative sm:absolute sm:bottom-2 sm:inset-x-2 sm:bottom-3 sm:inset-x-3 rounded-b-2xl sm:rounded-2xl",
             !showCtrl && playing && isFS && !showSettingsMenu ? "opacity-0 translate-y-3 pointer-events-none" : "opacity-100 translate-y-0"
           )}
         >
           {/* ── YouTube Scrubber with Hover Time Tooltip ── */}
-          <div
-            ref={hoverScrubRef}
-            className="relative flex items-center w-full h-3 group/scrub cursor-pointer"
-            onMouseMove={handleScrubberMouseMove}
-            onMouseLeave={() => setHoverTime(null)}
-          >
-            {/* Live Hover Time Tooltip */}
-            {hoverTime !== null && (
-              <div
-                className="absolute bottom-full mb-2 -translate-x-1/2 px-2 py-1 bg-slate-900/90 border border-white/15 text-white text-[11px] font-mono rounded-md shadow-xl backdrop-blur-md pointer-events-none z-40"
-                style={{ left: `${hoverPos}%` }}
-              >
-                {fmtTime(hoverTime)}
-              </div>
-            )}
+          <div className="w-full px-1 sm:px-2">
+            <div
+              ref={hoverScrubRef}
+              className="relative flex items-center w-full h-3 group/scrub cursor-pointer"
+              onMouseMove={handleScrubberMouseMove}
+              onMouseLeave={() => setHoverTime(null)}
+            >
+              {/* Live Hover Time Tooltip */}
+              {hoverTime !== null && (
+                <div
+                  className="absolute bottom-full mb-2 -translate-x-1/2 px-2 py-1 bg-slate-900/90 border border-white/15 text-white text-[11px] font-mono rounded-md shadow-xl backdrop-blur-md pointer-events-none z-40"
+                  style={{ left: `${hoverPos}%` }}
+                >
+                  {fmtTime(hoverTime)}
+                </div>
+              )}
 
-            {/* Track Background */}
-            <div className="absolute inset-y-0 left-0 right-0 bg-white/15 rounded-full h-1.5 group-hover/scrub:h-2 transition-all" />
-            {/* Buffer bar */}
-            <div className="absolute inset-y-0 left-0 bg-blue-400/30 rounded-full h-1.5 group-hover/scrub:h-2 transition-all" style={{ width: `${bufferPercent}%` }} />
-            {/* Progress bar (60fps liquid tracking) */}
-            <div
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-600 to-sky-400 rounded-full h-1.5 group-hover/scrub:h-2.5 transition-[width,height] duration-75 ease-linear shadow-md"
-              style={{ width: `${progressPercent}%` }}
-            />
-            {/* Interactive Input Range */}
-            <input
-              type="range"
-              min={0}
-              max={duration || 0}
-              step={0.001}
-              value={currentTime}
-              onChange={handleSeek}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-            />
-            {/* Scrubber Knob (Liquid 60fps movement) */}
-            <div
-              className="absolute w-4 h-4 bg-white rounded-full shadow-xl scale-0 group-hover/scrub:scale-100 transition-[transform,left] duration-75 ease-linear pointer-events-none ring-2 ring-blue-500 z-20"
-              style={{ left: `calc(${progressPercent}% - 8px)` }}
-            />
+              {/* Track Background */}
+              <div className="absolute inset-y-0 left-0 right-0 bg-white/15 rounded-full h-1.5 group-hover/scrub:h-2 transition-all" />
+              {/* Buffer bar */}
+              <div className="absolute inset-y-0 left-0 bg-blue-400/30 rounded-full h-1.5 group-hover/scrub:h-2 transition-all" style={{ width: `${bufferPercent}%` }} />
+              {/* Progress bar (60fps liquid tracking) */}
+              <div
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-600 to-sky-400 rounded-full h-1.5 group-hover/scrub:h-2.5 transition-[width,height] duration-75 ease-linear shadow-md"
+                style={{ width: `${progressPercent}%` }}
+              />
+              {/* Interactive Input Range */}
+              <input
+                type="range"
+                min={0}
+                max={duration || 0}
+                step={0.001}
+                value={currentTime}
+                onChange={handleSeek}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+              />
+              {/* Scrubber Knob (Liquid 60fps movement) */}
+              <div
+                className="absolute w-4 h-4 bg-white rounded-full shadow-xl scale-0 group-hover/scrub:scale-100 transition-[transform,left] duration-75 ease-linear pointer-events-none ring-2 ring-blue-500 z-20"
+                style={{ left: `calc(${progressPercent}% - 8px)` }}
+              />
+            </div>
           </div>
 
           {/* ── Controls Row ── */}
-          <div className="flex items-center justify-between w-full min-w-0 gap-1 sm:gap-2 px-1 sm:px-2">
+          <div className="flex items-center justify-between w-full min-w-0 gap-1.5 sm:gap-3 px-1 sm:px-2">
             <div className="flex items-center gap-1 sm:gap-2 min-w-0 shrink">
               {/* Play/Pause Button */}
               <button onClick={togglePlay} className="p-1.5 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all flex items-center justify-center shrink-0">

@@ -283,14 +283,72 @@ const shell = ({ subtitle, accentColor = '#dc2626', accentDark = '#b91c1c', body
 </body>
 </html>`;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Device & UA Parser & Timestamp Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+const parseDeviceInfo = (userAgent = '') => {
+  const ua = String(userAgent || '');
+  let os = 'Unknown System';
+  let deviceType = 'Desktop';
+  let browser = 'Unknown Browser';
+
+  if (/iPhone/i.test(ua)) { os = 'iOS (iPhone)'; deviceType = 'Mobile Smartphone'; }
+  else if (/iPad/i.test(ua)) { os = 'iPadOS (iPad)'; deviceType = 'Tablet'; }
+  else if (/Android/i.test(ua)) {
+    os = 'Android OS';
+    deviceType = /Mobile/i.test(ua) ? 'Mobile Smartphone' : 'Tablet';
+  } else if (/Macintosh|Mac OS X/i.test(ua)) { os = 'macOS'; deviceType = 'Desktop / Laptop'; }
+  else if (/Windows/i.test(ua)) { os = 'Windows PC'; deviceType = 'Desktop / Laptop'; }
+  else if (/Linux/i.test(ua)) { os = 'Linux Workstation'; deviceType = 'Desktop / Laptop'; }
+
+  if (/Edg/i.test(ua)) browser = 'Microsoft Edge';
+  else if (/Chrome/i.test(ua)) browser = 'Google Chrome';
+  else if (/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Apple Safari';
+  else if (/Firefox/i.test(ua)) browser = 'Mozilla Firefox';
+  else if (/Opera|OPR/i.test(ua)) browser = 'Opera Browser';
+
+  return {
+    deviceName: `${os} · ${browser}`,
+    deviceType,
+    browser,
+    os,
+  };
+};
+
+const formatTimestamp = (date = new Date()) => {
+  const d = new Date(date);
+  return d.toLocaleString('en-US', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZoneName: 'short',
+  });
+};
+
+const formatIpAddress = (ip = '') => {
+  const cleanIp = String(ip || '').replace(/^::ffff:/, '').trim();
+  if (!cleanIp || cleanIp === '127.0.0.1' || cleanIp === '::1') {
+    return 'Local Network / Private (127.0.0.1)';
+  }
+  return cleanIp;
+};
+
 const infoRow = (iconSvg, text) =>
   `<div class="info-row"><div class="info-icon">${iconSvg}</div><div class="info-text">${text}</div></div>`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Welcome email
 // ─────────────────────────────────────────────────────────────────────────────
-const sendWelcomeEmail = (user) =>
-  sendEmail({
+const sendWelcomeEmail = (user, ip = '', userAgent = '') => {
+  const device = parseDeviceInfo(userAgent);
+  const formattedIp = formatIpAddress(ip);
+  const timeStr = formatTimestamp();
+
+  return sendEmail({
     to: user.email,
     subject: 'Welcome to Airstream — your personal cloud storage',
     html: shell({
@@ -298,6 +356,14 @@ const sendWelcomeEmail = (user) =>
       body: `
         <p>Hey <strong>${escHtml(user.name) || 'there'}</strong>,</p>
         <p>Welcome aboard. Your Airstream account is ready — start uploading, organising, and sharing your files right away.</p>
+        <p class="section-label">Account & Sign-In Details</p>
+        <div class="info-grid">
+          ${infoRow(svg.profile, `<strong>Recipient Email:</strong> ${escHtml(user.email)}`)}
+          ${infoRow(svg.file,    `<strong>Device Name:</strong> ${escHtml(device.deviceName)}`)}
+          ${infoRow(svg.storage, `<strong>Device Type:</strong> ${escHtml(device.deviceType)}`)}
+          ${infoRow(svg.link,    `<strong>IP Address:</strong> ${escHtml(formattedIp)}`)}
+          ${infoRow(svg.clock,   `<strong>Timestamp:</strong> ${escHtml(timeStr)}`)}
+        </div>
         <p class="section-label">What is included</p>
         <div class="info-grid">
           ${infoRow(svg.storage, '<strong>Your Google Drive storage</strong> — uses your own Drive account, no extra limits')}
@@ -305,23 +371,25 @@ const sendWelcomeEmail = (user) =>
           ${infoRow(svg.folder,  '<strong>Folder organisation</strong> with custom colours')}
           ${infoRow(svg.export,  '<strong>Export and import</strong> your data any time')}
         </div>
-        <p>If you have any questions, simply reply to this email or visit our <a href="https://quickwitty.onrender.com/contacts" style="color:#dc2626;text-decoration:none;font-weight:600;">contact page</a>.</p>
+        <p>If you have any questions, simply reply to this email.</p>
         <p style="color:#475569;font-size:14px;">— The Airstream Team</p>
         <div class="divider"></div>
         <div class="footer">
-          <p>You received this because you created an account with <strong style="color:#64748b;">${escHtml(user.email)}</strong>.</p>
+          <p>Account: <strong style="color:#64748b;">${escHtml(user.email)}</strong> &nbsp;&middot;&nbsp; Signed up: <strong style="color:#64748b;">${escHtml(timeStr)}</strong></p>
         </div>
       `,
     }),
   });
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Export ready email
 // ─────────────────────────────────────────────────────────────────────────────
-const sendExportEmail = (user, downloadUrl, expiresAt, exportPassword) => {
-  const expiryStr = new Date(expiresAt).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'long', day: 'numeric',
-  });
+const sendExportEmail = (user, downloadUrl, expiresAt, exportPassword, ip = '', userAgent = '') => {
+  const expiryStr = formatTimestamp(expiresAt);
+  const device = parseDeviceInfo(userAgent);
+  const formattedIp = formatIpAddress(ip);
+  const timeStr = formatTimestamp();
 
   return sendEmail({
     to: user.email,
@@ -345,6 +413,14 @@ const sendExportEmail = (user, downloadUrl, expiresAt, exportPassword) => {
           <div class="bicon">${svg.clock}</div>
           <div class="btext">This link expires on <strong>${expiryStr}</strong>. Download before then.</div>
         </div>
+        <p class="section-label">Request & Device Details</p>
+        <div class="info-grid">
+          ${infoRow(svg.profile, `<strong>Recipient Email:</strong> ${escHtml(user.email)}`)}
+          ${infoRow(svg.file,    `<strong>Device Name:</strong> ${escHtml(device.deviceName)}`)}
+          ${infoRow(svg.storage, `<strong>Device Type:</strong> ${escHtml(device.deviceType)}`)}
+          ${infoRow(svg.link,    `<strong>IP Address:</strong> ${escHtml(formattedIp)}`)}
+          ${infoRow(svg.clock,   `<strong>Timestamp:</strong> ${escHtml(timeStr)}`)}
+        </div>
         <p class="section-label">What is included</p>
         <div class="info-grid">
           ${infoRow(svg.folder,  'All your uploaded files (AES-256 encrypted)')}
@@ -354,7 +430,7 @@ const sendExportEmail = (user, downloadUrl, expiresAt, exportPassword) => {
         <p style="color:#64748b;font-size:13.5px;">If you did not request this export, you can safely ignore this email — your account is untouched.</p>
         <div class="divider"></div>
         <div class="footer">
-          <p>Requested for account: <strong style="color:#64748b;">${escHtml(user.email)}</strong></p>
+          <p>Requested for account: <strong style="color:#64748b;">${escHtml(user.email)}</strong> &nbsp;&middot;&nbsp; ${escHtml(timeStr)}</p>
         </div>
       `,
     }),
@@ -364,10 +440,11 @@ const sendExportEmail = (user, downloadUrl, expiresAt, exportPassword) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Account deletion email
 // ─────────────────────────────────────────────────────────────────────────────
-const sendDeletionEmail = (user, recoveryDeadline) => {
-  const deadlineStr = new Date(recoveryDeadline).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'long', day: 'numeric',
-  });
+const sendDeletionEmail = (user, recoveryDeadline, ip = '', userAgent = '') => {
+  const deadlineStr = formatTimestamp(recoveryDeadline);
+  const device = parseDeviceInfo(userAgent);
+  const formattedIp = formatIpAddress(ip);
+  const timeStr = formatTimestamp();
 
   return sendEmail({
     to: user.email,
@@ -384,6 +461,14 @@ const sendDeletionEmail = (user, recoveryDeadline) => {
           <div class="btext">Your account and all files will be <strong>permanently deleted on ${deadlineStr}</strong>.</div>
         </div>
         <p><strong>Changed your mind?</strong> You have 7 days to recover your account. Simply sign back in before <strong>${deadlineStr}</strong> and everything will be fully restored.</p>
+        <p class="section-label">Request & Device Details</p>
+        <div class="info-grid">
+          ${infoRow(svg.profile, `<strong>Recipient Email:</strong> ${escHtml(user.email)}`)}
+          ${infoRow(svg.file,    `<strong>Device Name:</strong> ${escHtml(device.deviceName)}`)}
+          ${infoRow(svg.storage, `<strong>Device Type:</strong> ${escHtml(device.deviceType)}`)}
+          ${infoRow(svg.link,    `<strong>IP Address:</strong> ${escHtml(formattedIp)}`)}
+          ${infoRow(svg.clock,   `<strong>Request Time:</strong> ${escHtml(timeStr)}`)}
+        </div>
         <p class="section-label">What gets deleted</p>
         <div class="info-grid">
           ${infoRow(svg.profile, 'Your account profile')}
@@ -394,7 +479,7 @@ const sendDeletionEmail = (user, recoveryDeadline) => {
         <p style="color:#64748b;font-size:13.5px;">If you did not request this deletion, sign in immediately — your account will be automatically restored.</p>
         <div class="divider"></div>
         <div class="footer">
-          <p>Account: <strong style="color:#64748b;">${escHtml(user.email)}</strong> &nbsp;&middot;&nbsp; Deletion date: <strong style="color:#64748b;">${deadlineStr}</strong></p>
+          <p>Account: <strong style="color:#64748b;">${escHtml(user.email)}</strong> &nbsp;&middot;&nbsp; Deletion deadline: <strong style="color:#64748b;">${deadlineStr}</strong></p>
         </div>
       `,
     }),
@@ -405,7 +490,10 @@ const sendDeletionEmail = (user, recoveryDeadline) => {
 // Security: New IP detected email
 // ─────────────────────────────────────────────────────────────────────────────
 const sendNewIpAlertEmail = (user, ip, userAgent) => {
-  const timeStr = new Date().toLocaleString('en-US', { timeZoneName: 'short' });
+  const device = parseDeviceInfo(userAgent);
+  const formattedIp = formatIpAddress(ip);
+  const timeStr = formatTimestamp();
+
   return sendEmail({
     to: user.email,
     subject: 'Security Alert: New IP address signed in to your Airstream account',
@@ -418,19 +506,20 @@ const sendNewIpAlertEmail = (user, ip, userAgent) => {
         <p>We detected a sign-in to your Airstream account from a new IP address.</p>
         <div class="banner banner-warn">
           <div class="bicon">${svg.warning}</div>
-          <div class="btext">New IP Address: <strong>${escHtml(ip)}</strong></div>
+          <div class="btext">New IP Location / Address: <strong>${escHtml(formattedIp)}</strong></div>
         </div>
-        <p class="section-label">Sign-In Details</p>
+        <p class="section-label">Sign-In & Security Details</p>
         <div class="info-grid">
-          ${infoRow(svg.profile, `<strong>Account:</strong> ${escHtml(user.email)}`)}
-          ${infoRow(svg.link,    `<strong>IP Address:</strong> ${escHtml(ip)}`)}
-          ${infoRow(svg.clock,   `<strong>Time:</strong> ${escHtml(timeStr)}`)}
-          ${infoRow(svg.file,    `<strong>Browser / App:</strong> ${escHtml(userAgent || 'Unknown device')}`)}
+          ${infoRow(svg.profile, `<strong>Recipient Email:</strong> ${escHtml(user.email)}`)}
+          ${infoRow(svg.link,    `<strong>IP Address:</strong> ${escHtml(formattedIp)}`)}
+          ${infoRow(svg.file,    `<strong>Device Name:</strong> ${escHtml(device.deviceName)}`)}
+          ${infoRow(svg.storage, `<strong>Device Type:</strong> ${escHtml(device.deviceType)}`)}
+          ${infoRow(svg.clock,   `<strong>Timestamp:</strong> ${escHtml(timeStr)}`)}
         </div>
         <p style="color:#94a3b8;font-size:13.5px;">If this was you, you can safely ignore this alert. If you did not sign in recently, please secure your account immediately.</p>
         <div class="divider"></div>
         <div class="footer">
-          <p>Security notification sent to: <strong style="color:#64748b;">${escHtml(user.email)}</strong></p>
+          <p>Security notification sent to: <strong style="color:#64748b;">${escHtml(user.email)}</strong> &nbsp;&middot;&nbsp; ${escHtml(timeStr)}</p>
         </div>
       `,
     }),
@@ -441,7 +530,11 @@ const sendNewIpAlertEmail = (user, ip, userAgent) => {
 // Security: New Device detected email
 // ─────────────────────────────────────────────────────────────────────────────
 const sendNewDeviceAlertEmail = (user, deviceName, userAgent, ip) => {
-  const timeStr = new Date().toLocaleString('en-US', { timeZoneName: 'short' });
+  const device = parseDeviceInfo(userAgent);
+  const formattedIp = formatIpAddress(ip);
+  const timeStr = formatTimestamp();
+  const displayDevice = deviceName && deviceName !== 'New Device/Browser' ? deviceName : device.deviceName;
+
   return sendEmail({
     to: user.email,
     subject: 'Security Alert: New device logged in to your Airstream account',
@@ -454,19 +547,20 @@ const sendNewDeviceAlertEmail = (user, deviceName, userAgent, ip) => {
         <p>A new device was used to log into your Airstream account.</p>
         <div class="banner banner-danger">
           <div class="bicon">${svg.warning}</div>
-          <div class="btext">Device: <strong>${escHtml(deviceName || 'Unknown Device')}</strong></div>
+          <div class="btext">Device Detected: <strong>${escHtml(displayDevice)}</strong></div>
         </div>
         <p class="section-label">Login Details</p>
         <div class="info-grid">
-          ${infoRow(svg.profile, `<strong>User:</strong> ${escHtml(user.name || user.email)}`)}
-          ${infoRow(svg.file,    `<strong>Device / User-Agent:</strong> ${escHtml(userAgent || 'Unknown')}`)}
-          ${infoRow(svg.link,    `<strong>IP Address:</strong> ${escHtml(ip || 'Unknown')}`)}
+          ${infoRow(svg.profile, `<strong>Recipient Email:</strong> ${escHtml(user.email)}`)}
+          ${infoRow(svg.file,    `<strong>Device Name:</strong> ${escHtml(displayDevice)}`)}
+          ${infoRow(svg.storage, `<strong>Device Type:</strong> ${escHtml(device.deviceType)}`)}
+          ${infoRow(svg.link,    `<strong>IP Address:</strong> ${escHtml(formattedIp)}`)}
           ${infoRow(svg.clock,   `<strong>Timestamp:</strong> ${escHtml(timeStr)}`)}
         </div>
         <p style="color:#94a3b8;font-size:13.5px;">If you recognize this device, no action is needed. If you did not log in from this device, please protect your Google account immediately.</p>
         <div class="divider"></div>
         <div class="footer">
-          <p>Security notification sent to: <strong style="color:#64748b;">${escHtml(user.email)}</strong></p>
+          <p>Security notification sent to: <strong style="color:#64748b;">${escHtml(user.email)}</strong> &nbsp;&middot;&nbsp; ${escHtml(timeStr)}</p>
         </div>
       `,
     }),

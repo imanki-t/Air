@@ -98,6 +98,7 @@ const Icons = {
   Check: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>,
   Speed: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l3 2"/></svg>,
   Close: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>,
+  Sparkles: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"/></svg>,
 };
 // Compact Modern Zoomable Image Viewer Container
 const ImageViewerContainer = ({ src, filename }) => {
@@ -184,6 +185,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const [showCtrl, setShowCtrl] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const [activeSettingsView, setActiveSettingsView] = useState('main');
+  const [isAmbient, setIsAmbient] = useState(true);
   const [isLooping, setIsLooping] = useState(false);
   const [forcedOrientation, setForcedOrientation] = useState(null);
   const [isFS, setIsFS] = useState(false);
@@ -535,7 +538,9 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   return (
     <div onClick={(e) => e.stopPropagation()} className="relative w-full flex flex-col items-center justify-center">
       {/* ── Ambient Cinema Glow ── */}
-      <div className="absolute -inset-4 bg-gradient-to-r from-blue-600/30 via-indigo-500/20 to-cyan-500/30 rounded-3xl blur-3xl opacity-60 scale-105 pointer-events-none transition-all duration-700 animate-pulse" />
+      {isAmbient && (
+        <div className="absolute -inset-4 bg-gradient-to-r from-blue-600/30 via-indigo-500/20 to-cyan-500/30 rounded-3xl blur-3xl opacity-60 scale-105 pointer-events-none transition-all duration-700 animate-pulse" />
+      )}
 
       <div
         ref={wrapRef}
@@ -674,7 +679,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
           </div>
 
           {/* ── Controls Row ── */}
-          <div className="flex items-center justify-between w-full min-w-0 gap-1 sm:gap-2">
+          <div className="flex items-center justify-between w-full min-w-0 gap-1 sm:gap-2 px-1 sm:px-2">
             <div className="flex items-center gap-1 sm:gap-2 min-w-0 shrink">
               {/* Play/Pause Button */}
               <button onClick={togglePlay} className="p-1.5 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all flex items-center justify-center shrink-0">
@@ -706,25 +711,27 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto pr-0.5">
               {/* Volume Control */}
               <div className="flex items-center gap-1 group/volume shrink-0">
                 <button onClick={toggleMute} className="p-1.5 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all" title={muted ? "Unmute" : "Mute"}>
                   {muted || volume === 0 ? <Icons.VolumeMute /> : <Icons.VolumeHigh />}
                 </button>
-                <div className="hidden sm:flex relative w-0 group-hover/volume:w-16 sm:group-hover/volume:w-20 transition-all duration-300 h-1.5 overflow-hidden items-center">
-                  <div className="absolute inset-x-0 h-1.5 bg-white/20 rounded-full" />
-                  <div className="absolute left-0 h-1.5 bg-blue-500 rounded-full" style={{ width: `${muted ? 0 : volume * 100}%` }} />
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value={muted ? 0 : volume}
-                    onChange={handleVolChange}
-                    className="absolute inset-0 w-full opacity-0 cursor-pointer"
-                  />
-                </div>
+                {!isCoarsePointer && (
+                  <div className="hidden sm:flex relative w-0 group-hover/volume:w-16 sm:group-hover/volume:w-20 transition-all duration-300 h-1.5 overflow-hidden items-center">
+                    <div className="absolute inset-x-0 h-1.5 bg-white/20 rounded-full" />
+                    <div className="absolute left-0 h-1.5 bg-blue-500 rounded-full" style={{ width: `${muted ? 0 : volume * 100}%` }} />
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={muted ? 0 : volume}
+                      onChange={handleVolChange}
+                      className="absolute inset-0 w-full opacity-0 cursor-pointer"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Unified Settings Gear Button & Inline Popover (PC & Mobile) */}
@@ -749,7 +756,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                 {/* ── Settings Sub-Menu Liquid Glass Floating Popover ── */}
                 {showSettingsMenu && (
                   <div
-                    className="absolute bottom-full right-0 mb-3 w-60 sm:w-68 max-w-[calc(100vw-32px)] max-h-[60vh] overflow-y-auto rounded-2xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl p-3 shadow-2xl z-50 animate-slideUpFluid origin-bottom-right text-white select-none"
+                    className="absolute bottom-full right-0 mb-3 w-60 sm:w-68 max-w-[calc(100vw-24px)] max-h-[70vh] overflow-y-auto rounded-2xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl p-3 shadow-2xl z-50 animate-slideUpFluid origin-bottom-right text-white select-none"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* Main Settings View */}
@@ -768,8 +775,40 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                           </button>
                         </div>
 
-                        {/* 1. Screen Rotation (Mobile Specific) */}
-                        <div className="block sm:hidden">
+                        {/* 1. Ambient Mode */}
+                        <button
+                          type="button"
+                          onClick={() => setActiveSettingsView('ambient')}
+                          className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium"
+                        >
+                          <div className="flex items-center gap-2 text-white/90">
+                            <Icons.Sparkles />
+                            <span>Ambient Mode</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-blue-400 text-[11px] font-semibold">
+                            <span>{isAmbient ? 'ON' : 'OFF'}</span>
+                            <Icons.ChevronRight />
+                          </div>
+                        </button>
+
+                        {/* 2. Loop Video */}
+                        <button
+                          type="button"
+                          onClick={() => setActiveSettingsView('loop')}
+                          className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium"
+                        >
+                          <div className="flex items-center gap-2 text-white/90">
+                            <Icons.Repeat />
+                            <span>Loop Video</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-blue-400 text-[11px] font-semibold">
+                            <span>{isLooping ? 'ON' : 'OFF'}</span>
+                            <Icons.ChevronRight />
+                          </div>
+                        </button>
+
+                        {/* 3. Screen Rotation (Mobile Specific) */}
+                        {isCoarsePointer && (
                           <button
                             type="button"
                             onClick={() => setActiveSettingsView('rotation')}
@@ -781,33 +820,14 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                             </div>
                             <div className="flex items-center gap-1 text-blue-400 text-[11px] font-semibold">
                               <span>
-                                {forcedOrientation === 'landscape' ? 'Horizontal' : forcedOrientation === 'portrait' ? 'Vertical' : 'Auto'}
+                                {forcedOrientation === 'landscape' ? 'Landscape' : forcedOrientation === 'portrait' ? 'Portrait' : 'Auto'}
                               </span>
                               <Icons.ChevronRight />
                             </div>
                           </button>
-                        </div>
+                        )}
 
-                        {/* 2. Loop Video */}
-                        <button
-                          type="button"
-                          onClick={toggleLoop}
-                          className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium"
-                        >
-                          <div className="flex items-center gap-2 text-white/90">
-                            <Icons.Repeat />
-                            <span>Loop Video</span>
-                          </div>
-                          <div className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider transition-colors flex items-center gap-1 border",
-                            isLooping ? "bg-blue-600 border-blue-400 text-white" : "bg-white/10 border-white/10 text-white/50"
-                          )}>
-                            {isLooping && <Icons.Check />}
-                            <span>{isLooping ? 'ON' : 'OFF'}</span>
-                          </div>
-                        </button>
-
-                        {/* 3. Playback Speed */}
+                        {/* 4. Playback Speed */}
                         <button
                           type="button"
                           onClick={() => setActiveSettingsView('speed')}
@@ -821,6 +841,116 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                             <span>{speed === 1 ? 'Normal' : `${speed}x`}</span>
                             <Icons.ChevronRight />
                           </div>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Ambient Mode Sub-View */}
+                    {activeSettingsView === 'ambient' && (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 px-1 py-1.5 border-b border-white/10 mb-1">
+                          <button
+                            type="button"
+                            onClick={() => setActiveSettingsView('main')}
+                            className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                          >
+                            <Icons.ChevronLeft />
+                          </button>
+                          <span className="text-xs font-bold text-white">Ambient Mode</span>
+                        </div>
+
+                        <p className="px-2 text-[10px] text-white/50 mb-1">Casts a subtle atmospheric glow around the video player</p>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAmbient(true);
+                            setActiveSettingsView('main');
+                          }}
+                          className={cn(
+                            "w-full px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors text-xs font-medium",
+                            isAmbient ? "bg-blue-600/30 border border-blue-500/40 text-white font-bold" : "hover:bg-white/10 text-white/80"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icons.Sparkles />
+                            <span>On (Default)</span>
+                          </div>
+                          {isAmbient && <Icons.Check />}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAmbient(false);
+                            setActiveSettingsView('main');
+                          }}
+                          className={cn(
+                            "w-full px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors text-xs font-medium",
+                            !isAmbient ? "bg-blue-600/30 border border-blue-500/40 text-white font-bold" : "hover:bg-white/10 text-white/80"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icons.Close />
+                            <span>Off</span>
+                          </div>
+                          {!isAmbient && <Icons.Check />}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Loop Video Sub-View */}
+                    {activeSettingsView === 'loop' && (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 px-1 py-1.5 border-b border-white/10 mb-1">
+                          <button
+                            type="button"
+                            onClick={() => setActiveSettingsView('main')}
+                            className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                          >
+                            <Icons.ChevronLeft />
+                          </button>
+                          <span className="text-xs font-bold text-white">Loop Video</span>
+                        </div>
+
+                        <p className="px-2 text-[10px] text-white/50 mb-1">Automatically repeat playback upon reaching the end</p>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsLooping(false);
+                            if (videoRef.current) videoRef.current.loop = false;
+                            setActiveSettingsView('main');
+                          }}
+                          className={cn(
+                            "w-full px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors text-xs font-medium",
+                            !isLooping ? "bg-blue-600/30 border border-blue-500/40 text-white font-bold" : "hover:bg-white/10 text-white/80"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icons.Close />
+                            <span>Off (Default)</span>
+                          </div>
+                          {!isLooping && <Icons.Check />}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsLooping(true);
+                            if (videoRef.current) videoRef.current.loop = true;
+                            setActiveSettingsView('main');
+                          }}
+                          className={cn(
+                            "w-full px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors text-xs font-medium",
+                            isLooping ? "bg-blue-600/30 border border-blue-500/40 text-white font-bold" : "hover:bg-white/10 text-white/80"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icons.Repeat />
+                            <span>On</span>
+                          </div>
+                          {isLooping && <Icons.Check />}
                         </button>
                       </div>
                     )}
@@ -839,7 +969,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                           <span className="text-xs font-bold text-white">Screen Rotation</span>
                         </div>
 
-                        <p className="px-2 text-[10px] text-white/50 mb-1">Auto rotates based on file aspect ratio</p>
+                        <p className="px-2 text-[10px] text-white/50 mb-1">Orientation locking during video playback</p>
 
                         <button
                           type="button"
@@ -856,8 +986,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                           <div className="flex items-center gap-2">
                             <Icons.AutoRotate />
                             <div className="flex flex-col items-start text-left">
-                              <span>Auto</span>
-                              <span className="text-[10px] text-white/50 font-normal">Based on file</span>
+                              <span>Auto (Default)</span>
+                              <span className="text-[10px] text-white/50 font-normal">Based on video aspect ratio</span>
                             </div>
                           </div>
                           {forcedOrientation === null && <Icons.Check />}
@@ -878,8 +1008,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                           <div className="flex items-center gap-2">
                             <Icons.Landscape />
                             <div className="flex flex-col items-start text-left">
-                              <span>Horizontal</span>
-                              <span className="text-[10px] text-white/50 font-normal">Landscape mode</span>
+                              <span>Landscape</span>
+                              <span className="text-[10px] text-white/50 font-normal">Horizontal view</span>
                             </div>
                           </div>
                           {forcedOrientation === 'landscape' && <Icons.Check />}
@@ -900,8 +1030,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                           <div className="flex items-center gap-2">
                             <Icons.Portrait />
                             <div className="flex flex-col items-start text-left">
-                              <span>Vertical</span>
-                              <span className="text-[10px] text-white/50 font-normal">Portrait mode</span>
+                              <span>Portrait</span>
+                              <span className="text-[10px] text-white/50 font-normal">Vertical view</span>
                             </div>
                           </div>
                           {forcedOrientation === 'portrait' && <Icons.Check />}
@@ -949,14 +1079,18 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
               </div>
 
               {/* Picture-in-Picture (Desktop only) */}
-              <button onClick={togglePiP} className="hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all shrink-0" title="Picture-in-Picture (P)">
-                <Icons.PiP />
-              </button>
+              {!isCoarsePointer && (
+                <button onClick={togglePiP} className="hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all shrink-0" title="Picture-in-Picture (P)">
+                  <Icons.PiP />
+                </button>
+              )}
 
               {/* Theater Mode (Desktop only) */}
-              <button onClick={() => setIsTheater(!isTheater)} className={cn("hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl transition-all shrink-0", isTheater ? "text-blue-400 bg-blue-500/20 border border-blue-500/30" : "text-white/80 hover:text-white hover:bg-white/10")} title="Theater Mode (T)">
-                <Icons.Theater />
-              </button>
+              {!isCoarsePointer && (
+                <button onClick={() => setIsTheater(!isTheater)} className={cn("hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl transition-all shrink-0", isTheater ? "text-blue-400 bg-blue-500/20 border border-blue-500/30" : "text-white/80 hover:text-white hover:bg-white/10")} title="Theater Mode (T)">
+                  <Icons.Theater />
+                </button>
+              )}
 
               {/* Fullscreen */}
               <button onClick={toggleFS} className="p-1.5 sm:p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all shrink-0" title="Fullscreen (F)">
@@ -964,9 +1098,11 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
               </button>
 
               {/* Shortcuts Help (Desktop only) */}
-              <button onClick={() => setShowHelp(true)} className="hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all shrink-0" title="Shortcuts (?)">
-                <Icons.Help />
-              </button>
+              {!isCoarsePointer && (
+                <button onClick={() => setShowHelp(true)} className="hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all shrink-0" title="Shortcuts (?)">
+                  <Icons.Help />
+                </button>
+              )}
             </div>
           </div>
         </div>

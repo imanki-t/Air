@@ -269,10 +269,25 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
   const nudgeControls = useCallback(() => {
     setShowCtrl(true);
     clearTimeout(hideTimer.current);
-    if (videoRef.current && !videoRef.current.paused) {
+    // Don't schedule an auto-hide while the settings popover is open — otherwise the
+    // whole control bar (including the open popover) fades out and becomes
+    // pointer-events-none after 3s of no mouse/touch movement, making Settings look broken.
+    if (videoRef.current && !videoRef.current.paused && !showSettingsMenu) {
       hideTimer.current = setTimeout(() => setShowCtrl(false), 3000);
     }
-  }, []);
+  }, [showSettingsMenu]);
+
+  // Force the control bar to stay visible for as long as the settings popover is open,
+  // and cancel any pending auto-hide timer so it can't disappear mid-interaction.
+  useEffect(() => {
+    if (showSettingsMenu) {
+      clearTimeout(hideTimer.current);
+      setShowCtrl(true);
+    } else {
+      nudgeControls();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSettingsMenu]);
 
   const toggleLoop = () => {
     const nextLoop = !isLooping;

@@ -273,29 +273,30 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
     return () => cancelAnimationFrame(animId);
   }, [playing]);
 
-  // Real YouTube-style 60fps Canvas Ambient Glow Loop
+  // Ultra-fast lightweight browser-side Canvas Ambient Glow Loop (Throttled & 16x9 resolution for 0% lag)
   useEffect(() => {
-    let animId;
+    let timerId;
     const drawAmbientFrame = () => {
       if (isAmbient && playing && videoRef.current && ambientCanvasRef.current) {
         const canvas = ambientCanvasRef.current;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         if (ctx && videoRef.current.readyState >= 2) {
           try {
+            ctx.imageSmoothingEnabled = false;
             ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
             setAmbientSupported(true);
           } catch (_) {
             setAmbientSupported(false);
           }
         }
-        animId = requestAnimationFrame(drawAmbientFrame);
       }
     };
 
     if (playing && isAmbient) {
-      animId = requestAnimationFrame(drawAmbientFrame);
+      drawAmbientFrame();
+      timerId = setInterval(drawAmbientFrame, 100);
     }
-    return () => cancelAnimationFrame(animId);
+    return () => clearInterval(timerId);
   }, [playing, isAmbient]);
 
   const nudgeControls = useCallback(() => {
@@ -591,15 +592,15 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
             <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden flex items-center justify-center">
               <canvas
                 ref={ambientCanvasRef}
-                width={64}
-                height={36}
+                width={16}
+                height={9}
                 className={cn(
-                  "w-full h-full object-cover blur-3xl opacity-80 transition-opacity duration-700 scale-110",
+                  "w-full h-full object-cover blur-3xl opacity-75 transition-opacity duration-700 scale-125",
                   !ambientSupported && "hidden"
                 )}
               />
               {!ambientSupported && (
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 via-indigo-500/30 to-cyan-500/40 rounded-2xl blur-3xl opacity-80 scale-110 animate-pulse transition-all duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 via-indigo-500/30 to-cyan-500/40 rounded-2xl blur-3xl opacity-75 scale-125 animate-pulse transition-all duration-700" />
               )}
             </div>
           )}
@@ -644,15 +645,13 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
             </div>
           )}
 
-          {/* ── Buffer / Loader Indicator ── */}
+          {/* ── Single Thin Outer Buffer Circle ── */}
           {isBuffering && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-              <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-lg">
-                <svg className="animate-spin h-6 w-6 text-white/80" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-              </div>
+              <svg className="animate-spin h-14 w-14 sm:h-16 sm:w-16 text-white/85 drop-shadow-xl" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.2" />
+                <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
             </div>
           )}
 
@@ -671,7 +670,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
           className={cn(
             "bg-slate-950/95 border-t border-white/15 sm:border sm:border-white/15 backdrop-blur-2xl px-3 sm:px-4 py-2 sm:py-2.5 flex flex-col gap-1.5 transition-all duration-300 z-30 shadow-2xl max-w-full overflow-visible",
             isFS ? "absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 sm:w-auto rounded-xl sm:rounded-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]" : "relative w-full sm:w-auto sm:absolute sm:bottom-3 sm:left-3 sm:right-3 rounded-b-2xl sm:rounded-2xl",
-            !showCtrl && playing && isFS && !showSettingsMenu ? "opacity-0 translate-y-3 pointer-events-none" : "opacity-100 translate-y-0"
+            !showCtrl && playing && !showSettingsMenu ? "opacity-0 translate-y-3 pointer-events-none" : "opacity-100 translate-y-0"
           )}
         >
           {/* ── YouTube Scrubber with Hover Time Tooltip ── */}
@@ -794,10 +793,10 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                   <Icons.Settings />
                 </button>
 
-                {/* ── Settings Sub-Menu Liquid Glass Floating Popover ── */}
+                {/* ── Settings Sub-Menu Liquid Glass Floating Popover (Compact Mobile Height) ── */}
                 {showSettingsMenu && (
                   <div
-                    className="absolute bottom-full right-0 mb-3 w-60 sm:w-68 max-w-[calc(100vw-24px)] max-h-[70vh] overflow-y-auto rounded-2xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl p-3 shadow-2xl z-50 animate-slideUpFluid origin-bottom-right text-white select-none"
+                    className="absolute bottom-full right-0 mb-3 w-52 sm:w-64 max-w-[calc(100vw-28px)] max-h-[48vh] sm:max-h-[58vh] overflow-y-auto rounded-2xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl p-2 sm:p-2.5 shadow-2xl z-50 animate-slideUpFluid origin-bottom-right text-white select-none"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* Main Settings View */}
@@ -1637,7 +1636,12 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   const [customThumb, setCustomThumb] = useState(() => {
     try {
       if (!fileId) return null;
-      return localStorage.getItem(`airstream_custom_thumb_${fileId}`);
+      return (
+        file?.metadata?.customIcon ||
+        file?.customIcon ||
+        localStorage.getItem(`airstream_custom_thumb_${fileId}`) ||
+        null
+      );
     } catch (_) { return null; }
   });
 
@@ -1651,11 +1655,11 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     const chosen = e.target.files?.[0];
     if (!chosen || !fileId) return;
     if (chosen.size > 3 * 1024 * 1024) {
-      alert('Thumbnail image must be smaller than 3MB');
+      alert('Icon image must be smaller than 3MB');
       return;
     }
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       const dataUrl = evt.target.result;
       try {
         localStorage.setItem(`airstream_custom_thumb_${fileId}`, dataUrl);
@@ -1664,18 +1668,38 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       }
       setCustomThumb(dataUrl);
       setShowMenu(false);
+      try {
+        const token = localStorage.getItem('token');
+        if (token && backendUrl) {
+          await axios.patch(
+            `${backendUrl}/api/files/${fileId}`,
+            { customIcon: dataUrl, metadata: { ...(file?.metadata || {}), customIcon: dataUrl } },
+            { headers: { Authorization: `Bearer ${token}` } }
+          ).catch(() => {});
+        }
+      } catch (_) {}
       if (refresh) refresh();
     };
     reader.readAsDataURL(chosen);
   };
 
-  const removeCustomThumb = (e) => {
-    e.stopPropagation();
+  const removeCustomThumb = async (e) => {
+    if (e && e.stopPropagation) e.stopPropagation();
     try {
       if (fileId) localStorage.removeItem(`airstream_custom_thumb_${fileId}`);
     } catch (_) {}
     setCustomThumb(null);
     setShowMenu(false);
+    try {
+      const token = localStorage.getItem('token');
+      if (token && backendUrl && fileId) {
+        await axios.patch(
+          `${backendUrl}/api/files/${fileId}`,
+          { customIcon: null, metadata: { ...(file?.metadata || {}), customIcon: null } },
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).catch(() => {});
+      }
+    } catch (_) {}
     if (refresh) refresh();
   };
 
@@ -2041,42 +2065,42 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   };
 
   const renderKebabMenuItems = () => (
-    <div ref={menuRef} className={cn("absolute right-0 mt-1 py-1 sm:w-44 w-40 rounded-xl shadow-2xl z-50 border backdrop-blur-xl animate-fadeIn", darkMode ? 'bg-gray-800/95 border-gray-600 text-gray-100' : 'bg-white/95 border-gray-200 text-gray-800')} role="menu">
-      <button onClick={openViewer} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-blue-500/10 transition-colors', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+    <div ref={menuRef} className={cn("absolute right-0 mt-1 py-1 w-44 max-w-[calc(100vw-2.5rem)] rounded-xl shadow-2xl z-[100] border backdrop-blur-2xl bg-slate-950/95 border-white/15 text-white animate-fadeIn select-none")} role="menu">
+      <button onClick={openViewer} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-white/10 text-white transition-colors')} role="menuitem">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
         {getFileType(file) === 'pdf' ? 'Open PDF' : 'View'}
       </button>
 
-      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+      <div className="border-t border-white/10 my-1" />
 
-      <button onClick={(e) => { e.stopPropagation(); thumbInputRef.current?.click(); }} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-blue-500/10 transition-colors', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-        {customThumb ? 'Change Thumbnail' : 'Add Thumbnail'}
-      </button>
-
-      {customThumb && (
-        <button onClick={removeCustomThumb} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-red-500/10 text-amber-500 transition-colors')} role="menuitem">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-          Reset Thumbnail
+      {!customThumb ? (
+        <button onClick={(e) => { e.stopPropagation(); thumbInputRef.current?.click(); }} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-white/10 text-white transition-colors')} role="menuitem">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+          Icon
+        </button>
+      ) : (
+        <button onClick={removeCustomThumb} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-red-500/20 text-white transition-colors')} role="menuitem">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+          Remove Icon
         </button>
       )}
 
-      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+      <div className="border-t border-white/10 my-1" />
 
-      <button onClick={download} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-blue-500/10 transition-colors', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-current opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
+      <button onClick={download} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-white/10 text-white transition-colors')} role="menuitem">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
         Get
       </button>
 
-      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+      <div className="border-t border-white/10 my-1" />
 
-      <button onClick={share} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-blue-500/10 transition-colors', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> Share
+      <button onClick={share} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-white/10 text-white transition-colors')} role="menuitem">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> Share
       </button>
 
-      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+      <div className="border-t border-white/10 my-1" />
 
-      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-red-500/10 transition-colors', darkMode ? 'text-red-400' : 'text-red-600')} role="menuitem">
+      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-red-500/20 text-red-400 transition-colors')} role="menuitem">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
       </button>
     </div>

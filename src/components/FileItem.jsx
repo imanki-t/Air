@@ -669,8 +669,8 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         {/* ── Liquid Glass Controller Bar ── */}
         <div
           className={cn(
-            "w-full bg-slate-950/95 border-t border-white/15 sm:border sm:border-white/15 backdrop-blur-2xl px-3 sm:px-4 py-2 sm:py-2.5 sm:rounded-2xl flex flex-col gap-1.5 transition-all duration-300 z-30 shadow-2xl max-w-full overflow-visible",
-            isFS ? "absolute bottom-2 sm:bottom-3 inset-x-2 sm:inset-x-3 rounded-xl sm:rounded-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]" : "relative sm:absolute sm:bottom-2 sm:inset-x-2 sm:bottom-3 sm:inset-x-3 rounded-b-2xl sm:rounded-2xl",
+            "bg-slate-950/95 border-t border-white/15 sm:border sm:border-white/15 backdrop-blur-2xl px-3 sm:px-4 py-2 sm:py-2.5 flex flex-col gap-1.5 transition-all duration-300 z-30 shadow-2xl max-w-full overflow-visible",
+            isFS ? "absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 sm:w-auto rounded-xl sm:rounded-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]" : "relative w-full sm:w-auto sm:absolute sm:bottom-3 sm:left-3 sm:right-3 rounded-b-2xl sm:rounded-2xl",
             !showCtrl && playing && isFS && !showSettingsMenu ? "opacity-0 translate-y-3 pointer-events-none" : "opacity-100 translate-y-0"
           )}
         >
@@ -1896,6 +1896,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
   const renderPreview = (isListView) => {
     if (!file) return null;
+    const itemFileName = file?.filename || file?.name || fileName || 'File';
     const safeBackendUrl = backendUrl || '';
     const previewUrl = `${safeBackendUrl}/api/files/preview/${fileId}`;
     const type = getFileType(file);
@@ -1914,7 +1915,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
         <div className={containerBaseClasses}>
           <img
             src={activeThumb}
-            alt={`Thumbnail of ${fileName}`}
+            alt={`Thumbnail of ${itemFileName}`}
             className={imageVideoPreviewClasses}
             loading="lazy"
           />
@@ -1928,7 +1929,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
         <div className={containerBaseClasses}>
           <img
             src={previewUrl}
-            alt={`Preview of ${fileName}`}
+            alt={`Preview of ${itemFileName}`}
             className={imageVideoPreviewClasses}
             loading="lazy"
           />
@@ -1944,7 +1945,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
           {existingThumb ? (
             <img
               src={existingThumb}
-              alt={`Thumbnail of ${fileName}`}
+              alt={`Thumbnail of ${itemFileName}`}
               className={imageVideoPreviewClasses}
               loading="lazy"
             />
@@ -1973,7 +1974,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
           <div className={containerBaseClasses}>
             <img
               src={audioThumb}
-              alt={`Album art of ${fileName}`}
+              alt={`Album art of ${itemFileName}`}
               className={imageVideoPreviewClasses}
               loading="lazy"
             />
@@ -1987,8 +1988,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       }
     }
 
-    const fileName = file?.filename || file?.name || 'File';
-    const fileExtension = (fileName.includes('.') ? fileName.split('.').pop() : 'FILE').toUpperCase();
+    const fileExtension = (itemFileName.includes('.') ? itemFileName.split('.').pop() : 'FILE').toUpperCase();
     return (
       <div className={`${containerBaseClasses} flex flex-col items-center justify-center`}>
         <FileTypeIcon type={type} darkMode={darkMode} size={isListView ? "h-8 w-8 sm:h-10 w-10" : "h-10 w-10"} />

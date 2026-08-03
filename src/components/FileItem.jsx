@@ -273,9 +273,9 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
     return () => cancelAnimationFrame(animId);
   }, [playing]);
 
-  // Ultra-fast lightweight browser-side Canvas Ambient Glow Loop (Throttled & 16x9 resolution for 0% lag)
+  // Silky smooth 60fps lightweight browser-side Canvas Ambient Glow Loop
   useEffect(() => {
-    let timerId;
+    let animId;
     const drawAmbientFrame = () => {
       if (isAmbient && playing && videoRef.current && ambientCanvasRef.current) {
         const canvas = ambientCanvasRef.current;
@@ -289,14 +289,14 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
             setAmbientSupported(false);
           }
         }
+        animId = requestAnimationFrame(drawAmbientFrame);
       }
     };
 
     if (playing && isAmbient) {
-      drawAmbientFrame();
-      timerId = setInterval(drawAmbientFrame, 100);
+      animId = requestAnimationFrame(drawAmbientFrame);
     }
-    return () => clearInterval(timerId);
+    return () => cancelAnimationFrame(animId);
   }, [playing, isAmbient]);
 
   const nudgeControls = useCallback(() => {
@@ -587,20 +587,20 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
           )}
           onClick={handleVideoClick}
         >
-          {/* ── Real Dynamic YouTube-Style Ambient Glow Canvas (Inside Letterbox/Pillarbox Space) ── */}
+          {/* ── Real Dynamic YouTube-Style 60fps Ambient Glow Canvas ── */}
           {isAmbient && (
             <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden flex items-center justify-center">
               <canvas
                 ref={ambientCanvasRef}
-                width={16}
-                height={9}
+                width={32}
+                height={18}
                 className={cn(
-                  "w-full h-full object-cover blur-3xl opacity-75 transition-opacity duration-700 scale-125",
+                  "w-full h-full object-cover blur-3xl opacity-75 transition-opacity duration-500 scale-125",
                   !ambientSupported && "hidden"
                 )}
               />
               {!ambientSupported && (
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 via-indigo-500/30 to-cyan-500/40 rounded-2xl blur-3xl opacity-75 scale-125 animate-pulse transition-all duration-700" />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 via-indigo-500/30 to-cyan-500/40 rounded-2xl blur-3xl opacity-75 scale-125 animate-pulse transition-all duration-500" />
               )}
             </div>
           )}
@@ -793,23 +793,23 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                   <Icons.Settings />
                 </button>
 
-                {/* ── Settings Sub-Menu Liquid Glass Floating Popover (Compact Mobile Height) ── */}
+                {/* ── Settings Sub-Menu Liquid Glass Floating Popover (Compact & Collision-Free) ── */}
                 {showSettingsMenu && (
                   <div
-                    className="absolute bottom-full right-0 mb-3 w-52 sm:w-64 max-w-[calc(100vw-28px)] max-h-[48vh] sm:max-h-[58vh] overflow-y-auto rounded-2xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl p-2 sm:p-2.5 shadow-2xl z-50 animate-slideUpFluid origin-bottom-right text-white select-none"
+                    className="absolute bottom-full right-0 mb-3 w-56 sm:w-64 max-w-[calc(100vw-24px)] max-h-[44vh] sm:max-h-[56vh] overflow-y-auto rounded-2xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl p-2 sm:p-2.5 shadow-2xl z-50 animate-slideUpFluid origin-bottom-right text-white select-none"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* Main Settings View */}
                     {activeSettingsView === 'main' && (
                       <div className="flex flex-col gap-1">
-                        <div className="flex items-center justify-between px-2 py-1.5 border-b border-white/10 mb-1">
-                          <span className="text-xs font-bold tracking-wide uppercase text-blue-400 flex items-center gap-1.5">
+                        <div className="flex items-center justify-between px-2 py-1.5 border-b border-white/10 mb-1 shrink-0">
+                          <span className="text-xs font-bold tracking-wide uppercase text-blue-400 flex items-center gap-1.5 whitespace-nowrap">
                             <Icons.Settings /> Settings
                           </span>
                           <button
                             type="button"
                             onClick={() => setShowSettingsMenu(false)}
-                            className="p-1 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                            className="p-1 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors shrink-0"
                           >
                             <Icons.Close />
                           </button>
@@ -819,13 +819,13 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                         <button
                           type="button"
                           onClick={() => setActiveSettingsView('ambient')}
-                          className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium"
+                          className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium gap-2"
                         >
-                          <div className="flex items-center gap-2 text-white/90">
+                          <div className="flex items-center gap-2 text-white/90 whitespace-nowrap">
                             <Icons.Sparkles />
                             <span>Ambient Mode</span>
                           </div>
-                          <div className="flex items-center gap-1 text-blue-400 text-[11px] font-semibold">
+                          <div className="flex items-center gap-1 text-blue-400 text-[11px] font-semibold shrink-0">
                             <span>{isAmbient ? 'ON' : 'OFF'}</span>
                             <Icons.ChevronRight />
                           </div>
@@ -835,13 +835,13 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                         <button
                           type="button"
                           onClick={() => setActiveSettingsView('loop')}
-                          className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium"
+                          className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium gap-2"
                         >
-                          <div className="flex items-center gap-2 text-white/90">
+                          <div className="flex items-center gap-2 text-white/90 whitespace-nowrap">
                             <Icons.Repeat />
                             <span>Loop Video</span>
                           </div>
-                          <div className="flex items-center gap-1 text-blue-400 text-[11px] font-semibold">
+                          <div className="flex items-center gap-1 text-blue-400 text-[11px] font-semibold shrink-0">
                             <span>{isLooping ? 'ON' : 'OFF'}</span>
                             <Icons.ChevronRight />
                           </div>
@@ -852,13 +852,13 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                           <button
                             type="button"
                             onClick={() => setActiveSettingsView('rotation')}
-                            className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium"
+                            className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium gap-2"
                           >
-                            <div className="flex items-center gap-2 text-white/90">
+                            <div className="flex items-center gap-2 text-white/90 whitespace-nowrap">
                               <Icons.Rotate />
                               <span>Screen Rotation</span>
                             </div>
-                            <div className="flex items-center gap-1 text-blue-400 text-[11px] font-semibold">
+                            <div className="flex items-center gap-1 text-blue-400 text-[11px] font-semibold shrink-0">
                               <span>
                                 {forcedOrientation === 'landscape' ? 'Landscape' : forcedOrientation === 'portrait' ? 'Portrait' : 'Auto'}
                               </span>
@@ -871,13 +871,13 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                         <button
                           type="button"
                           onClick={() => setActiveSettingsView('speed')}
-                          className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium"
+                          className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium gap-2"
                         >
-                          <div className="flex items-center gap-2 text-white/90">
+                          <div className="flex items-center gap-2 text-white/90 whitespace-nowrap">
                             <Icons.Speed />
                             <span>Playback Speed</span>
                           </div>
-                          <div className="flex items-center gap-1 text-blue-400 text-[11px] font-semibold">
+                          <div className="flex items-center gap-1 text-blue-400 text-[11px] font-semibold shrink-0">
                             <span>{speed === 1 ? 'Normal' : `${speed}x`}</span>
                             <Icons.ChevronRight />
                           </div>
@@ -2048,6 +2048,20 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     return saved === null ? true : saved === 'true';
   };
 
+  const [menuPosClass, setMenuPosClass] = useState('right-0 origin-top-right');
+
+  useEffect(() => {
+    if (showMenu && menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      const vw = window.innerWidth;
+      if (rect.left < 12) {
+        setMenuPosClass('left-0 origin-top-left');
+      } else if (rect.right > vw - 12) {
+        setMenuPosClass('right-0 origin-top-right');
+      }
+    }
+  }, [showMenu]);
+
   const handleDoubleClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -2065,7 +2079,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   };
 
   const renderKebabMenuItems = () => (
-    <div ref={menuRef} className={cn("absolute right-0 mt-1 py-1 w-44 max-w-[calc(100vw-2.5rem)] rounded-xl shadow-2xl z-[100] border backdrop-blur-2xl bg-slate-950/95 border-white/15 text-white animate-fadeIn select-none")} role="menu">
+    <div ref={menuRef} className={cn("absolute mt-1 py-1 w-44 max-w-[calc(100vw-2.5rem)] rounded-xl shadow-2xl z-[100] border backdrop-blur-2xl bg-slate-950/95 border-white/15 text-white animate-fadeIn select-none", menuPosClass)} role="menu">
       <button onClick={openViewer} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-white/10 text-white transition-colors')} role="menuitem">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
         {getFileType(file) === 'pdf' ? 'Open PDF' : 'View'}

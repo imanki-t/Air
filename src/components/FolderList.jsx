@@ -262,19 +262,84 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
 
   useEffect(() => { if (isEditingPage && pageInputRef.current) { pageInputRef.current.focus(); pageInputRef.current.select(); } }, [isEditingPage]);
 
-  // ── Escape key ────────────────────────────────────────────────────────────
+  // ── Lock body scroll while folder modal is active ───────────────────────────
   useEffect(() => {
-    const h = (e) => {
+    document.body.style.overflow = 'hidden';
+    document.body.classList.add('overflow-hidden', 'touch-none', 'overscroll-none');
+    return () => {
+      document.body.style.overflow = '';
+      document.body.classList.remove('overflow-hidden', 'touch-none', 'overscroll-none');
+    };
+  }, []);
+
+  // ── Keyboard Shortcuts inside Folder ──────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+
       if (e.key === 'Escape') {
         if (showSortOptions) { setShowSortOptions(false); return; }
+        if (selectionMode && selectedFiles.length > 0) { setSelectedFiles([]); setSelectionMode(false); return; }
         if (showDeleteConfirmModal || showRemoveConfirmModal || showBatchShareModal) return;
         if (document.querySelector('[aria-label^="Viewing "]')) return;
         onClose();
+        return;
+      }
+
+      if (isInput) return;
+
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
+
+      // Focus Search: '/'
+      if (e.key === '/') {
+        e.preventDefault();
+        const searchEl = document.querySelector('input[placeholder*="Search"]');
+        if (searchEl) searchEl.focus();
+        return;
+      }
+
+      // Toggle View: 'g'
+      if (key === 'g') {
+        e.preventDefault();
+        setView((v) => (v === 'grid' ? 'list' : 'grid'));
+        return;
+      }
+
+      // Select All: 'Ctrl+A' / 'Cmd+A'
+      if (isCmdOrCtrl && key === 'a') {
+        e.preventDefault();
+        setSelectionMode(true);
+        setSelectedFiles(paginatedFiles.map((f) => f._id));
+        return;
+      }
+
+      // Category filters: '1' (video), '2' (audio), '3' (image), '4' (document), '0' (all)
+      if (e.key === '1') { setFilter('video'); return; }
+      if (e.key === '2') { setFilter('audio'); return; }
+      if (e.key === '3') { setFilter('image'); return; }
+      if (e.key === '4') { setFilter('document'); return; }
+      if (e.key === '0') { setFilter('all'); return; }
+
+      // Delete selected files: Delete / Backspace
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedFiles.length > 0) {
+        e.preventDefault();
+        setShowRemoveConfirmModal(true);
+        return;
+      }
+
+      // Refresh: 'r'
+      if (key === 'r' && !isCmdOrCtrl) {
+        e.preventDefault();
+        if (refresh) refresh();
+        return;
       }
     };
-    document.addEventListener('keydown', h);
-    return () => document.removeEventListener('keydown', h);
-  }, [onClose, showSortOptions, showDeleteConfirmModal, showRemoveConfirmModal, showBatchShareModal]);
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, showSortOptions, selectionMode, selectedFiles, paginatedFiles, showDeleteConfirmModal, showRemoveConfirmModal, showBatchShareModal, refresh]);
 
   // ── Filter / sort / paginate ──────────────────────────────────────────────
   const visible = folderFiles.filter((file) => {
@@ -760,19 +825,24 @@ const ViewAllFoldersModal = ({ darkMode, folders, onClose, onView, onEdit, onDel
     const onResize = () => setIsMobile(window.innerWidth < 640);
     document.addEventListener('keydown', onKey);
     window.addEventListener('resize', onResize);
-    return () => { document.removeEventListener('keydown', onKey); window.removeEventListener('resize', onResize); };
+    document.body.style.overflow = 'hidden';
+    document.body.classList.add('overflow-hidden', 'touch-none', 'overscroll-none');
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onResize);
+      document.body.style.overflow = '';
+      document.body.classList.remove('overflow-hidden', 'touch-none', 'overscroll-none');
+    };
   }, [onClose]);
 
-  // Mobile  → panel capped at 50 vh (bottom-sheet style); grid fills remaining space and scrolls
-  // Desktop → panel capped at 85 vh; grid area capped at ~360 px (≈9 cards across 3-4 cols) then scrolls
-  const panelMaxHeight  = isMobile ? '50vh'  : '85vh';
-  const gridMaxHeight   = isMobile ? undefined : '360px';
+  const panelMaxHeight = isMobile ? '80vh' : '85vh';
+  const gridMaxHeight  = isMobile ? undefined : '360px';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div
-        className={cn('relative z-10 w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl border flex flex-col folder-modal-anim', darkMode ? 'bg-gray-900 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800')}
+        className={cn('relative z-10 w-[calc(100vw-32px)] max-w-md sm:max-w-xl rounded-2xl shadow-2xl border flex flex-col folder-modal-anim', darkMode ? 'bg-gray-900 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800')}
         style={{ maxHeight: panelMaxHeight }}
       >
         {/* ── Header — always visible ─────────────────────────────────────── */}
@@ -830,7 +900,15 @@ const FolderFormModal = ({ mode, initialName, initialColor, darkMode, onConfirm,
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const inputRef = useRef(null);
-  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 80); }, []);
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 80);
+    document.body.style.overflow = 'hidden';
+    document.body.classList.add('overflow-hidden', 'touch-none', 'overscroll-none');
+    return () => {
+      document.body.style.overflow = '';
+      document.body.classList.remove('overflow-hidden', 'touch-none', 'overscroll-none');
+    };
+  }, []);
   const handleSubmit = async () => {
     if (!name.trim()) { setError('Please enter a folder name.'); return; }
     setBusy(true); setError('');

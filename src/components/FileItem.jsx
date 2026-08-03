@@ -627,7 +627,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
           className={cn(
             "w-full bg-slate-950/90 border-t border-white/15 sm:border sm:border-white/15 backdrop-blur-xl p-2 sm:p-3 sm:rounded-2xl flex flex-col gap-1.5 sm:gap-2 transition-all duration-300 z-30 shadow-2xl max-w-full overflow-visible",
             isFS ? "absolute bottom-2 sm:bottom-3 inset-x-2 sm:inset-x-3 rounded-xl sm:rounded-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]" : "relative sm:absolute sm:bottom-2 sm:inset-x-2 sm:bottom-3 sm:inset-x-3 rounded-b-2xl sm:rounded-2xl",
-            !showCtrl && playing && isFS ? "opacity-0 translate-y-3 pointer-events-none" : "opacity-100 translate-y-0"
+            !showCtrl && playing && isFS && !showSettingsMenu ? "opacity-0 translate-y-3 pointer-events-none" : "opacity-100 translate-y-0"
           )}
         >
           {/* ── YouTube Scrubber with Hover Time Tooltip ── */}

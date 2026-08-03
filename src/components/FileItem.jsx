@@ -590,7 +590,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         {/* ── Liquid Glass Controller Bar ── */}
         <div
           className={cn(
-            "w-full bg-slate-950/90 border-t border-white/15 sm:border sm:border-white/15 backdrop-blur-xl p-2 sm:p-4 sm:rounded-2xl flex flex-col gap-1.5 sm:gap-2 transition-all duration-300 z-30 shadow-2xl overflow-hidden max-w-full",
+            "w-full bg-slate-950/90 border-t border-white/15 sm:border sm:border-white/15 backdrop-blur-xl p-2 sm:p-3 sm:rounded-2xl flex flex-col gap-1.5 sm:gap-2 transition-all duration-300 z-30 shadow-2xl max-w-full overflow-visible",
             isFS ? "absolute bottom-2 sm:bottom-3 inset-x-2 sm:inset-x-3 rounded-xl sm:rounded-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]" : "relative sm:absolute sm:bottom-2 sm:inset-x-2 sm:bottom-3 sm:inset-x-3 rounded-b-2xl sm:rounded-2xl",
             !showCtrl && playing && isFS ? "opacity-0 translate-y-3 pointer-events-none" : "opacity-100 translate-y-0"
           )}
@@ -640,9 +640,9 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 
           {/* ── Controls Row ── */}
           <div className="flex items-center justify-between w-full min-w-0 gap-1 sm:gap-2">
-            <div className="flex items-center gap-1 sm:gap-2.5 min-w-0 shrink">
+            <div className="flex items-center gap-1 sm:gap-2 min-w-0 shrink">
               {/* Play/Pause Button */}
-              <button onClick={togglePlay} className="p-1 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all flex items-center justify-center shrink-0">
+              <button onClick={togglePlay} className="p-1.5 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all flex items-center justify-center shrink-0">
                 {isBuffering && playing ? (
                   <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -655,7 +655,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                 )}
               </button>
 
-              {/* Skip 10s Replay / Forward (Compact padding for mobile) */}
+              {/* Skip 10s Replay / Forward (Compact & responsive) */}
               <button onClick={() => seekRelative(-10)} className="p-1 sm:p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all shrink-0" title="-10 seconds (J)">
                 <Icons.Replay10 />
               </button>
@@ -671,10 +671,10 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
-              {/* Volume Control: Tap to Mute/Unmute on Mobile, Hover Slider on Desktop */}
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+              {/* Volume Control */}
               <div className="flex items-center gap-1 group/volume shrink-0">
-                <button onClick={toggleMute} className="p-1 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all" title={muted ? "Unmute" : "Mute"}>
+                <button onClick={toggleMute} className="p-1.5 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all" title={muted ? "Unmute" : "Mute"}>
                   {muted || volume === 0 ? <Icons.VolumeMute /> : <Icons.VolumeHigh />}
                 </button>
                 <div className="hidden sm:flex relative w-0 group-hover/volume:w-16 sm:group-hover/volume:w-20 transition-all duration-300 h-1.5 overflow-hidden items-center">
@@ -692,50 +692,42 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                 </div>
               </div>
 
-              {/* Unified Settings Gear Button (PC & Mobile) */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (!showSettingsMenu) setActiveSettingsView('main');
-                  setShowSettingsMenu((prev) => !prev);
-                }}
-                className={cn(
-                  "p-1.5 sm:p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer",
-                  showSettingsMenu ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "border-white/10 text-white/80 hover:text-white hover:bg-white/10"
-                )}
-                title="Player Settings"
-              >
-                <Icons.Settings />
-              </button>
-
-              {/* ── Settings Sub-Menu Modal Overlay (Portalized to avoid container overflow/clipping) ── */}
-              {showSettingsMenu && (
-                <div
-                  className="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-md flex items-end sm:items-center justify-center p-3 sm:p-4 animate-fadeIn select-none"
+              {/* Unified Settings Gear Button & Inline Popover (PC & Mobile) */}
+              <div className="relative overflow-visible" ref={settingsRef}>
+                <button
+                  type="button"
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
-                    setShowSettingsMenu(false);
+                    if (!showSettingsMenu) setActiveSettingsView('main');
+                    setShowSettingsMenu((prev) => !prev);
                   }}
+                  className={cn(
+                    "p-1.5 sm:p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer shrink-0",
+                    showSettingsMenu ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "border-white/10 text-white/80 hover:text-white hover:bg-white/10"
+                  )}
+                  title="Player Settings"
                 >
+                  <Icons.Settings />
+                </button>
+
+                {/* ── Settings Sub-Menu Liquid Glass Floating Popover ── */}
+                {showSettingsMenu && (
                   <div
-                    ref={settingsRef}
-                    className="w-full max-w-xs sm:max-w-sm bg-slate-900/95 border border-white/15 rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col gap-3 text-white animate-slideUpFluid max-h-[85vh] overflow-y-auto"
+                    className="absolute bottom-full right-0 mb-3 w-60 sm:w-68 max-w-[calc(100vw-32px)] max-h-[60vh] overflow-y-auto rounded-2xl bg-slate-950/95 border border-white/15 backdrop-blur-2xl p-3 shadow-2xl z-50 animate-slideUpFluid origin-bottom-right text-white select-none"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* Main Settings View */}
                     {activeSettingsView === 'main' && (
                       <div className="flex flex-col gap-1">
-                        <div className="flex items-center justify-between border-b border-white/10 pb-2.5 mb-1">
-                          <h3 className="font-bold text-sm text-blue-400 flex items-center gap-2 tracking-wide uppercase">
-                            <Icons.Settings />
-                            <span>Player Settings</span>
-                          </h3>
+                        <div className="flex items-center justify-between px-2 py-1.5 border-b border-white/10 mb-1">
+                          <span className="text-xs font-bold tracking-wide uppercase text-blue-400 flex items-center gap-1.5">
+                            <Icons.Settings /> Settings
+                          </span>
                           <button
                             type="button"
                             onClick={() => setShowSettingsMenu(false)}
-                            className="p-1 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                            className="p-1 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
                           >
                             <Icons.Close />
                           </button>
@@ -746,18 +738,13 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                           <button
                             type="button"
                             onClick={() => setActiveSettingsView('rotation')}
-                            className="w-full px-3 py-2.5 rounded-2xl hover:bg-white/10 flex items-center justify-between transition-all text-xs font-semibold bg-white/5 border border-white/5 my-0.5"
+                            className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium"
                           >
-                            <div className="flex items-center gap-2.5 text-white/90">
-                              <div className="p-1.5 rounded-xl bg-blue-500/20 text-blue-400">
-                                <Icons.Rotate />
-                              </div>
-                              <div className="flex flex-col items-start text-left">
-                                <span>Screen Rotation</span>
-                                <span className="text-[10px] text-white/50 font-normal">Auto / Horizontal / Vertical</span>
-                              </div>
+                            <div className="flex items-center gap-2 text-white/90">
+                              <Icons.Rotate />
+                              <span>Screen Rotation</span>
                             </div>
-                            <div className="flex items-center gap-1 text-blue-400 text-xs font-bold">
+                            <div className="flex items-center gap-1 text-blue-400 text-[11px] font-semibold">
                               <span>
                                 {forcedOrientation === 'landscape' ? 'Horizontal' : forcedOrientation === 'portrait' ? 'Vertical' : 'Auto'}
                               </span>
@@ -766,41 +753,37 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                           </button>
                         </div>
 
-                        {/* 2. Loop Video Toggle */}
+                        {/* 2. Loop Video */}
                         <button
                           type="button"
                           onClick={toggleLoop}
-                          className="w-full px-3 py-2.5 rounded-2xl hover:bg-white/10 flex items-center justify-between transition-all text-xs font-semibold bg-white/5 border border-white/5 my-0.5"
+                          className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium"
                         >
-                          <div className="flex items-center gap-2.5 text-white/90">
-                            <div className="p-1.5 rounded-xl bg-indigo-500/20 text-indigo-400">
-                              <Icons.Repeat />
-                            </div>
+                          <div className="flex items-center gap-2 text-white/90">
+                            <Icons.Repeat />
                             <span>Loop Video</span>
                           </div>
                           <div className={cn(
-                            "px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider transition-all flex items-center gap-1 border",
-                            isLooping ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-white/10 border-white/10 text-white/50"
+                            "px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider transition-colors flex items-center gap-1 border",
+                            isLooping ? "bg-blue-600 border-blue-400 text-white" : "bg-white/10 border-white/10 text-white/50"
                           )}>
                             {isLooping && <Icons.Check />}
                             <span>{isLooping ? 'ON' : 'OFF'}</span>
                           </div>
                         </button>
 
-                        {/* 3. Playback Speed Button */}
+                        {/* 3. Playback Speed */}
                         <button
                           type="button"
                           onClick={() => setActiveSettingsView('speed')}
-                          className="w-full px-3 py-2.5 rounded-2xl hover:bg-white/10 flex items-center justify-between transition-all text-xs font-semibold bg-white/5 border border-white/5 my-0.5"
+                          className="w-full px-2.5 py-2 rounded-xl hover:bg-white/10 flex items-center justify-between transition-colors text-xs font-medium"
                         >
-                          <div className="flex items-center gap-2.5 text-white/90">
-                            <div className="p-1.5 rounded-xl bg-sky-500/20 text-sky-400">
-                              <Icons.Speed />
-                            </div>
+                          <div className="flex items-center gap-2 text-white/90">
+                            <Icons.Speed />
                             <span>Playback Speed</span>
                           </div>
-                          <div className="flex items-center gap-1 text-blue-400 text-xs font-bold">
-                            <span>{speed === 1 ? 'Normal (1.0x)' : `${speed}x`}</span>
+                          <div className="flex items-center gap-1 text-blue-400 text-[11px] font-semibold">
+                            <span>{speed === 1 ? 'Normal' : `${speed}x`}</span>
                             <Icons.ChevronRight />
                           </div>
                         </button>
@@ -809,110 +792,103 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 
                     {/* Rotation Sub-View (Mobile Specific) */}
                     {activeSettingsView === 'rotation' && (
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2 border-b border-white/10 pb-2.5 mb-1">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 px-1 py-1.5 border-b border-white/10 mb-1">
                           <button
                             type="button"
                             onClick={() => setActiveSettingsView('main')}
-                            className="p-1 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                            className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
                           >
                             <Icons.ChevronLeft />
                           </button>
-                          <h3 className="font-bold text-sm text-white">Screen Rotation</h3>
+                          <span className="text-xs font-bold text-white">Screen Rotation</span>
                         </div>
 
-                        <p className="text-[11px] text-white/50 px-1 mb-1">
-                          Automatically rotates screen based on file aspect ratio or force orientation.
-                        </p>
+                        <p className="px-2 text-[10px] text-white/50 mb-1">Auto rotates based on file aspect ratio</p>
 
-                        <div className="flex flex-col gap-1.5">
-                          {/* Auto */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setForcedOrientation(null);
-                              applyOrientation(null);
-                              setActiveSettingsView('main');
-                            }}
-                            className={cn(
-                              "w-full px-3 py-2.5 rounded-2xl border transition-all flex items-center justify-between text-xs font-semibold",
-                              forcedOrientation === null ? "bg-blue-600/30 border-blue-400 text-white shadow-lg" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
-                            )}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <Icons.AutoRotate />
-                              <div className="flex flex-col items-start text-left">
-                                <span>Auto (Recommended)</span>
-                                <span className="text-[10px] text-white/50 font-normal">Rotate based on video dimensions</span>
-                              </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForcedOrientation(null);
+                            applyOrientation(null);
+                            setActiveSettingsView('main');
+                          }}
+                          className={cn(
+                            "w-full px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors text-xs font-medium",
+                            forcedOrientation === null ? "bg-blue-600/30 border border-blue-500/40 text-white font-bold" : "hover:bg-white/10 text-white/80"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icons.AutoRotate />
+                            <div className="flex flex-col items-start text-left">
+                              <span>Auto</span>
+                              <span className="text-[10px] text-white/50 font-normal">Based on file</span>
                             </div>
-                            {forcedOrientation === null && <Icons.Check />}
-                          </button>
+                          </div>
+                          {forcedOrientation === null && <Icons.Check />}
+                        </button>
 
-                          {/* Horizontal / Landscape */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setForcedOrientation('landscape');
-                              applyOrientation('landscape');
-                              setActiveSettingsView('main');
-                            }}
-                            className={cn(
-                              "w-full px-3 py-2.5 rounded-2xl border transition-all flex items-center justify-between text-xs font-semibold",
-                              forcedOrientation === 'landscape' ? "bg-blue-600/30 border-blue-400 text-white shadow-lg" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
-                            )}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <Icons.Landscape />
-                              <div className="flex flex-col items-start text-left">
-                                <span>Horizontal</span>
-                                <span className="text-[10px] text-white/50 font-normal">Force landscape orientation</span>
-                              </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForcedOrientation('landscape');
+                            applyOrientation('landscape');
+                            setActiveSettingsView('main');
+                          }}
+                          className={cn(
+                            "w-full px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors text-xs font-medium",
+                            forcedOrientation === 'landscape' ? "bg-blue-600/30 border border-blue-500/40 text-white font-bold" : "hover:bg-white/10 text-white/80"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icons.Landscape />
+                            <div className="flex flex-col items-start text-left">
+                              <span>Horizontal</span>
+                              <span className="text-[10px] text-white/50 font-normal">Landscape mode</span>
                             </div>
-                            {forcedOrientation === 'landscape' && <Icons.Check />}
-                          </button>
+                          </div>
+                          {forcedOrientation === 'landscape' && <Icons.Check />}
+                        </button>
 
-                          {/* Vertical / Portrait */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setForcedOrientation('portrait');
-                              applyOrientation('portrait');
-                              setActiveSettingsView('main');
-                            }}
-                            className={cn(
-                              "w-full px-3 py-2.5 rounded-2xl border transition-all flex items-center justify-between text-xs font-semibold",
-                              forcedOrientation === 'portrait' ? "bg-blue-600/30 border-blue-400 text-white shadow-lg" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
-                            )}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <Icons.Portrait />
-                              <div className="flex flex-col items-start text-left">
-                                <span>Vertical</span>
-                                <span className="text-[10px] text-white/50 font-normal">Force portrait orientation</span>
-                              </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForcedOrientation('portrait');
+                            applyOrientation('portrait');
+                            setActiveSettingsView('main');
+                          }}
+                          className={cn(
+                            "w-full px-2.5 py-2 rounded-xl flex items-center justify-between transition-colors text-xs font-medium",
+                            forcedOrientation === 'portrait' ? "bg-blue-600/30 border border-blue-500/40 text-white font-bold" : "hover:bg-white/10 text-white/80"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icons.Portrait />
+                            <div className="flex flex-col items-start text-left">
+                              <span>Vertical</span>
+                              <span className="text-[10px] text-white/50 font-normal">Portrait mode</span>
                             </div>
-                            {forcedOrientation === 'portrait' && <Icons.Check />}
-                          </button>
-                        </div>
+                          </div>
+                          {forcedOrientation === 'portrait' && <Icons.Check />}
+                        </button>
                       </div>
                     )}
 
                     {/* Speed Sub-View */}
                     {activeSettingsView === 'speed' && (
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2 border-b border-white/10 pb-2.5 mb-1">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 px-1 py-1.5 border-b border-white/10 mb-1">
                           <button
                             type="button"
                             onClick={() => setActiveSettingsView('main')}
-                            className="p-1 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                            className="p-1 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
                           >
                             <Icons.ChevronLeft />
                           </button>
-                          <h3 className="font-bold text-sm text-white">Playback Speed</h3>
+                          <span className="text-xs font-bold text-white">Playback Speed</span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-0.5">
+                        <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto pr-0.5">
                           {SPEEDS.map((s) => (
                             <button
                               key={s}
@@ -922,11 +898,11 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                                 setActiveSettingsView('main');
                               }}
                               className={cn(
-                                "px-3 py-2 rounded-xl text-xs font-semibold border flex items-center justify-between transition-all",
-                                s === speed ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"
+                                "px-2.5 py-1.5 rounded-xl text-xs font-medium flex items-center justify-between transition-colors",
+                                s === speed ? "bg-blue-600 text-white font-bold" : "hover:bg-white/10 text-white/80"
                               )}
                             >
-                              <span>{s === 1 ? '1.0x (Normal)' : `${s}x`}</span>
+                              <span>{s === 1 ? 'Normal' : `${s}x`}</span>
                               {s === speed && <Icons.Check />}
                             </button>
                           ))}
@@ -934,26 +910,26 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                       </div>
                     )}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Picture-in-Picture (Desktop only) */}
-              <button onClick={togglePiP} className="hidden sm:inline-flex p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all" title="Picture-in-Picture (P)">
+              <button onClick={togglePiP} className="hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all shrink-0" title="Picture-in-Picture (P)">
                 <Icons.PiP />
               </button>
 
               {/* Theater Mode (Desktop only) */}
-              <button onClick={() => setIsTheater(!isTheater)} className={cn("hidden sm:inline-flex p-2 rounded-xl transition-all", isTheater ? "text-blue-400 bg-blue-500/20 border border-blue-500/30" : "text-white/80 hover:text-white hover:bg-white/10")} title="Theater Mode (T)">
+              <button onClick={() => setIsTheater(!isTheater)} className={cn("hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl transition-all shrink-0", isTheater ? "text-blue-400 bg-blue-500/20 border border-blue-500/30" : "text-white/80 hover:text-white hover:bg-white/10")} title="Theater Mode (T)">
                 <Icons.Theater />
               </button>
 
               {/* Fullscreen */}
-              <button onClick={toggleFS} className="p-1.5 sm:p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all" title="Fullscreen (F)">
+              <button onClick={toggleFS} className="p-1.5 sm:p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all shrink-0" title="Fullscreen (F)">
                 {isFS ? <Icons.FullscreenExit /> : <Icons.FullscreenEnter />}
               </button>
 
               {/* Shortcuts Help (Desktop only) */}
-              <button onClick={() => setShowHelp(true)} className="hidden sm:inline-flex p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all" title="Shortcuts (?)">
+              <button onClick={() => setShowHelp(true)} className="hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all shrink-0" title="Shortcuts (?)">
                 <Icons.Help />
               </button>
             </div>

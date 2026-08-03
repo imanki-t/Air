@@ -262,6 +262,26 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
 
   useEffect(() => { if (isEditingPage && pageInputRef.current) { pageInputRef.current.focus(); pageInputRef.current.select(); } }, [isEditingPage]);
 
+  // ── Filter / sort / paginate ──────────────────────────────────────────────
+  const visible = folderFiles.filter((file) => {
+    const type = file.metadata?.type || 'other';
+    return (filter === 'all' || type === filter) &&
+      (!searchInput.trim() || file.filename?.toLowerCase().includes(searchInput.toLowerCase()));
+  });
+
+  const sortedFiles = [...visible].sort((a, b) => {
+    if (sortOption === 'date')      return new Date(a.uploadDate) - new Date(b.uploadDate);
+    if (sortOption === 'name-asc')  return (a.filename || '').localeCompare(b.filename || '');
+    if (sortOption === 'name-desc') return (b.filename || '').localeCompare(a.filename || '');
+    if (sortOption === 'size-desc') return (b.length || 0) - (a.length || 0);
+    if (sortOption === 'size-asc')  return (a.length || 0) - (b.length || 0);
+    return new Date(b.uploadDate) - new Date(a.uploadDate);
+  });
+
+  const totalPages   = isPaginationEnabled ? Math.max(1, Math.ceil(sortedFiles.length / itemsPerPage)) : 1;
+  const displayFiles = isPaginationEnabled ? sortedFiles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) : sortedFiles;
+  const paginatedFiles = displayFiles;
+
   // ── Lock body scroll while folder modal is active ───────────────────────────
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -311,7 +331,7 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
       if (isCmdOrCtrl && key === 'a') {
         e.preventDefault();
         setSelectionMode(true);
-        setSelectedFiles(paginatedFiles.map((f) => f._id));
+        setSelectedFiles((paginatedFiles || []).map((f) => f._id));
         return;
       }
 
@@ -340,26 +360,6 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, showSortOptions, selectionMode, selectedFiles, paginatedFiles, showDeleteConfirmModal, showRemoveConfirmModal, showBatchShareModal, refresh]);
-
-  // ── Filter / sort / paginate ──────────────────────────────────────────────
-  const visible = folderFiles.filter((file) => {
-    const type = file.metadata?.type || 'other';
-    return (filter === 'all' || type === filter) &&
-      (!searchInput.trim() || file.filename?.toLowerCase().includes(searchInput.toLowerCase()));
-  });
-
-  const sortedFiles = [...visible].sort((a, b) => {
-    if (sortOption === 'date')      return new Date(a.uploadDate) - new Date(b.uploadDate);
-    if (sortOption === 'name-asc')  return (a.filename || '').localeCompare(b.filename || '');
-    if (sortOption === 'name-desc') return (b.filename || '').localeCompare(a.filename || '');
-    if (sortOption === 'size-desc') return (b.length || 0) - (a.length || 0);
-    if (sortOption === 'size-asc')  return (a.length || 0) - (b.length || 0);
-    return new Date(b.uploadDate) - new Date(a.uploadDate);
-  });
-
-  const totalPages   = isPaginationEnabled ? Math.max(1, Math.ceil(sortedFiles.length / itemsPerPage)) : 1;
-  const displayFiles = isPaginationEnabled ? sortedFiles.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage) : sortedFiles;
-  const paginatedFiles = displayFiles;
 
   // ── Pagination ────────────────────────────────────────────────────────────
   const handleNextPage = () => { if (currentPage < totalPages) setCurrentPage((p) => p + 1); };

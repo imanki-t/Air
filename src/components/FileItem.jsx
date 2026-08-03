@@ -1651,6 +1651,20 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   const shareLinkInputRef = useRef(null);
   const thumbInputRef = useRef(null);
 
+  const [menuPosClass, setMenuPosClass] = useState('right-0 origin-top-right');
+
+  useEffect(() => {
+    if (showMenu && menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      const vw = window.innerWidth;
+      if (rect.left < 12) {
+        setMenuPosClass('left-0 origin-top-left');
+      } else if (rect.right > vw - 12) {
+        setMenuPosClass('right-0 origin-top-right');
+      }
+    }
+  }, [showMenu]);
+
   const handleCustomThumbSelect = (e) => {
     const chosen = e.target.files?.[0];
     if (!chosen || !fileId) return;
@@ -2047,20 +2061,6 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     const saved = localStorage.getItem('airstream_touch_select');
     return saved === null ? true : saved === 'true';
   };
-
-  const [menuPosClass, setMenuPosClass] = useState('right-0 origin-top-right');
-
-  useEffect(() => {
-    if (showMenu && menuRef.current) {
-      const rect = menuRef.current.getBoundingClientRect();
-      const vw = window.innerWidth;
-      if (rect.left < 12) {
-        setMenuPosClass('left-0 origin-top-left');
-      } else if (rect.right > vw - 12) {
-        setMenuPosClass('right-0 origin-top-right');
-      }
-    }
-  }, [showMenu]);
 
   const handleDoubleClick = (e) => {
     e.preventDefault();

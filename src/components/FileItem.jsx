@@ -48,16 +48,18 @@ class MediaViewerErrorBoundary extends React.Component {
 // Robust file type detector (handles metadata, direct type, mimetype, and file extension)
 const getFileType = (f) => {
   if (!f) return 'unknown';
+  const mime = (f.contentType || f.mimetype || '').toLowerCase();
+  const ext = (f.filename || f.name || '').split('.').pop().toLowerCase();
+  if (mime === 'application/pdf' || ext === 'pdf') return 'pdf';
   if (f.metadata?.type) return f.metadata.type;
   if (f.type) return f.type;
-  const mime = (f.contentType || f.mimetype || '').toLowerCase();
   if (mime.startsWith('video/')) return 'video';
   if (mime.startsWith('audio/')) return 'audio';
   if (mime.startsWith('image/')) return 'image';
-  const ext = (f.filename || '').split('.').pop().toLowerCase();
-  if (['mp4', 'mkv', 'webm', 'mov', 'avi', 'm4v', '3gp', 'flv'].includes(ext)) return 'video';
-  if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(ext)) return 'audio';
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext)) return 'image';
+  const extFallback = (f.filename || '').split('.').pop().toLowerCase();
+  if (['mp4', 'mkv', 'webm', 'mov', 'avi', 'm4v', '3gp', 'flv'].includes(extFallback)) return 'video';
+  if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'].includes(extFallback)) return 'audio';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(extFallback)) return 'image';
   return 'unknown';
 };
 
@@ -564,25 +566,6 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 
   return (
     <div onClick={(e) => e.stopPropagation()} className="relative w-full flex flex-col items-center justify-center">
-      {/* ── Real Dynamic YouTube-Style Ambient Glow Canvas ── */}
-      {isAmbient && (
-        <div className="absolute -inset-6 sm:-inset-10 pointer-events-none z-0 overflow-hidden flex items-center justify-center">
-          <canvas
-            ref={ambientCanvasRef}
-            width={64}
-            height={36}
-            className={cn(
-              "w-full h-full object-cover rounded-3xl blur-2xl sm:blur-3xl transition-opacity duration-700 scale-125 opacity-70",
-              !ambientSupported && "hidden"
-            )}
-          />
-          {/* Fallback Cinema Ambient Glow if video canvas is tainted by CORS */}
-          {!ambientSupported && (
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 via-indigo-500/30 to-cyan-500/40 rounded-3xl blur-3xl opacity-70 scale-110 animate-pulse transition-all duration-700" />
-          )}
-        </div>
-      )}
-
       <div
         ref={wrapRef}
         className={cn(
@@ -603,12 +586,30 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
           )}
           onClick={handleVideoClick}
         >
+          {/* ── Real Dynamic YouTube-Style Ambient Glow Canvas (Inside Letterbox/Pillarbox Space) ── */}
+          {isAmbient && (
+            <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden flex items-center justify-center">
+              <canvas
+                ref={ambientCanvasRef}
+                width={64}
+                height={36}
+                className={cn(
+                  "w-full h-full object-cover blur-3xl opacity-80 transition-opacity duration-700 scale-110",
+                  !ambientSupported && "hidden"
+                )}
+              />
+              {!ambientSupported && (
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 via-indigo-500/30 to-cyan-500/40 rounded-2xl blur-3xl opacity-80 scale-110 animate-pulse transition-all duration-700" />
+              )}
+            </div>
+          )}
+
           <video
             ref={videoRef}
             src={videoUrl}
             {...(needsCredentials ? { crossOrigin: 'use-credentials' } : {})}
             preload="auto"
-            className={cn("w-full h-full object-contain", !showCtrl && playing ? "cursor-none" : "")}
+            className={cn("relative z-10 w-full h-full object-contain", !showCtrl && playing ? "cursor-none" : "")}
             onTimeUpdate={handleTimeUpdate}
             onDurationChange={() => videoRef.current && setDuration(videoRef.current.duration)}
             onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration)}
@@ -671,13 +672,13 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
         {/* ── Liquid Glass Controller Bar ── */}
         <div
           className={cn(
-            "w-full bg-slate-950/95 border-t border-white/15 sm:border sm:border-white/15 backdrop-blur-2xl px-3.5 sm:px-5 py-2.5 sm:py-3.5 sm:rounded-2xl flex flex-col gap-1.5 sm:gap-2 transition-all duration-300 z-30 shadow-2xl max-w-full overflow-visible",
+            "w-full bg-slate-950/95 border-t border-white/15 sm:border sm:border-white/15 backdrop-blur-2xl px-3 sm:px-4 py-2 sm:py-2.5 sm:rounded-2xl flex flex-col gap-1.5 transition-all duration-300 z-30 shadow-2xl max-w-full overflow-visible",
             isFS ? "absolute bottom-2 sm:bottom-3 inset-x-2 sm:inset-x-3 rounded-xl sm:rounded-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))]" : "relative sm:absolute sm:bottom-2 sm:inset-x-2 sm:bottom-3 sm:inset-x-3 rounded-b-2xl sm:rounded-2xl",
             !showCtrl && playing && isFS && !showSettingsMenu ? "opacity-0 translate-y-3 pointer-events-none" : "opacity-100 translate-y-0"
           )}
         >
           {/* ── YouTube Scrubber with Hover Time Tooltip ── */}
-          <div className="w-full px-1 sm:px-2">
+          <div className="w-full px-0.5">
             <div
               ref={hoverScrubRef}
               className="relative flex items-center w-full h-3 group/scrub cursor-pointer"
@@ -722,10 +723,10 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
           </div>
 
           {/* ── Controls Row ── */}
-          <div className="flex items-center justify-between w-full min-w-0 gap-1.5 sm:gap-3 px-1 sm:px-2">
-            <div className="flex items-center gap-1 sm:gap-2 min-w-0 shrink">
+          <div className="flex items-center justify-between w-full min-w-0 gap-1.5 sm:gap-2 px-0.5">
+            <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 shrink">
               {/* Play/Pause Button */}
-              <button onClick={togglePlay} className="p-1.5 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all flex items-center justify-center shrink-0">
+              <button onClick={togglePlay} className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center shrink-0">
                 {isBuffering && playing ? (
                   <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -739,10 +740,10 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
               </button>
 
               {/* Skip 10s Replay / Forward (Compact & responsive) */}
-              <button onClick={() => seekRelative(-10)} className="p-1 sm:p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all shrink-0" title="-10 seconds (J)">
+              <button onClick={() => seekRelative(-10)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center shrink-0" title="-10 seconds (J)">
                 <Icons.Replay10 />
               </button>
-              <button onClick={() => seekRelative(10)} className="p-1 sm:p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all shrink-0" title="+10 seconds (L)">
+              <button onClick={() => seekRelative(10)} className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center shrink-0" title="+10 seconds (L)">
                 <Icons.Forward10 />
               </button>
 
@@ -754,10 +755,10 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
               </div>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 ml-auto pr-0.5">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               {/* Volume Control */}
               <div className="flex items-center gap-1 group/volume shrink-0">
-                <button onClick={toggleMute} className="p-1.5 sm:p-2 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all" title={muted ? "Unmute" : "Mute"}>
+                <button onClick={toggleMute} className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-white/90 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center shrink-0" title={muted ? "Unmute" : "Mute"}>
                   {muted || volume === 0 ? <Icons.VolumeMute /> : <Icons.VolumeHigh />}
                 </button>
                 {!isCoarsePointer && (
@@ -788,7 +789,7 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                     setShowSettingsMenu((prev) => !prev);
                   }}
                   className={cn(
-                    "p-1.5 sm:p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer shrink-0",
+                    "w-8 h-8 sm:w-9 sm:h-9 rounded-xl border transition-all flex items-center justify-center cursor-pointer shrink-0",
                     showSettingsMenu ? "bg-blue-600 border-blue-400 text-white shadow-lg" : "border-white/10 text-white/80 hover:text-white hover:bg-white/10"
                   )}
                   title="Player Settings"
@@ -1123,26 +1124,26 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
 
               {/* Picture-in-Picture (Desktop only) */}
               {!isCoarsePointer && (
-                <button onClick={togglePiP} className="hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all shrink-0" title="Picture-in-Picture (P)">
+                <button onClick={togglePiP} className="hidden sm:flex w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all items-center justify-center shrink-0" title="Picture-in-Picture (P)">
                   <Icons.PiP />
                 </button>
               )}
 
               {/* Theater Mode (Desktop only) */}
               {!isCoarsePointer && (
-                <button onClick={() => setIsTheater(!isTheater)} className={cn("hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl transition-all shrink-0", isTheater ? "text-blue-400 bg-blue-500/20 border border-blue-500/30" : "text-white/80 hover:text-white hover:bg-white/10")} title="Theater Mode (T)">
+                <button onClick={() => setIsTheater(!isTheater)} className={cn("hidden sm:flex w-8 h-8 sm:w-9 sm:h-9 rounded-xl transition-all items-center justify-center shrink-0", isTheater ? "text-blue-400 bg-blue-500/20 border border-blue-500/30" : "text-white/80 hover:text-white hover:bg-white/10")} title="Theater Mode (T)">
                   <Icons.Theater />
                 </button>
               )}
 
               {/* Fullscreen */}
-              <button onClick={toggleFS} className="p-1.5 sm:p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all shrink-0" title="Fullscreen (F)">
+              <button onClick={toggleFS} className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center shrink-0" title="Fullscreen (F)">
                 {isFS ? <Icons.FullscreenExit /> : <Icons.FullscreenEnter />}
               </button>
 
               {/* Shortcuts Help (Desktop only) */}
               {!isCoarsePointer && (
-                <button onClick={() => setShowHelp(true)} className="hidden sm:inline-flex p-1.5 sm:p-2 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all shrink-0" title="Shortcuts (?)">
+                <button onClick={() => setShowHelp(true)} className="hidden sm:flex w-8 h-8 sm:w-9 sm:h-9 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all items-center justify-center shrink-0" title="Shortcuts (?)">
                   <Icons.Help />
                 </button>
               )}
@@ -1634,10 +1635,43 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   const [proxyUrl, setProxyUrl] = useState(null);
   const [isMediaLoading, setIsMediaLoading] = useState(false);
 
+  const [customThumb, setCustomThumb] = useState(() => {
+    try {
+      return localStorage.getItem(`airstream_custom_thumb_${file._id}`);
+    } catch (_) { return null; }
+  });
+
   const menuRef = useRef(null);
   const shareModalRef = useRef(null);
   const deleteModalRef = useRef(null);
   const shareLinkInputRef = useRef(null);
+  const thumbInputRef = useRef(null);
+
+  const handleCustomThumbSelect = (e) => {
+    const chosen = e.target.files?.[0];
+    if (!chosen) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const dataUrl = evt.target.result;
+      try {
+        localStorage.setItem(`airstream_custom_thumb_${file._id}`, dataUrl);
+      } catch (_) {}
+      setCustomThumb(dataUrl);
+      setShowMenu(false);
+      if (refresh) refresh();
+    };
+    reader.readAsDataURL(chosen);
+  };
+
+  const removeCustomThumb = (e) => {
+    e.stopPropagation();
+    try {
+      localStorage.removeItem(`airstream_custom_thumb_${file._id}`);
+    } catch (_) {}
+    setCustomThumb(null);
+    setShowMenu(false);
+    if (refresh) refresh();
+  };
 
   // Close modals & overlays on outside clicks
   useEffect(() => {
@@ -1791,10 +1825,15 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
   const openViewer = async () => {
     setShowMenu(false);
+    const type = getFileType(file);
+    if (type === 'pdf') {
+      const pdfUrl = `${backendUrl}/api/files/preview/${file._id}`;
+      window.open(pdfUrl, '_blank');
+      return;
+    }
     setStreamUrl(null);
     setProxyUrl(null);
     setShowViewer(true);
-    const type = getFileType(file);
     if (type === 'video' || type === 'audio') {
       setIsMediaLoading(true);
       try {
@@ -1839,6 +1878,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       image: <svg xmlns="http://www.w3.org/2000/svg" className={size} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>,
       video: <svg xmlns="http://www.w3.org/2000/svg" className={size} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>,
       audio: <svg xmlns="http://www.w3.org/2000/svg" className={size} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" /></svg>,
+      pdf: <svg xmlns="http://www.w3.org/2000/svg" className={`${size} text-red-500`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>,
       document: <svg xmlns="http://www.w3.org/2000/svg" className={size} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
       other: <svg xmlns="http://www.w3.org/2000/svg" className={size} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>,
     };
@@ -1847,7 +1887,8 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
   const renderPreview = (isListView) => {
     const previewUrl = `${backendUrl}/api/files/preview/${file._id}`;
-    const type = file.metadata?.type || 'other';
+    const type = getFileType(file);
+    const activeThumb = customThumb || file.metadata?.thumbnail || file.thumbnail || file.poster;
     const imageVideoPreviewClasses = 'absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300';
     let containerBaseClasses = `relative overflow-hidden group ${darkMode ? 'bg-gray-700' : 'bg-gray-100'} flex items-center justify-center`;
 
@@ -1855,6 +1896,20 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       containerBaseClasses += ' w-24 h-24 sm:w-28 sm:h-28 rounded-lg flex-shrink-0';
     } else {
       containerBaseClasses += ' h-32 mb-2 rounded-t-xl';
+    }
+
+    if (activeThumb) {
+      return (
+        <div className={containerBaseClasses}>
+          <img
+            src={activeThumb}
+            alt={`Thumbnail of ${file.filename}`}
+            className={imageVideoPreviewClasses}
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        </div>
+      );
     }
 
     if (type === 'image') {
@@ -1957,24 +2012,51 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     return saved === null ? true : saved === 'true';
   };
 
-  const handleDoubleClick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setShowMenu((prev) => !prev);
-  };
+  const renderKebabMenuItems = () => (
+    <div ref={menuRef} className={cn("absolute right-0 mt-1 py-1 sm:w-44 w-40 rounded-xl shadow-2xl z-50 border backdrop-blur-xl animate-fadeIn", darkMode ? 'bg-gray-800/95 border-gray-600 text-gray-100' : 'bg-white/95 border-gray-200 text-gray-800')} role="menu">
+      <button onClick={openViewer} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-blue-500/10 transition-colors', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+        {getFileType(file) === 'pdf' ? 'Open PDF' : 'View'}
+      </button>
 
-  const handleTouchEnd = (e) => {
-    const now = Date.now();
-    if (now - lastTouchTimeRef.current < 300) {
-      e.preventDefault();
-      e.stopPropagation();
-      setShowMenu((prev) => !prev);
-    }
-    lastTouchTimeRef.current = now;
-  };
+      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+
+      <button onClick={(e) => { e.stopPropagation(); thumbInputRef.current?.click(); }} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-blue-500/10 transition-colors', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+        {customThumb ? 'Change Thumbnail' : 'Add Thumbnail'}
+      </button>
+
+      {customThumb && (
+        <button onClick={removeCustomThumb} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-red-500/10 text-amber-500 transition-colors')} role="menuitem">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          Reset Thumbnail
+        </button>
+      )}
+
+      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+
+      <button onClick={download} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-blue-500/10 transition-colors', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-current opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
+        Get
+      </button>
+
+      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+
+      <button onClick={share} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-blue-500/10 transition-colors', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> Share
+      </button>
+
+      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
+
+      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-red-500/10 transition-colors', darkMode ? 'text-red-400' : 'text-red-600')} role="menuitem">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
+      </button>
+    </div>
+  );
 
   return (
     <>
+      <input ref={thumbInputRef} type="file" accept="image/*" className="hidden" onChange={handleCustomThumbSelect} />
       {/* ── File Card Container ── */}
       <div
         className={cn(
@@ -2026,31 +2108,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" /></svg>
                   </button>
 
-                  {showMenu && (
-                    <div ref={menuRef} className={cn("absolute right-0 mt-1 py-1 sm:w-40 w-36 rounded-md shadow-xl z-50 border backdrop-blur-md", darkMode ? 'bg-gray-800/90 border-gray-600' : 'bg-white/90 border-gray-200')} role="menu">
-                      {(file.metadata?.type === 'image' || file.metadata?.type === 'video' || file.metadata?.type === 'audio') && (
-                        <>
-                          <button onClick={openViewer} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                            View
-                          </button>
-                          <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
-                        </>
-                      )}
-                      <button onClick={download} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-current opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
-                        Get
-                      </button>
-                      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
-                      <button onClick={share} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> Share
-                      </button>
-                      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
-                      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-red-400' : 'text-red-600')} role="menuitem">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
-                      </button>
-                    </div>
-                  )}
+                  {showMenu && renderKebabMenuItems()}
                 </div>
               )}
             </div>
@@ -2088,31 +2146,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" /></svg>
                   </button>
 
-                  {showMenu && (
-                    <div ref={menuRef} className={cn("absolute right-0 mt-1 py-1 sm:w-40 w-36 rounded-md shadow-xl z-50 border backdrop-blur-md", darkMode ? 'bg-gray-800/90 border-gray-600' : 'bg-white/90 border-gray-200')} role="menu">
-                      {(file.metadata?.type === 'image' || file.metadata?.type === 'video' || file.metadata?.type === 'audio') && (
-                        <>
-                          <button onClick={openViewer} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                            View
-                          </button>
-                          <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
-                        </>
-                      )}
-                      <button onClick={download} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-current opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" /></svg>
-                        Get
-                      </button>
-                      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
-                      <button onClick={share} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-white' : 'text-gray-700')} role="menuitem">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg> Share
-                      </button>
-                      <div className={`border-t my-1 ${darkMode ? 'border-gray-700/50' : 'border-gray-200/70'}`} />
-                      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5', darkMode ? 'text-red-400' : 'text-red-600')} role="menuitem">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
-                      </button>
-                    </div>
-                  )}
+                  {showMenu && renderKebabMenuItems()}
                 </div>
               )}
             </div>

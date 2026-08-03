@@ -5,6 +5,7 @@ module.exports = {
   uploadFile: fileService.uploadFile,
   getFiles: fileService.getFiles,
   deleteFile: fileService.deleteFile,
+  updateFileIcon: fileService.updateFileIcon,
   downloadFile: fileService.downloadFile,
   previewFile: fileService.previewFile, // NEW: Add preview endpoint
   streamFile: fileService.streamFile, // Stream media file with direct Range headers

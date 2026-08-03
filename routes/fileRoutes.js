@@ -65,6 +65,10 @@ router.delete('/cleanup/:fileId', apiLimiter, controller.cleanupIncompleteUpload
 // Delete file
 router.delete('/:id', apiLimiter, controller.deleteFile); 
 
+// Update custom icon / thumbnail
+router.patch('/:id/icon', apiLimiter, controller.updateFileIcon);
+router.patch('/:id', apiLimiter, controller.updateFileIcon);
+
 // Generate share link
 router.post('/share/:id', apiLimiter, controller.generateShareLink); 
 

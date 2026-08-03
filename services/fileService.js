@@ -203,7 +203,11 @@ const getFiles = async (req, res) => {
       uploadDate: file.metadata?.uploadDate || file.createdAt,
       filename: file.metadata?.filename,
       contentType: file.metadata?.contentType,
-      metadata: file.metadata,
+      customIcon: file.metadata?.customIcon || file.customIcon || null,
+      metadata: {
+        ...file.metadata,
+        customIcon: file.metadata?.customIcon || file.customIcon || null,
+      },
     }));
 
     res.json(formattedFiles);
@@ -737,6 +741,43 @@ const scheduleCleanup = async () => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Update custom icon / thumbnail for a file mapping in MongoDB
+// ─────────────────────────────────────────────────────────────────────────────
+const updateFileIcon = async (req, res) => {
+  try {
+    const fileId = req.params.id;
+    const userId = req.user?.userId;
+    const { customIcon } = req.body || {};
+
+    const mapping = await getFileMapping(fileId);
+    if (!mapping) return res.status(404).json({ error: 'File not found.' });
+
+    const { allowed } = checkOwnership(mapping, userId);
+    if (!allowed) return res.status(403).json({ error: 'Access denied.' });
+
+    const objectId = safeObjectId(fileId);
+    if (!objectId) return res.status(400).json({ error: 'Invalid file ID.' });
+
+    await db.collection('drive_mappings').updateOne(
+      { _id: objectId },
+      {
+        $set: {
+          'metadata.customIcon': customIcon || null,
+          'metadata.thumbnail': customIcon || null,
+          customIcon: customIcon || null,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    res.json({ success: true, fileId, customIcon: customIcon || null });
+  } catch (error) {
+    console.error('Update file icon error:', error);
+    res.status(500).json({ error: 'Failed to update file icon.' });
+  }
+};
+
 module.exports = {
   uploadFile,
   getFiles,
@@ -745,6 +786,7 @@ module.exports = {
   streamFile: previewFile,
   getVideoStreamUrl,
   deleteFile,
+  updateFileIcon,
   generateShareLink,
   accessSharedFile,
   uploadAndShareZip,

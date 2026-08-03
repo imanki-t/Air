@@ -1619,6 +1619,7 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize, thumbnail }) 
 // ─── Main FileItem Component ──────────────────────────────────────────────────
 const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, selectionMode, viewType }) => {
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
+  const fileId = file?._id || file?.id || file?.mongoId || '';
   const fileName = file?.filename || file?.name || 'File';
 
   const [showShare, setShowShare] = useState(false);
@@ -1635,7 +1636,8 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
   const [customThumb, setCustomThumb] = useState(() => {
     try {
-      return localStorage.getItem(`airstream_custom_thumb_${file._id}`);
+      if (!fileId) return null;
+      return localStorage.getItem(`airstream_custom_thumb_${fileId}`);
     } catch (_) { return null; }
   });
 
@@ -1647,13 +1649,19 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
   const handleCustomThumbSelect = (e) => {
     const chosen = e.target.files?.[0];
-    if (!chosen) return;
+    if (!chosen || !fileId) return;
+    if (chosen.size > 3 * 1024 * 1024) {
+      alert('Thumbnail image must be smaller than 3MB');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (evt) => {
       const dataUrl = evt.target.result;
       try {
-        localStorage.setItem(`airstream_custom_thumb_${file._id}`, dataUrl);
-      } catch (_) {}
+        localStorage.setItem(`airstream_custom_thumb_${fileId}`, dataUrl);
+      } catch (err) {
+        console.warn('LocalStorage save error:', err);
+      }
       setCustomThumb(dataUrl);
       setShowMenu(false);
       if (refresh) refresh();
@@ -1664,12 +1672,15 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   const removeCustomThumb = (e) => {
     e.stopPropagation();
     try {
-      localStorage.removeItem(`airstream_custom_thumb_${file._id}`);
+      if (fileId) localStorage.removeItem(`airstream_custom_thumb_${fileId}`);
     } catch (_) {}
     setCustomThumb(null);
     setShowMenu(false);
     if (refresh) refresh();
   };
+
+  // Guard against missing file prop
+  if (!file) return null;
 
   // Close modals & overlays on outside clicks
   useEffect(() => {
@@ -1755,7 +1766,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     setDownloadProgress(0);
     try {
       const response = await axios({
-        url: `${backendUrl}/api/files/download/${file._id}`,
+        url: `${backendUrl}/api/files/download/${fileId}`,
         method: 'GET',
         responseType: 'blob',
         onDownloadProgress: (progressEvent) => {
@@ -1768,7 +1779,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', file.filename);
+      link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -1784,7 +1795,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   const deleteFile = async () => {
     setIsActionLoading(true);
     try {
-      await axios.delete(`${backendUrl}/api/files/${file._id}`);
+      await axios.delete(`${backendUrl}/api/files/${fileId}`);
       setShowDeleteConfirm(false);
       refresh();
     } catch (err) {
@@ -1801,7 +1812,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     setCopied(false);
     setShowShare(true);
     try {
-      const res = await axios.post(`${backendUrl}/api/files/share/${file._id}`);
+      const res = await axios.post(`${backendUrl}/api/files/share/${fileId}`);
       setShareLink(res.data.url);
     } catch (err) {
       console.error('Share failed:', err);
@@ -1825,7 +1836,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     setShowMenu(false);
     const type = getFileType(file);
     if (type === 'pdf') {
-      const pdfUrl = `${backendUrl}/api/files/preview/${file._id}`;
+      const pdfUrl = `${backendUrl}/api/files/preview/${fileId}`;
       window.open(pdfUrl, '_blank');
       return;
     }
@@ -1835,7 +1846,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     if (type === 'video' || type === 'audio') {
       setIsMediaLoading(true);
       try {
-        const res = await axios.get(`${backendUrl}/api/files/stream-url/${file._id}`);
+        const res = await axios.get(`${backendUrl}/api/files/stream-url/${fileId}`);
         if (res.data?.url) setStreamUrl(res.data.url);
         if (res.data?.proxyUrl) setProxyUrl(res.data.proxyUrl);
       } catch (err) {
@@ -1884,7 +1895,9 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   };
 
   const renderPreview = (isListView) => {
-    const previewUrl = `${backendUrl}/api/files/preview/${file._id}`;
+    if (!file) return null;
+    const safeBackendUrl = backendUrl || '';
+    const previewUrl = `${safeBackendUrl}/api/files/preview/${fileId}`;
     const type = getFileType(file);
     const activeThumb = customThumb || file.metadata?.thumbnail || file.thumbnail || file.poster;
     const imageVideoPreviewClasses = 'absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300';
@@ -1901,7 +1914,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
         <div className={containerBaseClasses}>
           <img
             src={activeThumb}
-            alt={`Thumbnail of ${file.filename}`}
+            alt={`Thumbnail of ${fileName}`}
             className={imageVideoPreviewClasses}
             loading="lazy"
           />
@@ -1915,7 +1928,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
         <div className={containerBaseClasses}>
           <img
             src={previewUrl}
-            alt={`Preview of ${file.filename}`}
+            alt={`Preview of ${fileName}`}
             className={imageVideoPreviewClasses}
             loading="lazy"
           />
@@ -1931,7 +1944,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
           {existingThumb ? (
             <img
               src={existingThumb}
-              alt={`Thumbnail of ${file.filename}`}
+              alt={`Thumbnail of ${fileName}`}
               className={imageVideoPreviewClasses}
               loading="lazy"
             />
@@ -1960,7 +1973,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
           <div className={containerBaseClasses}>
             <img
               src={audioThumb}
-              alt={`Album art of ${file.filename}`}
+              alt={`Album art of ${fileName}`}
               className={imageVideoPreviewClasses}
               loading="lazy"
             />
@@ -2202,7 +2215,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
           <div ref={deleteModalRef} className={cn("p-6 rounded-xl max-w-sm w-full relative shadow-xl border animate-modalIn", darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800')} role="alertdialog" aria-modal="true" aria-labelledby="delete-file-title" aria-describedby="delete-file-desc">
             <h2 id="delete-file-title" className={cn("font-semibold mb-2 text-lg", darkMode ? 'text-white' : 'text-gray-800')}>Confirm Delete</h2>
             <p id="delete-file-desc" className={cn("text-sm mb-3", darkMode ? 'text-gray-300' : 'text-gray-600')}>Are you sure you want to permanently delete this file?</p>
-            <div className={cn("font-medium max-w-full truncate overflow-hidden whitespace-nowrap my-3 p-2 rounded text-sm", darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700 border border-gray-200')}>{file.filename}</div>
+            <div className={cn("font-medium max-w-full truncate overflow-hidden whitespace-nowrap my-3 p-2 rounded text-sm", darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700 border border-gray-200')}>{fileName}</div>
             <p className={cn("text-sm mb-5", darkMode ? 'text-gray-400' : 'text-gray-500')}>This action cannot be undone.</p>
             <div className="flex w-full justify-between gap-3 mt-4">
               <button onClick={() => setShowDeleteConfirm(false)} disabled={isActionLoading} className={cn("flex-1 px-4 py-2 rounded-md font-medium transition-colors text-sm", isActionLoading ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed') : (darkMode ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-300'))}>Cancel</button>
@@ -2220,11 +2233,11 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
         const type = getFileType(file);
         if (type !== 'video' && type !== 'audio' && type !== 'image') return null;
         const safeBackendUrl = backendUrl || '';
-        const previewUrl = `${safeBackendUrl}/api/files/preview/${file._id}`;
+        const previewUrl = `${safeBackendUrl}/api/files/preview/${fileId}`;
         
         return ReactDOM.createPortal(
           <MediaViewerErrorBoundary onClose={() => setShowViewer(false)}>
-            <div className="fixed inset-0 z-[9999] animate-fadeIn flex flex-col touch-none overscroll-none bg-slate-950 text-white" style={{ background: 'rgba(8,14,28,0.96)', backdropFilter: 'blur(10px)' }} onClick={() => setShowViewer(false)} onTouchMove={(e) => e.preventDefault()} role="dialog" aria-modal="true" aria-label={`Viewing ${file.filename}`}>
+            <div className="fixed inset-0 z-[9999] animate-fadeIn flex flex-col touch-none overscroll-none bg-slate-950 text-white" style={{ background: 'rgba(8,14,28,0.96)', backdropFilter: 'blur(10px)' }} onClick={() => setShowViewer(false)} onTouchMove={(e) => e.preventDefault()} role="dialog" aria-modal="true" aria-label={`Viewing ${fileName}`}>
               <div className="flex flex-col h-full w-full bg-slate-950 text-white">
                 {/* Header Bar */}
                 <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-2.5 sm:py-4 border-b border-white/5 bg-slate-950/40 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
@@ -2232,7 +2245,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                     <span className={cn('flex-shrink-0 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 sm:px-2.5 sm:py-1 rounded border', type === 'image' ? 'bg-blue-600/20 border-blue-500/40 text-blue-300' : type === 'video' ? 'bg-indigo-600/20 border-indigo-500/40 text-indigo-300' : 'bg-sky-600/20 border-sky-500/40 text-sky-300')}>
                       {type}
                     </span>
-                    <h2 className="text-white/90 text-xs sm:text-sm font-semibold truncate" title={file.filename}>{file.filename}</h2>
+                    <h2 className="text-white/90 text-xs sm:text-sm font-semibold truncate" title={fileName}>{fileName}</h2>
                   </div>
                   <button onClick={() => setShowViewer(false)} className="flex-shrink-0 ml-2 p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all" aria-label="Close viewer" title="Close (Esc)">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -2253,22 +2266,22 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
                     ) : (
                       <>
                         {type === 'image' && (
-                          <ImageViewerContainer src={previewUrl} filename={file.filename} />
+                          <ImageViewerContainer src={previewUrl} filename={fileName} />
                         )}
                         {type === 'video' && (
                           <CustomVideoPlayer 
                             src={proxyUrl || previewUrl || streamUrl} 
                             fallbackSrc={previewUrl} 
-                            filename={file.filename} 
+                            filename={fileName} 
                           />
                         )}
                         {type === 'audio' && (
                           <CustomAudioPlayer 
                             src={proxyUrl || previewUrl || streamUrl} 
                             fallbackSrc={previewUrl} 
-                            filename={file.filename} 
+                            filename={fileName} 
                             fileSize={file.length} 
-                            thumbnail={file.metadata?.thumbnail || file.thumbnail || file.poster || file.albumArt || file.metadata?.cover}
+                            thumbnail={customThumb || file.metadata?.thumbnail || file.thumbnail || file.poster || file.albumArt || file.metadata?.cover}
                           />
                         )}
                       </>

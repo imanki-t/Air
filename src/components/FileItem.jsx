@@ -610,7 +610,10 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
             src={videoUrl}
             {...(needsCredentials ? { crossOrigin: 'use-credentials' } : {})}
             preload="auto"
-            className={cn("relative z-10 w-full h-full object-contain", !showCtrl && playing ? "cursor-none" : "")}
+            controlsList="nodownload noremoteplayback"
+            disablePictureInPicture
+            onContextMenu={(e) => e.preventDefault()}
+            className={cn("relative z-10 w-full h-full object-contain pointer-events-none", !showCtrl && playing ? "cursor-none" : "")}
             onTimeUpdate={handleTimeUpdate}
             onDurationChange={() => videoRef.current && setDuration(videoRef.current.duration)}
             onLoadedMetadata={() => videoRef.current && setDuration(videoRef.current.duration)}
@@ -2040,7 +2043,8 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
               preload="none"
               muted
               playsInline
-              className={`${imageVideoPreviewClasses} bg-black`}
+              onContextMenu={(e) => e.preventDefault()}
+              className={`${imageVideoPreviewClasses} bg-black pointer-events-none`}
             />
           )}
           <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all duration-300">

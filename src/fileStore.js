@@ -2,10 +2,16 @@
 
 const DB_NAME = 'UploadResumeDB';
 const STORE_NAME = 'files';
+// Caches the last-known file list (metadata + icon URLs only, never file bytes)
+// so the app can render instantly from local cache on boot, then reconcile
+// with the server via a delta sync instead of blocking on a full fetch.
+const LIST_CACHE_STORE = 'fileListCache';
+const LIST_CACHE_KEY = 'snapshot';
+const DB_VERSION = 2;
 
 function getDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
 
     request.onerror = () => reject(request.error);
 
@@ -15,6 +21,9 @@ function getDB() {
       const db = event.target.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
+      }
+      if (!db.objectStoreNames.contains(LIST_CACHE_STORE)) {
+        db.createObjectStore(LIST_CACHE_STORE);
       }
     };
   });
@@ -81,6 +90,46 @@ export async function listFiles() {
     };
 
     request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * Save the current file list snapshot (metadata + icon URLs, not file bytes)
+ * so next launch can render instantly from cache instead of waiting on a
+ * network round trip, then reconcile in the background via delta sync.
+ */
+export async function saveFileListCache(files, syncedAt) {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(LIST_CACHE_STORE, 'readwrite');
+    tx.objectStore(LIST_CACHE_STORE).put({ files, syncedAt }, LIST_CACHE_KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/**
+ * Returns { files, syncedAt } from the last saved snapshot, or null if
+ * nothing has been cached yet (e.g. first-ever login on this device).
+ */
+export async function getFileListCache() {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(LIST_CACHE_STORE, 'readonly');
+    const request = tx.objectStore(LIST_CACHE_STORE).get(LIST_CACHE_KEY);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/** Clear the cached snapshot (e.g. on logout, so the next user on this device doesn't see stale files). */
+export async function clearFileListCache() {
+  const db = await getDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(LIST_CACHE_STORE, 'readwrite');
+    tx.objectStore(LIST_CACHE_STORE).delete(LIST_CACHE_KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
 }
 

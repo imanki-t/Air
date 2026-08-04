@@ -55,6 +55,13 @@ app.use(cors({
   credentials: true,
 }));
 
+// [FIX] Custom file icons are sent as base64 data URLs (up to ~4MB encoded for
+// a 3MB image). The blanket 32kb JSON limit below was silently rejecting every
+// icon upload with a 413 before it ever reached the controller — the frontend
+// then fell back to an optimistic local preview that vanished on refresh
+// because nothing had actually been persisted. Give /api/files its own, larger
+// limit; every other route (auth, folders) keeps the tight 32kb ceiling.
+app.use('/api/files', express.json({ limit: '6mb' }));
 app.use(express.json({ limit: '32kb' }));
 app.use(cookieParser());
 

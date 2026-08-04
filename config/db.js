@@ -17,6 +17,16 @@ const connectDB = async () => {
       { expiresAt: 1 },
       { expireAfterSeconds: 0, name: 'export_tokens_ttl' }
     );
+    // Delete tombstones: kept for 30 days so delta-sync (?since=) clients can
+    // learn which files were removed since their last sync, then auto-expired.
+    await mongoose.connection.collection('deleted_files').createIndex(
+      { expiresAt: 1 },
+      { expireAfterSeconds: 0, name: 'deleted_files_ttl' }
+    );
+    await mongoose.connection.collection('deleted_files').createIndex(
+      { userId: 1, deletedAt: 1 },
+      { name: 'deleted_files_lookup' }
+    );
     console.log('TTL indexes ensured');
   } catch (err) {
     console.error(err.message);

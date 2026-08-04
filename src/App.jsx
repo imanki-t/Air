@@ -1,6 +1,7 @@
 // src/App.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import UploadForm from './components/UploadForm';
 import UserNotesDashboard from './components/UserNotesDashboard';
 import FileList from './components/FileList';
@@ -9,6 +10,7 @@ import SignUp from './components/SignUp';
 import Homepage from './components/Homepage';
 import ProfileMenu from './components/ProfileMenu';
 import axios from 'axios';
+import { saveFileListCache, getFileListCache, clearFileListCache } from './fileStore';
 
 // Global axios setting: always send cookies
 axios.defaults.withCredentials = true;
@@ -126,17 +128,127 @@ function App() {
     checkSession();
   }, []);
 
-  // ─── Fetch files ─────────────────────────────────────────────────────────────
+  // ─── Files: caching + sync refs ────────────────────────────────────────────
+  // lastSyncedAtRef: server timestamp of the last successful sync — sent back
+  //   as ?since= so the next sync only pulls what actually changed (delta sync).
+  // lastEtagRef: ETag from the last full ("everything") fetch — sent back as
+  //   If-None-Match so an unchanged library returns a bodyless 304.
+  const lastSyncedAtRef = useRef(null);
+  const lastEtagRef = useRef(null);
+  const INITIAL_PAGE_SIZE = 50;
+
+  // Merge a sync result (new/changed files + deletedIds) into local state and
+  // mirror it into the IndexedDB cache so the next app launch can boot from it.
+  const applySyncResult = useCallback((changedFiles, deletedIds, syncedAt) => {
+    setFiles((prev) => {
+      const byId = new Map(prev.map((f) => [String(f._id), f]));
+      for (const f of changedFiles || []) byId.set(String(f._id), f);
+      for (const id of deletedIds || []) byId.delete(String(id));
+      const merged = Array.from(byId.values());
+      saveFileListCache(merged, syncedAt).catch(() => {});
+      return merged;
+    });
+    if (syncedAt) lastSyncedAtRef.current = syncedAt;
+  }, []);
+
+  // ─── Full fetch — ETag-conditional so a re-fetch with nothing changed costs
+  // just a 304 with no body. Used for the very first sync and explicit "hard
+  // refresh" actions (e.g. the profile menu's refresh button).
   const fetchFiles = useCallback(async () => {
     if (!BACKEND_URL) return;
     try {
-      const res = await axios.get(`${BACKEND_URL}/api/files`);
-      setFiles(res.data || []);
+      const res = await axios.get(`${BACKEND_URL}/api/files`, {
+        headers: lastEtagRef.current ? { 'If-None-Match': lastEtagRef.current } : {},
+        validateStatus: (s) => s === 200 || s === 304,
+      });
+      if (res.status === 304) {
+        setError(null);
+        return; // nothing changed since our last full fetch
+      }
+      lastEtagRef.current = res.headers?.etag || null;
+      applySyncResult(res.data?.files || [], res.data?.deletedIds || [], res.data?.syncedAt);
       setError(null);
     } catch (err) {
       console.error('Failed to load files:', err);
       setError('Failed to load files. Please try again.');
     }
+  }, [applySyncResult]);
+
+  // ─── Delta sync — only pulls files changed since the last successful sync,
+  // plus which files were deleted. Falls back to a full fetch if we don't yet
+  // have a sync cursor (e.g. cache was empty).
+  const syncFiles = useCallback(async () => {
+    if (!BACKEND_URL) return;
+    if (!lastSyncedAtRef.current) return fetchFiles();
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/files`, {
+        params: { since: lastSyncedAtRef.current },
+      });
+      applySyncResult(res.data?.files || [], res.data?.deletedIds || [], res.data?.syncedAt);
+      setError(null);
+    } catch (err) {
+      console.error('Delta sync failed:', err);
+    }
+  }, [fetchFiles, applySyncResult]);
+
+  // ─── First-ever load on a device (no cache yet): paint fast with just the
+  // most recent files, then quietly backfill the rest so pagination beyond
+  // the first page keeps working — instead of blocking the first paint on
+  // downloading the entire library.
+  const fetchInitialPage = useCallback(async () => {
+    if (!BACKEND_URL) return;
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/files`, {
+        params: { limit: INITIAL_PAGE_SIZE },
+      });
+      applySyncResult(res.data?.files || [], [], res.data?.syncedAt);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load files:', err);
+      setError('Failed to load files. Please try again.');
+      return;
+    }
+    try {
+      const full = await axios.get(`${BACKEND_URL}/api/files`, {
+        headers: lastEtagRef.current ? { 'If-None-Match': lastEtagRef.current } : {},
+        validateStatus: (s) => s === 200 || s === 304,
+      });
+      if (full.status === 200) {
+        lastEtagRef.current = full.headers?.etag || null;
+        applySyncResult(full.data?.files || [], full.data?.deletedIds || [], full.data?.syncedAt);
+      }
+    } catch (err) {
+      console.error('Background backfill failed:', err);
+    }
+  }, [applySyncResult]);
+
+  // ─── Quick-refresh specific files (bandwidth-friendly) ───────────────────────
+  // Re-fetches only the given file ids (e.g. the page currently on screen) and
+  // merges the fresh metadata/icon info into the existing files array, instead
+  // of re-downloading the entire library.
+  const refreshFilesByIds = useCallback(async (ids) => {
+    if (!BACKEND_URL || !ids || ids.length === 0) return;
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/files`, {
+        params: { ids: ids.join(',') },
+      });
+      applySyncResult(res.data?.files || [], [], null); // targeted refresh — don't advance the sync cursor
+      setError(null);
+    } catch (err) {
+      console.error('Quick refresh failed:', err);
+    }
+  }, [applySyncResult]);
+
+  // ─── A file just finished uploading in this tab — add it locally from the
+  // upload response instead of waiting on any refetch or the socket echo.
+  const addUploadedFile = useCallback((fileData) => {
+    if (!fileData?._id) return;
+    setFiles((prev) => {
+      if (prev.some((f) => String(f._id) === String(fileData._id))) return prev;
+      const merged = [fileData, ...prev];
+      saveFileListCache(merged, lastSyncedAtRef.current).catch(() => {});
+      return merged;
+    });
   }, []);
 
   // ─── Fetch folders ────────────────────────────────────────────────────────────
@@ -151,12 +263,77 @@ function App() {
   }, [isLoggedIn]);
 
   // ─── Load files + folders when authenticated ─────────────────────────────────
+  // Boot instantly from the IndexedDB cache if one exists, then reconcile with
+  // the server via delta sync; otherwise do the paginated first-ever load.
   useEffect(() => {
-    if (isLoggedIn) {
-      fetchFiles();
+    if (!isLoggedIn) return;
+    let cancelled = false;
+    (async () => {
+      const cached = await getFileListCache().catch(() => null);
+      if (cancelled) return;
+      if (cached?.files?.length) {
+        setFiles(cached.files);
+        lastSyncedAtRef.current = cached.syncedAt || null;
+        syncFiles();
+      } else {
+        fetchInitialPage();
+      }
+    })();
+    fetchFolders();
+    return () => { cancelled = true; };
+  }, [isLoggedIn, fetchFolders]);
+
+  // ─── Live updates over Socket.IO ──────────────────────────────────────────────
+  // A single shared connection patches file state in place (new upload, icon
+  // change, delete) so other open tabs/devices update instantly without any
+  // polling or refetch. This is what makes "R" a manual fallback rather than
+  // the primary way files stay in sync.
+  useEffect(() => {
+    if (!isLoggedIn || !BACKEND_URL) return;
+    const socket = io(BACKEND_URL, { withCredentials: true });
+
+    socket.on('fileAdded', (newFile) => {
+      if (!newFile?._id) return;
+      setFiles((prev) => {
+        if (prev.some((f) => String(f._id) === String(newFile._id))) return prev;
+        const merged = [newFile, ...prev];
+        saveFileListCache(merged, lastSyncedAtRef.current).catch(() => {});
+        return merged;
+      });
+    });
+
+    socket.on('fileIconUpdated', ({ fileId, customIconDriveId, customIconUrl, customIcon } = {}) => {
+      if (!fileId) return;
+      setFiles((prev) => {
+        const merged = prev.map((f) => (String(f._id) === String(fileId)
+          ? {
+              ...f,
+              customIconDriveId,
+              customIconUrl,
+              customIcon,
+              metadata: { ...f.metadata, customIconDriveId, customIconUrl, customIcon },
+            }
+          : f));
+        saveFileListCache(merged, lastSyncedAtRef.current).catch(() => {});
+        return merged;
+      });
+    });
+
+    socket.on('fileDeleted', ({ fileId } = {}) => {
+      if (!fileId) return;
+      setFiles((prev) => {
+        const merged = prev.filter((f) => String(f._id) !== String(fileId));
+        saveFileListCache(merged, lastSyncedAtRef.current).catch(() => {});
+        return merged;
+      });
+    });
+
+    socket.on('refreshFolderList', () => {
       fetchFolders();
-    }
-  }, [isLoggedIn, fetchFiles, fetchFolders]);
+    });
+
+    return () => socket.disconnect();
+  }, [isLoggedIn, fetchFolders]);
 
   // ─── Auth handlers ────────────────────────────────────────────────────────────
   const handleAccessGranted = useCallback((userData) => {
@@ -175,6 +352,9 @@ function App() {
     setUser(null);
     setFiles([]);
     setFolders([]);
+    lastSyncedAtRef.current = null;
+    lastEtagRef.current = null;
+    clearFileListCache().catch(() => {});
   }, []);
 
   const handleThemeModeChange = useCallback(async (mode) => {
@@ -313,11 +493,11 @@ function App() {
                   <div className="w-full max-w-7xl mx-auto mb-6">
                     {/* Mobile: full-width upload box only */}
                     <div className="block lg:hidden">
-                      <UploadForm refresh={fetchFiles} darkMode={darkMode} />
+                      <UploadForm refresh={fetchFiles} onUploaded={addUploadedFile} darkMode={darkMode} />
                     </div>
                     {/* Desktop: 50/50 split — upload + notes */}
                     <div className="hidden lg:grid lg:grid-cols-2 gap-4 xl:gap-6 items-stretch">
-                      <UploadForm refresh={fetchFiles} darkMode={darkMode} />
+                      <UploadForm refresh={fetchFiles} onUploaded={addUploadedFile} darkMode={darkMode} />
                       <UserNotesDashboard user={user} darkMode={darkMode} />
                     </div>
                   </div>
@@ -331,6 +511,7 @@ function App() {
                     <FileList
                       files={files}
                       refresh={fetchFiles}
+                      onQuickRefresh={refreshFilesByIds}
                       darkMode={darkMode}
                       isLoading={false}
                       folders={folders}

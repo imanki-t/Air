@@ -91,6 +91,7 @@ const {
   sendNewDeviceAlertEmail,
 } = require('../services/emailService');
 const { safeObjectId } = require('../utils/driveUtils');
+const { encrypt: encryptToken } = require('../utils/tokenCrypto');
 const {
   uploadFileToDrive,
   downloadFileBufferFromDrive,
@@ -290,7 +291,7 @@ router.post('/google', authLimiter, async (req, res) => {
         themeMode:               'system',
         tokenVersion:            0,
         googleDriveAccessToken:  tokens.access_token  || null,
-        googleDriveRefreshToken: tokens.refresh_token || null,
+        googleDriveRefreshToken: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
         googleDriveTokenExpiry:  tokens.expiry_date   || null,
         googleDriveAppFolderId:  null,
         createdAt:               new Date(),
@@ -312,7 +313,7 @@ router.post('/google', authLimiter, async (req, res) => {
             $set: {
               name, picture, email,
               googleDriveAccessToken:  tokens.access_token  || user.googleDriveAccessToken,
-              googleDriveRefreshToken: tokens.refresh_token || user.googleDriveRefreshToken,
+              googleDriveRefreshToken: tokens.refresh_token ? encryptToken(tokens.refresh_token) : user.googleDriveRefreshToken,
               googleDriveTokenExpiry:  tokens.expiry_date   || user.googleDriveTokenExpiry,
               updatedAt: new Date(),
             },
@@ -328,7 +329,7 @@ router.post('/google', authLimiter, async (req, res) => {
           updatedAt: new Date(),
         };
         if (tokens.refresh_token) {
-          tokenUpdates.googleDriveRefreshToken = tokens.refresh_token;
+          tokenUpdates.googleDriveRefreshToken = encryptToken(tokens.refresh_token);
         }
         await db.collection('users').updateOne({ googleId }, { $set: tokenUpdates });
       }

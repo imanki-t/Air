@@ -1645,6 +1645,25 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     } catch (_) { return null; }
   });
 
+  // Re-sync the displayed icon whenever the backend sends fresh icon info for
+  // this file (e.g. after the 'r' quick-refresh), since this component stays
+  // mounted across that refresh and the useState initializer above only runs
+  // once on mount.
+  useEffect(() => {
+    try {
+      if (!fileId) return;
+      const driveId = file?.metadata?.customIconDriveId || file?.customIconDriveId;
+      const safeBackend = backendUrl || '';
+      if (driveId) {
+        setCustomThumb(`${safeBackend}/api/files/icon/${driveId}`);
+        return;
+      }
+      const url = file?.metadata?.customIconUrl || file?.customIconUrl || file?.metadata?.customIcon || file?.customIcon;
+      setCustomThumb(url ? (url.startsWith('/') ? `${safeBackend}${url}` : url) : null);
+    } catch (_) { /* keep existing thumb on error */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileId, file?.metadata?.customIconDriveId, file?.customIconDriveId, file?.metadata?.customIconUrl, file?.customIconUrl, file?.metadata?.customIcon, file?.customIcon]);
+
   const menuRef = useRef(null);
   const shareModalRef = useRef(null);
   const deleteModalRef = useRef(null);

@@ -1,5 +1,4 @@
 import React, { useState, useRef, useCallback, useEffect, useId } from 'react';
-import { io } from 'socket.io-client';
 import axios from 'axios';
 
 const cn = (...classes) => classes.filter(Boolean).join(' ');
@@ -11,7 +10,7 @@ const UPLOAD_DELAY = 2000;
 const MAX_FILES_SELECTED = 10;
 const UPLOADED_FILES_DISPLAY_TIMEOUT = 5000;
 
-const UploadForm = ({ refresh, darkMode }) => {
+const UploadForm = ({ refresh, onUploaded, darkMode }) => {
  const reactId = useId();
  const fileInputId = `fileInput-${reactId}`;
  const [files, setFiles] = useState([]);
@@ -32,15 +31,7 @@ const UploadForm = ({ refresh, darkMode }) => {
  const uploadFileRef = useRef(null);
  const lastProgressUpdateRef = useRef({ time: 0, loaded: 0 });
  const uploadTimeoutRef = useRef(null);
- const socketRef = useRef(null);
  const uploadedFilesDisplayTimerRef = useRef(null);
-
- useEffect(() => {
-   socketRef.current = io(import.meta.env.VITE_BACKEND_URL, { withCredentials: true });
-   return () => {
-     if (socketRef.current) socketRef.current.disconnect();
-   };
- }, []);
 
  useEffect(() => {
    checkForSavedUploads();
@@ -254,7 +245,7 @@ const UploadForm = ({ refresh, darkMode }) => {
      window.addEventListener('unload', handleUnload);
      window.addEventListener('beforeunload', handleUnload);
 
-     await axios.post(
+     const uploadRes = await axios.post(
        `${import.meta.env.VITE_BACKEND_URL}/api/files/upload`,
        formData,
        {
@@ -325,10 +316,11 @@ const UploadForm = ({ refresh, darkMode }) => {
        }, UPLOADED_FILES_DISPLAY_TIMEOUT);
      }
 
-     if (socketRef.current) {
-       socketRef.current.emit('fileUploaded');
+     if (onUploaded && uploadRes?.data) {
+       onUploaded(uploadRes.data);
+     } else if (refresh) {
+       refresh();
      }
-     refresh();
    } catch (err) {
      window.removeEventListener('unload', handleUnload);
      window.removeEventListener('beforeunload', handleUnload);

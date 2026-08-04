@@ -71,6 +71,10 @@ const storeDriveMapping = async (mongoId, driveId, metadata, extraFields = {}) =
       driveId,
       metadata,
       createdAt: new Date(),
+      // updatedAt starts equal to createdAt so every file (not just ones later
+      // edited) has a consistent field to sort/filter delta-sync (?since=) and
+      // the list ETag against.
+      updatedAt: new Date(),
     });
 
     return validMongoId;

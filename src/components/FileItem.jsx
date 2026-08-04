@@ -1452,7 +1452,13 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize, thumbnail }) 
             </div>
           )}
           {thumbnail ? (
-            <img src={thumbnail} alt={`Album art of ${filename}`} className="w-full h-full object-cover rounded-full" />
+            <img
+              src={thumbnail}
+              alt={`Album art of ${filename}`}
+              className="w-full h-full object-cover rounded-full pointer-events-none"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
+            />
           ) : (
             <>
               {/* Vinyl grooves */}
@@ -2064,8 +2070,10 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
             <img
               src={audioThumb}
               alt={`Album art of ${itemFileName}`}
-              className={imageVideoPreviewClasses}
+              className={`${imageVideoPreviewClasses} pointer-events-none`}
               loading="lazy"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
             />
             <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all duration-300">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white/90 drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">

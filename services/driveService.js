@@ -17,6 +17,7 @@
 const { google } = require('googleapis');
 const mongoose   = require('mongoose');
 const { Readable } = require('stream');
+const { decrypt: decryptToken } = require('../utils/tokenCrypto');
 
 const AIRSTREAM_FOLDER_NAME = 'Airstream';
 
@@ -67,7 +68,7 @@ const getUserDriveClient = async (userId) => {
         throw new Error('Google Drive not connected for this user. Please sign in again.');
       }
 
-      const auth = buildOAuth2Client(user.googleDriveAccessToken, user.googleDriveRefreshToken);
+      const auth = buildOAuth2Client(user.googleDriveAccessToken, decryptToken(user.googleDriveRefreshToken));
 
       auth.removeAllListeners('tokens');
       auth.on('tokens', async (tokens) => {

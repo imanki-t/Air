@@ -165,15 +165,28 @@ const uploadFile = async (req, res) => {
 
     await storeDriveMapping(mongoId, driveFileId, metadata, { userId });
 
-    res.status(201).json({
+    const responseBody = {
       _id:         mongoId,
       length:      fileSize,
       chunkSize:   261120,
       uploadDate,
+      updatedAt:   uploadDate,
       filename:    sanitizedName,
       contentType: mimetype,
+      customIconDriveId: null,
+      customIconUrl: null,
+      customIcon: null,
       metadata,
-    });
+    };
+
+    // Push to the user's other live sessions (other tabs/devices) so they see
+    // the new file appear without polling or a full refetch. The uploading
+    // client itself uses the response body directly instead of waiting for this.
+    try {
+      req.app.get('io')?.to(userId).emit('fileAdded', responseBody);
+    } catch (_) { /* non-fatal — sockets are a live-update convenience, not a source of truth */ }
+
+    res.status(201).json(responseBody);
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ error: 'Upload failed. Please try again.' });
@@ -181,7 +194,46 @@ const uploadFile = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Get all files for the current user
+// Shape a raw drive_mappings document the way the frontend expects it.
+// Shared by getFiles, uploadFile's socket push, and updateFileIcon's socket push
+// so every code path (initial load, delta sync, live push) agrees on the shape.
+// ─────────────────────────────────────────────────────────────────────────────
+const formatFileForClient = (file) => {
+  const driveId = file.metadata?.customIconDriveId || file.customIconDriveId || null;
+  const iconUrl = driveId ? `/api/files/icon/${driveId}` : (file.metadata?.customIconUrl || file.customIconUrl || file.metadata?.customIcon || file.customIcon || null);
+  return {
+    _id: file._id,
+    length: file.metadata?.size ? parseInt(file.metadata.size) : 0,
+    chunkSize: 261120,
+    uploadDate: file.metadata?.uploadDate || file.createdAt,
+    updatedAt: file.updatedAt || file.createdAt,
+    filename: file.metadata?.filename,
+    contentType: file.metadata?.contentType,
+    customIconDriveId: driveId,
+    customIconUrl: iconUrl,
+    customIcon: iconUrl,
+    metadata: {
+      ...file.metadata,
+      customIconDriveId: driveId,
+      customIconUrl: iconUrl,
+      customIcon: iconUrl,
+    },
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Get files for the current user.
+//
+// Bandwidth strategies supported (combine freely):
+//  - Plain request (no params): full list, but ETag-conditional — a matching
+//    If-None-Match returns 304 with no body if nothing changed since last time.
+//  - ?ids=<id1,id2,...>       : only those files (used for the "R" quick-refresh
+//                                of the current page).
+//  - ?limit=<n>&?skip=<n>     : paginate the initial load instead of pulling
+//                                everything at once.
+//  - ?since=<ISO timestamp>   : delta sync — only files changed after that time,
+//                                plus a deletedIds list (from tombstones) so the
+//                                client can prune files removed since then.
 // ─────────────────────────────────────────────────────────────────────────────
 const getFiles = async (req, res) => {
   try {
@@ -189,36 +241,73 @@ const getFiles = async (req, res) => {
 
     if (!userId) return res.status(401).json({ error: 'Not authenticated.' });
 
-    const query = { userId, 'metadata.isSharedZip': { $ne: true } };
+    const baseQuery = { userId, 'metadata.isSharedZip': { $ne: true } };
 
-    const files = await db.collection('drive_mappings')
-      .find(query)
-      .sort({ createdAt: -1 })
-      .toArray();
+    const idsParam = req.query.ids;
+    const sinceParam = req.query.since;
+    const isFullRequest = !idsParam && !sinceParam;
 
-    const formattedFiles = files.map((file) => {
-      const driveId = file.metadata?.customIconDriveId || file.customIconDriveId || null;
-      const iconUrl = driveId ? `/api/files/icon/${driveId}` : (file.metadata?.customIconUrl || file.customIconUrl || file.metadata?.customIcon || file.customIcon || null);
-      return {
-        _id: file._id,
-        length: file.metadata?.size ? parseInt(file.metadata.size) : 0,
-        chunkSize: 261120,
-        uploadDate: file.metadata?.uploadDate || file.createdAt,
-        filename: file.metadata?.filename,
-        contentType: file.metadata?.contentType,
-        customIconDriveId: driveId,
-        customIconUrl: iconUrl,
-        customIcon: iconUrl,
-        metadata: {
-          ...file.metadata,
-          customIconDriveId: driveId,
-          customIconUrl: iconUrl,
-          customIcon: iconUrl,
-        },
-      };
+    // ── ETag / 304 support (only meaningful for "give me everything" requests —
+    // ids/since/limit requests are already minimal, so skip the extra lookups) ─
+    if (isFullRequest) {
+      const [latest, totalCount] = await Promise.all([
+        db.collection('drive_mappings').find(baseQuery).project({ updatedAt: 1 }).sort({ updatedAt: -1 }).limit(1).next(),
+        db.collection('drive_mappings').countDocuments(baseQuery),
+      ]);
+      const version = `${latest?.updatedAt ? new Date(latest.updatedAt).getTime() : 0}-${totalCount}`;
+      const etag = `"${version}"`;
+      res.setHeader('ETag', etag);
+      res.setHeader('Cache-Control', 'private, max-age=0, must-revalidate');
+      if (req.headers['if-none-match'] === etag) {
+        return res.status(304).end();
+      }
+    }
+
+    const query = { ...baseQuery };
+
+    if (idsParam) {
+      const ids = String(idsParam)
+        .split(',')
+        .map((s) => safeObjectId(s.trim()))
+        .filter(Boolean);
+      if (ids.length) query._id = { $in: ids };
+    } else if (sinceParam) {
+      const sinceDate = new Date(sinceParam);
+      if (!isNaN(sinceDate.getTime())) {
+        query.updatedAt = { $gt: sinceDate };
+      }
+    }
+
+    let cursor = db.collection('drive_mappings').find(query).sort({ createdAt: -1 });
+
+    if (!idsParam) {
+      const limitParam = parseInt(req.query.limit, 10);
+      const skipParam = parseInt(req.query.skip, 10);
+      if (Number.isFinite(skipParam) && skipParam > 0) cursor = cursor.skip(skipParam);
+      if (Number.isFinite(limitParam) && limitParam > 0) cursor = cursor.limit(Math.min(limitParam, 500));
+    }
+
+    const files = await cursor.toArray();
+    const formattedFiles = files.map(formatFileForClient);
+
+    // ── Delta sync: report files deleted since `since` from tombstones ───────
+    let deletedIds = [];
+    if (sinceParam) {
+      const sinceDate = new Date(sinceParam);
+      if (!isNaN(sinceDate.getTime())) {
+        const deleted = await db.collection('deleted_files')
+          .find({ userId, deletedAt: { $gt: sinceDate } })
+          .project({ fileId: 1 })
+          .toArray();
+        deletedIds = deleted.map((d) => d.fileId);
+      }
+    }
+
+    res.json({
+      files: formattedFiles,
+      deletedIds,
+      syncedAt: new Date().toISOString(),
     });
-
-    res.json(formattedFiles);
   } catch (error) {
     console.error('Error retrieving files:', error);
     res.status(500).json({ error: 'Failed to retrieve files.' });
@@ -251,6 +340,26 @@ const deleteFile = async (req, res) => {
     await db.collection('drive_mappings').deleteOne(deleteQuery);
 
     await cleanupFileFromFolders(userId, fileId);
+
+    // Tombstone so delta-sync (?since=) clients — including ones offline right
+    // now — learn this file is gone next time they sync, instead of it just
+    // silently vanishing from a full refetch with no explanation.
+    const deletedAt = new Date();
+    try {
+      await db.collection('deleted_files').insertOne({
+        userId,
+        fileId: String(objectId || fileId),
+        deletedAt,
+        expiresAt: new Date(deletedAt.getTime() + 30 * 24 * 60 * 60 * 1000), // 30-day TTL
+      });
+    } catch (tombstoneErr) {
+      console.warn('Failed to record delete tombstone (non-fatal):', tombstoneErr.message);
+    }
+
+    // Push to the user's other live sessions so they remove the file instantly.
+    try {
+      req.app.get('io')?.to(userId).emit('fileDeleted', { fileId: String(objectId || fileId) });
+    } catch (_) { /* non-fatal */ }
 
     res.json({ message: 'File deleted successfully.' });
   } catch (error) {
@@ -843,6 +952,18 @@ const updateFileIcon = async (req, res) => {
         customIconUrl: iconUrl,
         customIcon: iconUrl,
       });
+
+      // Push to the user's other live sessions so they update the icon in
+      // place, without a refetch — this is what makes the "R" quick-refresh
+      // mostly unnecessary in normal use and only a manual fallback.
+      try {
+        req.app.get('io')?.to(userId).emit('fileIconUpdated', {
+          fileId,
+          customIconDriveId: iconDriveId,
+          customIconUrl: iconUrl,
+          customIcon: iconUrl,
+        });
+      } catch (_) { /* non-fatal */ }
     } else {
       // Removing custom icon
       if (existingIconDriveId) {
@@ -872,6 +993,15 @@ const updateFileIcon = async (req, res) => {
         customIconUrl: null,
         customIcon: null,
       });
+
+      try {
+        req.app.get('io')?.to(userId).emit('fileIconUpdated', {
+          fileId,
+          customIconDriveId: null,
+          customIconUrl: null,
+          customIcon: null,
+        });
+      } catch (_) { /* non-fatal */ }
     }
   } catch (error) {
     console.error('Update file icon error:', error);

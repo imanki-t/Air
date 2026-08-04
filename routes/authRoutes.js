@@ -276,6 +276,13 @@ router.post('/google', authLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Google account email is not verified.' });
     }
 
+    // ── Security Tracking: Extract IP & Device User-Agent ──
+    // Moved above the new-user branch (was previously declared further down,
+    // after the welcome email had already been sent — so every welcome email
+    // showed "Unknown Device" / a fallback local IP no matter who signed up).
+    const rawIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1').split(',')[0].trim();
+    const userAgent = req.headers['user-agent'] || 'Unknown Device';
+
     const db = getDb();
     let user = await db.collection('users').findOne({ googleId });
 
@@ -300,7 +307,7 @@ router.post('/google', authLimiter, async (req, res) => {
       const result = await db.collection('users').insertOne(newUser);
       user = { _id: result.insertedId, ...newUser };
 
-      sendWelcomeEmail({ email, name }).catch((e) =>
+      sendWelcomeEmail({ email, name }, rawIp, userAgent).catch((e) =>
         console.error('Welcome email error:', e.message)
       );
     } else {
@@ -338,10 +345,8 @@ router.post('/google', authLimiter, async (req, res) => {
       user.email   = email;
     }
 
-    // ── Security Tracking: Extract IP & Device User-Agent ──
-    const rawIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1').split(',')[0].trim();
-    const userAgent = req.headers['user-agent'] || 'Unknown Device';
-
+    // ── Security Tracking: New IP / New Device checks (rawIp & userAgent
+    // were captured above, before the new-user branch) ──
     if (user.lastLoginIp && user.lastLoginIp !== rawIp) {
       sendNewIpAlertEmail(user, rawIp, userAgent).catch((e) =>
         console.error('[Security Email] New IP alert failed:', e.message)
@@ -706,6 +711,11 @@ router.post('/export-data', authLimiter, async (req, res) => {
     const token = getToken(req);
     if (!token) return res.status(401).json({ error: 'Not authenticated.' });
 
+    // Capture requester's IP & device up front so the export email shows
+    // accurate "Request & Device Details" instead of the fallback values.
+    const rawIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1').split(',')[0].trim();
+    const userAgent = req.headers['user-agent'] || 'Unknown Device';
+
     const db = getDb();
     let decoded;
     try {
@@ -743,7 +753,9 @@ router.post('/export-data', authLimiter, async (req, res) => {
         { email: decoded.email, name: decoded.name },
         existingDownloadUrl,
         recent8hExport.expiresAt,
-        exportPassword
+        exportPassword,
+        rawIp,
+        userAgent
       ).catch((e) => console.error('[Export Email] Cooldown email error:', e.message));
 
       return res.json({
@@ -775,7 +787,9 @@ router.post('/export-data', authLimiter, async (req, res) => {
         { email: decoded.email, name: decoded.name },
         downloadUrl,
         expiresAt,
-        exportPassword
+        exportPassword,
+        rawIp,
+        userAgent
       ).catch((e) => console.error('[Export Email] Async send error:', e.message));
     });
 
@@ -1156,6 +1170,11 @@ router.post('/delete-account', authLimiter, async (req, res) => {
     const token = getToken(req);
     if (!token) return res.status(401).json({ error: 'Not authenticated.' });
 
+    // Capture requester's IP & device up front so the deletion email shows
+    // accurate "Request & Device Details" instead of the fallback values.
+    const rawIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1').split(',')[0].trim();
+    const userAgent = req.headers['user-agent'] || 'Unknown Device';
+
     const db = getDb();
     let decoded;
     try {
@@ -1193,7 +1212,9 @@ router.post('/delete-account', authLimiter, async (req, res) => {
     // Send deletion email (fire-and-forget)
     sendDeletionEmail(
       { email: decoded.email, name: decoded.name },
-      recoveryDeadline
+      recoveryDeadline,
+      rawIp,
+      userAgent
     ).catch((e) => console.error('Deletion email error:', e.message));
 
     // [MED-02] Use clearCookieOptions() to ensure sameSite: 'strict' matches the

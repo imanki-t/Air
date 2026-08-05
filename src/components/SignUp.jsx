@@ -7,11 +7,12 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
-// Scopes: identity + Drive file access (only files created by this app)
+// Scopes: identity + Drive file access + hidden appDataFolder storage
 const DRIVE_SCOPES = [
   'openid',
   'email',
   'profile',
+  'https://www.googleapis.com/auth/drive.appdata',
   'https://www.googleapis.com/auth/drive.file',
 ].join(' ');
 

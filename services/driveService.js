@@ -123,13 +123,14 @@ const ensureAppFolder = async (userId) => {
     }
   }
 
-  // Create the app folder
+  // Create the app folder inside Google Drive's hidden appDataFolder
   const auth = await getUserDriveClient(userId);
   const drive = google.drive({ version: 'v3', auth });
   const folder = await drive.files.create({
     requestBody: {
       name: AIRSTREAM_FOLDER_NAME,
       mimeType: 'application/vnd.google-apps.folder',
+      parents: ['appDataFolder'],
     },
     fields: 'id',
   });

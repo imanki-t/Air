@@ -185,6 +185,9 @@ const UserNotesDashboard = ({ user, darkMode }) => {
         {/* Add Note Form */}
         <form onSubmit={addNote} className="flex items-center gap-2 mb-3 flex-shrink-0">
           <input
+            id="new-note-text-input"
+            name="newNoteText"
+            aria-label="New note text"
             type="text"
             placeholder="Write a quick note or pin important text..."
             value={newNoteText}
@@ -223,6 +226,9 @@ const UserNotesDashboard = ({ user, darkMode }) => {
               {editingId === note.id ? (
                 <div className="flex-1 flex items-center gap-2">
                   <input
+                    id={`edit-note-text-input-${note.id}`}
+                    name="editNoteText"
+                    aria-label="Edit note text"
                     type="text"
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}

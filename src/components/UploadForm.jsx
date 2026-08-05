@@ -602,6 +602,8 @@ const UploadForm = ({ refresh, onUploaded, darkMode }) => {
 
      <input
        id={fileInputId}
+       name="uploadFiles"
+       aria-label="Upload files"
        type="file"
        ref={fileInputRef}
        onChange={handleFileInputChange}

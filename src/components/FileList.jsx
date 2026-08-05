@@ -73,6 +73,9 @@ const BatchFolderPicker = ({ folders, darkMode, onSelect, loading }) => {
           </svg>
         </div>
         <input
+          id="compact-file-search-input"
+          name="compactFileSearch"
+          aria-label="Search files"
           type="text"
           placeholder=""
           value={search}
@@ -699,6 +702,8 @@ const FileList = ({ files = [], refresh, onQuickRefresh, darkMode, isLoading, fo
             </svg>
           </div>
           <input
+            id="dashboard-file-search-input"
+            name="fileSearch"
             type="text"
             placeholder=""
             value={searchInput}
@@ -1091,6 +1096,9 @@ const FileList = ({ files = [], refresh, onQuickRefresh, darkMode, isLoading, fo
             <span className="hidden md:inline">Page </span>
             {isEditingPage ? (
               <input
+                id="file-list-page-input"
+                name="fileListPage"
+                aria-label="Page number"
                 ref={pageInputRef}
                 type="number"
                 min="1"
@@ -1104,7 +1112,6 @@ const FileList = ({ files = [], refresh, onQuickRefresh, darkMode, isLoading, fo
                   darkMode ? 'bg-gray-700 border-gray-600 text-gray-200 focus:ring-blue-500 focus:border-blue-500'
                     : 'bg-white border-gray-300 text-gray-800 focus:ring-blue-600 focus:border-blue-600'
                 )}
-                aria-label="Current page number input"
               />
             ) : (
               <span
@@ -1284,6 +1291,8 @@ const FileList = ({ files = [], refresh, onQuickRefresh, darkMode, isLoading, fo
             {/* Link and Copy Button */}
             <div className="flex flex-col gap-2.5">
               <input
+                id="batch-share-link-input"
+                name="batchShareLink"
                 type="text"
                 value={batchOperationLoading ? 'Generating link...' : batchShareLink || 'Error - No link generated'}
                 readOnly

@@ -513,7 +513,7 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
                         <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
                       </svg>
                     </div>
-                    <input type="text" placeholder="" value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
+                    <input id="folder-search-input" name="folderSearch" type="text" placeholder="" value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
                       className={cn('w-full pl-10 pr-4 py-2 rounded-lg border text-sm transition-colors duration-200',
                         darkMode ? 'bg-gray-800 text-white border-gray-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-500'
                           : 'bg-gray-50 text-gray-900 border-gray-300 focus:ring-1 focus:ring-blue-600 focus:border-blue-600 placeholder-gray-400')}
@@ -707,7 +707,7 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
                 <span className="text-sm text-center mx-1">
                   <span className="hidden md:inline">Page </span>
                   {isEditingPage ? (
-                    <input ref={pageInputRef} type="number" min="1" max={totalPages} value={editPageValue}
+                    <input id="folder-page-input" name="folderPage" aria-label="Page number" ref={pageInputRef} type="number" min="1" max={totalPages} value={editPageValue}
                       onChange={(e) => setEditPageValue(e.target.value)} onKeyDown={handlePageInputKeyDown} onBlur={handlePageInputBlur}
                       className={cn('w-16 text-center p-1.5 rounded-md text-sm border', darkMode ? 'bg-gray-700 border-gray-600 text-gray-200 focus:ring-blue-500 focus:border-blue-500' : 'bg-white border-gray-300 text-gray-800 focus:ring-blue-600 focus:border-blue-600')} />
                   ) : (
@@ -791,7 +791,7 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                <input readOnly value={batchShareLink} onClick={(e) => e.target.select()}
+                <input id="folder-batch-share-link" name="batchShareLink" aria-label="Batch share link" readOnly value={batchShareLink} onClick={(e) => e.target.select()}
                   className={cn('w-full px-3 py-2 rounded-md border text-sm', darkMode ? 'bg-gray-700 border-gray-600 text-gray-200' : 'bg-gray-50 border-gray-300 text-gray-700')} />
                 <button onClick={copyToClipboard} disabled={!batchShareLink}
                   className={cn('w-full px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center gap-2 transition-colors',
@@ -862,7 +862,7 @@ const ViewAllFoldersModal = ({ darkMode, folders, onClose, onView, onEdit, onDel
                 <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
               </svg>
             </div>
-            <input type="text" placeholder="" value={search} onChange={(e) => setSearch(e.target.value)}
+            <input id="subfolder-search-input" name="subfolderSearch" aria-label="Search subfolders" type="text" placeholder="" value={search} onChange={(e) => setSearch(e.target.value)}
               className={cn('w-full pl-9 pr-3 py-2 rounded-lg border text-sm outline-none transition-colors', darkMode ? 'bg-gray-800 text-white border-gray-700 placeholder-gray-500 focus:ring-1 focus:ring-blue-500' : 'bg-gray-50 text-gray-900 border-gray-200 placeholder-gray-400 focus:ring-1 focus:ring-blue-500')} />
           </div>
         </div>
@@ -923,7 +923,7 @@ const FolderFormModal = ({ mode, initialName, initialColor, darkMode, onConfirm,
         <button type="button" onClick={onClose} className={cn('absolute top-3 right-3 p-1.5 rounded-full transition-colors', darkMode ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-500 hover:bg-gray-100')}><CloseIcon className="h-4 w-4" /></button>
         <h2 className={cn('font-semibold text-base mb-4', darkMode ? 'text-white' : 'text-gray-900')}>{isCreate ? 'Create Folder' : 'Edit Folder'}</h2>
         <label className={cn('block text-xs font-medium mb-1', darkMode ? 'text-gray-400' : 'text-gray-600')}>Folder Name</label>
-        <input ref={inputRef} type="text" value={name} onChange={(e) => { setName(e.target.value); setError(''); }} onKeyDown={(e) => e.key === 'Enter' && handleSubmit()} placeholder="My Folder" maxLength={80}
+        <input id="new-folder-name-input" name="folderName" aria-label="Folder name" ref={inputRef} type="text" value={name} onChange={(e) => { setName(e.target.value); setError(''); }} onKeyDown={(e) => e.key === 'Enter' && handleSubmit()} placeholder="My Folder" maxLength={80}
           className={cn('w-full px-3 py-2.5 rounded-xl border text-sm outline-none transition-colors', darkMode ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:ring-1 focus:ring-blue-500' : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:ring-1 focus:ring-blue-600')} />
         {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
         <ColorPicker selected={color} onSelect={setColor} darkMode={darkMode} />

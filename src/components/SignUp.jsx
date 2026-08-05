@@ -367,6 +367,8 @@ const SignUp = ({ onAccessGranted, darkMode: parentDarkMode }) => {
                       }`}
                     >
                       <input
+                        id="remember-me-checkbox"
+                        name="rememberMe"
                         type="checkbox"
                         className="sr-only"
                         checked={rememberMe}

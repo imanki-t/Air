@@ -694,7 +694,7 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
 
       {/* ── Import Modal ──────────────────────────────────────────────────────── */}
       <Modal open={showImportModal} onClose={() => !importLoading && setShowImportModal(false)} darkMode={darkMode}>
-        <input ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={handleImportFileChange} />
+        <input id="import-zip-file-input" name="importZipFile" ref={importInputRef} type="file" accept=".zip" className="hidden" onChange={handleImportFileChange} />
 
         <ModalHeader
           IconComp={Icon.Import}
@@ -821,6 +821,8 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
               Type <span className={`font-bold font-mono ${darkMode ? 'text-red-400' : 'text-red-600'}`}>DELETE</span> to confirm
             </label>
             <input
+              id="delete-confirm-input"
+              name="deleteConfirm"
               type="text"
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
@@ -1021,6 +1023,9 @@ export const ShortcutsModal = ({ open, onClose, darkMode }) => {
         <div className={`px-5 sm:px-6 py-3 border-b flex-shrink-0 ${darkMode ? 'border-white/5 bg-slate-950/20' : 'border-gray-100 bg-gray-50/50'}`}>
           <div className="relative w-full">
             <input
+              id="shortcuts-filter-input"
+              name="shortcutsFilter"
+              aria-label="Filter shortcuts"
               type="text"
               placeholder="Search shortcuts (e.g. Search, View, Upload)..."
               value={filterQuery}

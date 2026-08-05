@@ -369,7 +369,9 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
       videoRef.current.play().then(() => {
         autoPlayPendingRef.current = false;
       }).catch((err) => {
-        console.warn("Video play deferred until media buffer arrives:", err.message);
+        if (err.name !== 'AbortError') {
+          console.warn("Video play deferred until media buffer arrives:", err.message);
+        }
       });
     } else {
       autoPlayPendingRef.current = false;
@@ -628,7 +630,11 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                 videoRef.current.play().then(() => {
                   autoPlayPendingRef.current = false;
                   setPlaying(true);
-                }).catch((err) => console.warn('Video auto-play onCanPlay deferred:', err.message));
+                }).catch((err) => {
+                  if (err.name !== 'AbortError') {
+                    console.warn('Video auto-play onCanPlay deferred:', err.message);
+                  }
+                });
               }
             }}
             onError={handleVideoError}
@@ -705,6 +711,9 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
               />
               {/* Interactive Input Range */}
               <input
+                id="video-seek-slider"
+                name="videoSeek"
+                aria-label="Video seek slider"
                 type="range"
                 min={0}
                 max={duration || 0}
@@ -765,6 +774,9 @@ const CustomVideoPlayer = ({ src, fallbackSrc, filename }) => {
                     <div className="absolute inset-x-0 h-1.5 bg-white/20 rounded-full" />
                     <div className="absolute left-0 h-1.5 bg-blue-500 rounded-full" style={{ width: `${muted ? 0 : volume * 100}%` }} />
                     <input
+                      id="video-volume-slider"
+                      name="videoVolume"
+                      aria-label="Video volume slider"
                       type="range"
                       min="0"
                       max="1"
@@ -1246,7 +1258,9 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize, thumbnail }) 
       audioRef.current.play().then(() => {
         autoPlayPendingRef.current = false;
       }).catch((err) => {
-        console.warn("Audio play deferred until media buffer is ready:", err.message);
+        if (err.name !== 'AbortError') {
+          console.warn("Audio play deferred until media buffer is ready:", err.message);
+        }
       });
     } else {
       autoPlayPendingRef.current = false;
@@ -1610,7 +1624,11 @@ const CustomAudioPlayer = ({ src, fallbackSrc, filename, fileSize, thumbnail }) 
             audioRef.current.play().then(() => {
               autoPlayPendingRef.current = false;
               setPlaying(true);
-            }).catch((err) => console.warn('Audio auto-play onCanPlay deferred:', err.message));
+            }).catch((err) => {
+              if (err.name !== 'AbortError') {
+                console.warn('Audio auto-play onCanPlay deferred:', err.message);
+              }
+            });
           }
         }}
         onWaiting={() => setIsAudioLoading(true)}
@@ -2187,7 +2205,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
 
   return (
     <>
-      <input ref={thumbInputRef} type="file" accept="image/*" className="hidden" onChange={handleCustomThumbSelect} />
+      <input id="custom-thumb-file-input" name="customThumbFile" ref={thumbInputRef} type="file" accept="image/*" className="hidden" onChange={handleCustomThumbSelect} />
       {/* ── File Card Container ── */}
       <div
         className={cn(
@@ -2318,7 +2336,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
               </div>
             </div>
             <div className="flex flex-col gap-2.5 mb-4">
-              <input ref={shareLinkInputRef} value={isActionLoading ? 'Generating...' : shareLink || 'Error generating link'} readOnly className={cn("w-full px-3 py-2 rounded font-mono text-xs border overflow-x-auto whitespace-nowrap", darkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-800', 'disabled:opacity-70')} disabled={isActionLoading} aria-label="Shareable link" onClick={(e) => e.target.select()} />
+              <input id="single-file-share-link-input" name="singleFileShareLink" ref={shareLinkInputRef} value={isActionLoading ? 'Generating...' : shareLink || 'Error generating link'} readOnly className={cn("w-full px-3 py-2 rounded font-mono text-xs border overflow-x-auto whitespace-nowrap", darkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-100 border-gray-200 text-gray-800', 'disabled:opacity-70')} disabled={isActionLoading} aria-label="Shareable link" onClick={(e) => e.target.select()} />
               <button onClick={() => copyToClipboard(shareLink)} disabled={!shareLink || copied || isActionLoading} className={cn("w-full px-3 py-2 rounded-md font-medium text-sm transition-colors flex items-center justify-center gap-2", copied ? 'bg-green-600 text-white cursor-default' : !shareLink || isActionLoading ? (darkMode ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-gray-300 text-gray-500 cursor-not-allowed') : 'bg-blue-600 hover:bg-blue-700 text-white')}>
                 {copied ? <><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg> Copied!</> : 'Copy Link'}
               </button>

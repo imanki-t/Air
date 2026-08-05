@@ -658,7 +658,7 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
             {showBatchDownloadProgress && (
               <div className={cn('mb-4 p-3 rounded-lg border', darkMode ? 'bg-gray-800 border-gray-700' : 'bg-blue-50 border-blue-200')}>
                 <div className="flex items-center gap-3">
-                  <SpinnerIcon className="h-4 w-4 text-blue-500" />
+                  <SpinnerIcon className="h-4 w-4 text-current" />
                   <div className={cn('flex-grow rounded-full h-2', darkMode ? 'bg-gray-700' : 'bg-blue-200')}>
                     <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${batchDownloadProgress}%` }} />
                   </div>
@@ -786,7 +786,7 @@ const FolderViewModal = ({ folder, allFiles, darkMode, backendUrl, onClose, onRe
             </div>
             {batchOperationLoading ? (
               <div className="flex flex-col items-center py-6 gap-3">
-                <SpinnerIcon className="h-8 w-8 text-blue-500" />
+                <SpinnerIcon className="h-8 w-8 text-current" />
                 <p className={cn('text-sm', darkMode ? 'text-gray-400' : 'text-gray-500')}>Creating share link…</p>
               </div>
             ) : (
@@ -950,7 +950,7 @@ const DeleteConfirmModal = ({ folder, darkMode, onConfirm, onClose }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className={cn('relative z-10 w-full max-w-xs rounded-2xl shadow-2xl p-6 border folder-modal-anim text-center', darkMode ? 'bg-gray-900 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800')}>
-        <div className={cn('inline-flex p-3 rounded-full mb-4', darkMode ? 'bg-red-900/40' : 'bg-red-50')}><TrashIcon className="h-7 w-7 text-red-500" /></div>
+        <div className={cn('inline-flex p-3 rounded-full mb-4', darkMode ? 'bg-gray-800' : 'bg-gray-100')}><TrashIcon className="h-7 w-7 text-current" /></div>
         <h3 className={cn('font-semibold text-base mb-2', darkMode ? 'text-white' : 'text-gray-900')}>Delete "{folder?.name}"?</h3>
         <p className={cn('text-sm mb-5 leading-relaxed', darkMode ? 'text-gray-400' : 'text-gray-600')}>The folder will be permanently deleted.<br /><span className="font-medium">Your files will not be affected.</span></p>
         <div className="flex gap-2">

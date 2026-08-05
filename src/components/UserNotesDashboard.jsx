@@ -174,8 +174,8 @@ const UserNotesDashboard = ({ user, darkMode }) => {
       <div className="flex-1 flex flex-col min-h-0 justify-between">
         <div className="flex items-center justify-between mb-3 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <Icon.Pin className="w-4 h-4 text-blue-400" />
-            <h4 className="text-xs font-bold uppercase tracking-wider text-blue-400">Pinned Quick Notes</h4>
+            <Icon.Pin className="w-4 h-4 text-current" />
+            <h4 className={`text-xs font-bold uppercase tracking-wider ${darkMode ? 'text-white' : 'text-gray-900'}`}>Pinned Quick Notes</h4>
           </div>
           <span className={`text-[11px] font-mono ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
             {notes.length} note{notes.length !== 1 ? 's' : ''}
@@ -189,13 +189,13 @@ const UserNotesDashboard = ({ user, darkMode }) => {
             name="newNoteText"
             aria-label="New note text"
             type="text"
-            placeholder="Write a quick note or pin important text..."
+            placeholder="Write a quick note"
             value={newNoteText}
             onChange={(e) => setNewNoteText(e.target.value)}
             className={`flex-1 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm border outline-none transition-all ${
               darkMode
-                ? 'bg-slate-950/60 border-white/15 text-white placeholder-gray-500 focus:border-blue-500'
-                : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-600'
+                ? 'bg-slate-950/60 border-white/15 text-white placeholder-gray-500 focus:border-gray-400'
+                : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-gray-600'
             }`}
           />
           <button

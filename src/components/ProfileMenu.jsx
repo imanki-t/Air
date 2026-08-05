@@ -135,6 +135,12 @@ const Icon = {
       <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M8 16h8" />
     </svg>
   ),
+  Settings: ({ className }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  ),
 };
 
 // ─── Modal — renders via portal directly on body, bypasses all z-index stacking ──
@@ -208,6 +214,7 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
 
   // Shortcuts Modal
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [touchSelect, setTouchSelect] = useState(() => {
     if (typeof user?.touchSelect === 'boolean') return user.touchSelect;
     const saved = localStorage.getItem('airstream_touch_select');
@@ -555,77 +562,95 @@ const ProfileMenu = ({ user, darkMode, themeMode = 'system', onThemeModeChange, 
               )}
             </div>
 
-            {/* Hide folder files toggle */}
-            <div className={`px-4 py-2.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
-              <button
-                onClick={() => { onHideFolderFilesToggle?.(); }}
-                className={`w-full flex items-center justify-between text-sm transition-colors duration-150 ${
-                  darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
-                }`}
-              >
-                <span className="flex items-center gap-2.5">
-                  <Icon.Folder className="w-4 h-4 text-blue-400" />
-                  Hide files in folders
-                </span>
-                <div className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${
-                  hideFolderFiles ? (darkMode ? 'bg-blue-600' : 'bg-blue-500') : (darkMode ? 'bg-gray-700' : 'bg-gray-300')
-                }`}>
-                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                    hideFolderFiles ? 'translate-x-4' : 'translate-x-0.5'
-                  }`} />
-                </div>
-              </button>
-            </div>
-
-            {/* Double-click / Touch Select toggle */}
-            <div className={`px-4 py-2.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
-              <button
-                onClick={toggleTouchSelect}
-                className={`w-full flex items-center justify-between text-sm transition-colors duration-150 ${
-                  darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
-                }`}
-                title="Double click/tap any file to select it and open the multiselect bar (enabled by default)"
-              >
-                <span className="flex items-center gap-2.5">
-                  {/* Simple Circle with Dot SVG */}
-                  <svg className="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <circle cx="12" cy="12" r="9" strokeWidth="2" />
-                    <circle cx="12" cy="12" r="3" fill="currentColor" />
-                  </svg>
-                  Double-click / Touch Select
-                </span>
-                <div className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${
-                  touchSelect ? (darkMode ? 'bg-blue-600' : 'bg-blue-500') : (darkMode ? 'bg-gray-700' : 'bg-gray-300')
-                }`}>
-                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                    touchSelect ? 'translate-x-4' : 'translate-x-0.5'
-                  }`} />
-                </div>
-              </button>
-            </div>
-
-            {/* Shortcuts section (desktop only) */}
-            <div className={`hidden sm:block py-1.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
-              <p className={`px-4 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Help & Shortcuts</p>
-              <MenuItem IconComp={Icon.Keyboard} label="Keyboard Shortcuts" onClick={() => { setOpen(false); setShowShortcutsModal(true); }} />
-            </div>
-
-            {/* Data section */}
-            <div className={`py-1.5 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
-              <p className={`px-4 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Data</p>
-              <MenuItem IconComp={Icon.Export} label="Export data" onClick={handleOpenExport} />
-              <MenuItem IconComp={Icon.Import} label="Import data" onClick={handleOpenImport} />
-              <MenuItem IconComp={Icon.Trash} label="Delete account" onClick={handleOpenDelete} danger />
+            {/* Settings Option */}
+            <div className={`py-1 border-b ${darkMode ? 'border-gray-700/60' : 'border-gray-100'}`}>
+              <MenuItem IconComp={Icon.Settings} label="Settings" onClick={() => { setOpen(false); setShowSettingsModal(true); }} />
             </div>
 
             {/* Logout */}
-            <div className="py-1.5">
+            <div className="py-1">
               <MenuItem IconComp={Icon.Logout} label="Sign out" onClick={handleLogout} />
             </div>
           </div>
           </>
         )}
       </div>
+
+      {/* ── Settings Menu Modal ────────────────────────────────────────────────── */}
+      <Modal open={showSettingsModal} onClose={() => setShowSettingsModal(false)} darkMode={darkMode}>
+        <ModalHeader
+          IconComp={Icon.Settings}
+          iconBg={darkMode ? 'bg-gray-800' : 'bg-gray-100'}
+          iconColor={darkMode ? 'text-white' : 'text-gray-900'}
+          title="Settings"
+          subtitle="Preferences, shortcuts, and account options"
+          onClose={() => setShowSettingsModal(false)}
+        />
+
+        <div className={`p-4 space-y-3 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          {/* Hide folder files toggle */}
+          <div className={`p-3 rounded-xl border ${darkMode ? 'border-gray-800 bg-gray-800/50' : 'border-gray-100 bg-gray-50'}`}>
+            <button
+              onClick={() => { onHideFolderFilesToggle?.(); }}
+              className={`w-full flex items-center justify-between text-sm transition-colors duration-150 ${
+                darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+              }`}
+            >
+              <span className="flex items-center gap-2.5">
+                <Icon.Folder className="w-4 h-4 text-current" />
+                Hide files in folders
+              </span>
+              <div className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${
+                hideFolderFiles ? (darkMode ? 'bg-white' : 'bg-gray-900') : (darkMode ? 'bg-gray-700' : 'bg-gray-300')
+              }`}>
+                <div className={`absolute top-0.5 w-4 h-4 ${hideFolderFiles ? (darkMode ? 'bg-gray-900' : 'bg-white') : 'bg-white'} rounded-full shadow-md transition-transform duration-200 ${
+                  hideFolderFiles ? 'translate-x-4' : 'translate-x-0.5'
+                }`} />
+              </div>
+            </button>
+          </div>
+
+          {/* Double-click / Touch Select toggle */}
+          <div className={`p-3 rounded-xl border ${darkMode ? 'border-gray-800 bg-gray-800/50' : 'border-gray-100 bg-gray-50'}`}>
+            <button
+              onClick={toggleTouchSelect}
+              className={`w-full flex items-center justify-between text-sm transition-colors duration-150 ${
+                darkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'
+              }`}
+              title="Double click/tap any file to select it and open the multiselect bar"
+            >
+              <span className="flex items-center gap-2.5">
+                <svg className="w-4 h-4 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <circle cx="12" cy="12" r="9" strokeWidth="2" />
+                  <circle cx="12" cy="12" r="3" fill="currentColor" />
+                </svg>
+                Double-click / Touch Select
+              </span>
+              <div className={`w-9 h-5 rounded-full transition-colors duration-200 relative ${
+                touchSelect ? (darkMode ? 'bg-white' : 'bg-gray-900') : (darkMode ? 'bg-gray-700' : 'bg-gray-300')
+              }`}>
+                <div className={`absolute top-0.5 w-4 h-4 ${touchSelect ? (darkMode ? 'bg-gray-900' : 'bg-white') : 'bg-white'} rounded-full shadow-md transition-transform duration-200 ${
+                  touchSelect ? 'translate-x-4' : 'translate-x-0.5'
+                }`} />
+              </div>
+            </button>
+          </div>
+
+          {/* Help & Shortcuts */}
+          <div className={`pt-2 border-t ${darkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+            <p className={`px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Help & Shortcuts</p>
+            <MenuItem IconComp={Icon.Keyboard} label="Keyboard Shortcuts" onClick={() => { setShowSettingsModal(false); setShowShortcutsModal(true); }} />
+          </div>
+
+          {/* Data section */}
+          <div className={`pt-2 border-t ${darkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+            <p className={`px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Data Management</p>
+            <MenuItem IconComp={Icon.Export} label="Export data" onClick={() => { setShowSettingsModal(false); handleOpenExport(); }} />
+            <MenuItem IconComp={Icon.Import} label="Import data" onClick={() => { setShowSettingsModal(false); handleOpenImport(); }} />
+            <MenuItem IconComp={Icon.Trash} label="Delete account" onClick={() => { setShowSettingsModal(false); handleOpenDelete(); }} danger />
+          </div>
+        </div>
+      </Modal>
 
       {/* ── Export Modal ──────────────────────────────────────────────────────── */}
       <Modal open={showExportModal} onClose={() => !exportLoading && setShowExportModal(false)} darkMode={darkMode}>
@@ -891,7 +916,7 @@ export const ShortcutsModal = ({ open, onClose, darkMode }) => {
   const shortcutGroups = [
     {
       icon: (
-        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
       ),
@@ -906,7 +931,7 @@ export const ShortcutsModal = ({ open, onClose, darkMode }) => {
     },
     {
       icon: (
-        <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
         </svg>
       ),
@@ -921,7 +946,7 @@ export const ShortcutsModal = ({ open, onClose, darkMode }) => {
     },
     {
       icon: (
-        <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -937,7 +962,7 @@ export const ShortcutsModal = ({ open, onClose, darkMode }) => {
     },
     {
       icon: (
-        <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
@@ -954,7 +979,7 @@ export const ShortcutsModal = ({ open, onClose, darkMode }) => {
     },
     {
       icon: (
-        <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-4 h-4 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       ),

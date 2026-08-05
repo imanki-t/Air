@@ -1652,6 +1652,10 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
   const [shareLink, setShareLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameInput, setRenameInput] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameError, setRenameError] = useState('');
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
@@ -1916,6 +1920,23 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     }
   };
 
+  const handleRename = async (e) => {
+    e?.preventDefault();
+    if (!renameInput.trim()) return;
+    setIsRenaming(true);
+    setRenameError('');
+    try {
+      await axios.patch(`${backendUrl}/api/files/${fileId}/rename`, { filename: renameInput.trim() }, { withCredentials: true });
+      setShowRenameModal(false);
+      if (typeof refresh === 'function') refresh();
+    } catch (err) {
+      console.error('Rename failed:', err);
+      setRenameError(err.response?.data?.error || 'Failed to rename file.');
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
   const share = async () => {
     setShowMenu(false);
     setIsActionLoading(true);
@@ -2162,13 +2183,20 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       {isViewableType && (
         <>
           <button onClick={openViewer} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-white/10 text-white transition-colors')} role="menuitem">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
             {getFileType(file) === 'pdf' ? 'Open PDF' : 'View'}
           </button>
 
           <div className="border-t border-white/10 my-1" />
         </>
       )}
+
+      <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); setRenameInput(file.filename || file.name || ''); setRenameError(''); setShowRenameModal(true); }} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-white/10 text-white transition-colors')} role="menuitem">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+        Name
+      </button>
+
+      <div className="border-t border-white/10 my-1" />
 
       {!customThumb ? (
         <button onClick={(e) => { e.stopPropagation(); thumbInputRef.current?.click(); }} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-white/10 text-white transition-colors')} role="menuitem">
@@ -2198,7 +2226,7 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
       <div className="border-t border-white/10 my-1" />
 
       <button onClick={(e) => { e.stopPropagation(); setShowMenu(false); setShowDeleteConfirm(true); }} className={cn('w-full text-left px-3.5 py-1.5 text-sm flex items-center gap-2.5 hover:bg-red-500/20 text-red-400 transition-colors')} role="menuitem">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-90 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Delete
       </button>
     </div>
   );
@@ -2342,6 +2370,48 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
               </button>
             </div>
             <p className={cn("text-xs text-center", darkMode ? 'text-gray-400' : 'text-gray-500')}>Anyone with this link can view or download this file.</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Rename Item Modal ── */}
+      {showRenameModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[100] px-4 backdrop-blur-sm animate-fadeIn" onClick={() => !isRenaming && setShowRenameModal(false)}>
+          <div className={cn("p-6 rounded-xl max-w-sm w-full relative shadow-xl border animate-modalIn", darkMode ? 'bg-gray-800 border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800')} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="rename-file-title">
+            <h2 id="rename-file-title" className={cn("font-semibold mb-3 text-lg", darkMode ? 'text-white' : 'text-gray-800')}>Rename Item</h2>
+            <form onSubmit={handleRename}>
+              <div className="mb-4">
+                <label className={cn("block text-xs font-medium mb-1.5", darkMode ? "text-gray-300" : "text-gray-700")}>File Name</label>
+                <input
+                  type="text"
+                  value={renameInput}
+                  onChange={(e) => setRenameInput(e.target.value)}
+                  autoFocus
+                  className={cn(
+                    "w-full px-3.5 py-2 rounded-lg text-sm border outline-none transition-all",
+                    darkMode ? "bg-gray-700 border-gray-600 text-white focus:border-gray-400" : "bg-gray-50 border-gray-300 text-gray-900 focus:border-gray-600"
+                  )}
+                />
+                {renameError && <p className="text-xs text-red-400 mt-1.5">{renameError}</p>}
+              </div>
+              <div className="flex w-full justify-between gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowRenameModal(false)}
+                  disabled={isRenaming}
+                  className={cn("flex-1 px-4 py-2 rounded-md font-medium transition-colors text-sm", isRenaming ? (darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed') : (darkMode ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-200 text-gray-800 hover:bg-gray-300 border border-gray-300'))}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isRenaming || !renameInput.trim()}
+                  className={cn("flex-1 px-4 py-2 rounded-md font-medium transition-colors text-sm text-white flex items-center justify-center gap-2", isRenaming ? 'bg-gray-600 cursor-wait' : (darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-900 hover:bg-gray-800'))}
+                >
+                  {isRenaming ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

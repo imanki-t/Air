@@ -332,8 +332,13 @@ const deleteFile = async (req, res) => {
       return res.status(500).json({ error: 'File record is corrupt (missing storage ID).' });
     }
 
-    // Delete from Google Drive (non-fatal if 404)
+    // Delete main file & custom icon from Google Drive (non-fatal if 404)
     await deleteFileFromDrive(userId, mapping.driveId);
+
+    const iconDriveId = mapping.customIconDriveId || mapping.metadata?.customIconDriveId;
+    if (iconDriveId) {
+      await deleteFileFromDrive(userId, iconDriveId).catch(() => {});
+    }
 
     const objectId = safeObjectId(fileId);
     const deleteQuery = objectId ? { _id: objectId } : { 'metadata.filename': fileId };
@@ -699,6 +704,10 @@ const cleanupIncompleteUpload = async (req, res) => {
       if (fileMapping.driveId) {
         await deleteFileFromDrive(userId, fileMapping.driveId);
       }
+      const iconDriveId = fileMapping.customIconDriveId || fileMapping.metadata?.customIconDriveId;
+      if (iconDriveId) {
+        await deleteFileFromDrive(userId, iconDriveId).catch(() => {});
+      }
     } catch (driveErr) {
       console.warn('Drive cleanup warning (non-fatal):', driveErr.message);
     }
@@ -800,10 +809,14 @@ const cleanupExpiredLinks = async () => {
 
     let deletedZipCount = 0;
     for (const zip of expiredZips) {
-      // Delete the actual Drive file using the file owner's credentials
+      // Delete the actual Drive file & custom icon using the file owner's credentials
       try {
         if (zip.driveId && zip.userId) {
           await deleteFileFromDrive(zip.userId, zip.driveId);
+        }
+        const iconDriveId = zip.customIconDriveId || zip.metadata?.customIconDriveId;
+        if (iconDriveId && zip.userId) {
+          await deleteFileFromDrive(zip.userId, iconDriveId).catch(() => {});
         }
       } catch (driveErr) {
         console.warn(`Cleanup: Drive delete warning for shared ZIP ${zip._id}:`, driveErr.message);

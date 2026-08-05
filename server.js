@@ -202,11 +202,15 @@ const cleanupPendingDeletions = async () => {
         const userId = user._id.toString();
         const mappings = await db.collection('drive_mappings').find({ userId }).toArray();
 
-        // Delete each file from Google Drive using the user's stored tokens
+        // Delete each file and custom icon from Google Drive using the user's stored tokens
         for (const mapping of mappings) {
           try {
             if (mapping.driveId && user.googleDriveRefreshToken) {
               await deleteFileFromDrive(userId, mapping.driveId);
+            }
+            const iconDriveId = mapping.customIconDriveId || mapping.metadata?.customIconDriveId;
+            if (iconDriveId && user.googleDriveRefreshToken) {
+              await deleteFileFromDrive(userId, iconDriveId).catch(() => {});
             }
           } catch (driveErr) {
             console.warn(`Drive delete warning for user ${userId}:`, driveErr.message);

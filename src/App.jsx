@@ -477,6 +477,7 @@ function App() {
       <main className={`flex-grow relative z-10 pt-4 sm:pt-6 pb-4 ${hideHeader ? '' : 'px-2 sm:px-4'}`}>
         <Routes>
           <Route path="/" element={<Homepage isLoggedIn={isLoggedIn} />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route
             path="/signup"
             element={isLoggedIn ? <Navigate to="/dashboard" replace /> : <SignUp onAccessGranted={handleAccessGranted} darkMode={darkMode} />}

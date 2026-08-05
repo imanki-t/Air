@@ -1677,6 +1677,29 @@ const FileItem = ({ file, refresh, showDetails, darkMode, isSelected, onSelect, 
     } catch (_) { return null; }
   });
 
+  useEffect(() => {
+    if (!showRenameModal) return;
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalDocOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowRenameModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalDocOverflow;
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [showRenameModal]);
+
   // Re-sync the displayed icon whenever the backend sends fresh icon info for
   // this file (e.g. after the 'r' quick-refresh), since this component stays
   // mounted across that refresh and the useState initializer above only runs

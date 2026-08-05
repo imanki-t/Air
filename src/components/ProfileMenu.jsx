@@ -146,9 +146,41 @@ const Icon = {
 // ─── Modal — renders via portal directly on body, bypasses all z-index stacking ──
 const Modal = ({ open, onClose, darkMode, children }) => {
   useEffect(() => {
-    document.body.style.overflow = open ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
-  }, [open]);
+    if (!open) return;
+
+    const originalBodyOverflow = document.body.style.overflow;
+    const originalDocOverflow = document.documentElement.style.overflow;
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    const preventBackgroundScroll = (e) => {
+      const modalEl = document.getElementById('airstream-active-modal-container');
+      if (modalEl && !modalEl.contains(e.target)) {
+        e.preventDefault();
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose?.();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('wheel', preventBackgroundScroll, { passive: false });
+    window.addEventListener('touchmove', preventBackgroundScroll, { passive: false });
+
+    return () => {
+      document.body.style.overflow = originalBodyOverflow;
+      document.documentElement.style.overflow = originalDocOverflow;
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('wheel', preventBackgroundScroll);
+      window.removeEventListener('touchmove', preventBackgroundScroll);
+    };
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -160,8 +192,9 @@ const Modal = ({ open, onClose, darkMode, children }) => {
     >
       <div className="flex min-h-full items-center justify-center p-4 sm:p-6">
         <div
+          id="airstream-active-modal-container"
           className={`relative w-full rounded-2xl shadow-2xl border sm:max-w-md ${
-            darkMode ? 'bg-gray-900 border-gray-700/80' : 'bg-white border-gray-200'
+            darkMode ? 'bg-gray-900 border-gray-700/80 text-white' : 'bg-white border-gray-200 text-gray-900'
           }`}
           onClick={(e) => e.stopPropagation()}
         >

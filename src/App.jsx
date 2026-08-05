@@ -8,6 +8,7 @@ import FileList from './components/FileList';
 import FolderList from './components/FolderList';
 import SignUp from './components/SignUp';
 import Homepage from './components/Homepage';
+import PrivacyPolicy from './components/PrivacyPolicy';
 import ProfileMenu from './components/ProfileMenu';
 import axios from 'axios';
 import { saveFileListCache, getFileListCache, clearFileListCache } from './fileStore';

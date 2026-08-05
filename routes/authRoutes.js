@@ -349,17 +349,24 @@ router.post('/google', authLimiter, async (req, res) => {
 
     // ── Security Tracking: New IP / New Device checks (rawIp & userAgent
     // were captured above, before the new-user branch) ──
-    if (user.lastLoginIp && user.lastLoginIp !== rawIp) {
-      sendNewIpAlertEmail(user, rawIp, userAgent).catch((e) =>
-        console.error('[Security Email] New IP alert failed:', e.message)
-      );
-    }
+    // [FIX] Skip both checks for brand-new accounts: lastLoginIp/knownDevices
+    // are unset on creation, so a fresh signup was always treated as a "new
+    // device" (and would have been a "new IP" too, if lastLoginIp were ever
+    // falsy-but-set), firing a security alert right alongside the welcome
+    // email. The welcome email already covers first-login context.
+    if (!isNewUser) {
+      if (user.lastLoginIp && user.lastLoginIp !== rawIp) {
+        sendNewIpAlertEmail(user, rawIp, userAgent).catch((e) =>
+          console.error('[Security Email] New IP alert failed:', e.message)
+        );
+      }
 
-    const knownDevices = user.knownDevices || [];
-    if (userAgent && !knownDevices.includes(userAgent)) {
-      sendNewDeviceAlertEmail(user, 'New Device/Browser', userAgent, rawIp).catch((e) =>
-        console.error('[Security Email] New device alert failed:', e.message)
-      );
+      const knownDevices = user.knownDevices || [];
+      if (userAgent && !knownDevices.includes(userAgent)) {
+        sendNewDeviceAlertEmail(user, 'New Device/Browser', userAgent, rawIp).catch((e) =>
+          console.error('[Security Email] New device alert failed:', e.message)
+        );
+      }
     }
 
     await db.collection('users').updateOne(

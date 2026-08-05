@@ -1022,6 +1022,58 @@ const updateFileIcon = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Rename a file mapping in MongoDB
+// ─────────────────────────────────────────────────────────────────────────────
+const renameFile = async (req, res) => {
+  try {
+    const fileId = req.params.id;
+    const userId = req.user?.userId;
+    const { filename, name } = req.body || {};
+    const newName = (filename || name || '').trim();
+
+    if (!newName) {
+      return res.status(400).json({ error: 'New filename is required.' });
+    }
+
+    const mapping = await getFileMapping(fileId);
+    if (!mapping) return res.status(404).json({ error: 'File not found.' });
+
+    const { allowed } = checkOwnership(mapping, userId);
+    if (!allowed) return res.status(403).json({ error: 'Access denied.' });
+
+    const objectId = safeObjectId(fileId);
+    if (!objectId) return res.status(400).json({ error: 'Invalid file ID.' });
+
+    const now = new Date();
+    await db.collection('drive_mappings').updateOne(
+      { _id: objectId },
+      {
+        $set: {
+          filename: newName,
+          originalName: newName,
+          'metadata.filename': newName,
+          'metadata.originalName': newName,
+          updatedAt: now,
+        },
+      }
+    );
+
+    const updatedMapping = await db.collection('drive_mappings').findOne({ _id: objectId });
+    const formatted = formatFileForClient(updatedMapping);
+
+    // Push live update via sockets
+    try {
+      req.app.get('io')?.to(userId).emit('fileUpdated', formatted);
+    } catch (_) { /* non-fatal */ }
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Rename file error:', error);
+    res.status(500).json({ error: 'Failed to rename file.' });
+  }
+};
+
 module.exports = {
   uploadFile,
   getFiles,
@@ -1031,6 +1083,7 @@ module.exports = {
   getVideoStreamUrl,
   deleteFile,
   updateFileIcon,
+  renameFile,
   getIconStream,
   generateShareLink,
   accessSharedFile,
@@ -1039,3 +1092,4 @@ module.exports = {
   scheduleCleanup,
   getUserStorageUsed,
 };
+

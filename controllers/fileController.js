@@ -6,6 +6,7 @@ module.exports = {
   getFiles: fileService.getFiles,
   deleteFile: fileService.deleteFile,
   updateFileIcon: fileService.updateFileIcon,
+  renameFile: fileService.renameFile,
   getIconStream: fileService.getIconStream,
   downloadFile: fileService.downloadFile,
   previewFile: fileService.previewFile, // NEW: Add preview endpoint

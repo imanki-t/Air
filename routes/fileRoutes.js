@@ -70,6 +70,10 @@ router.get('/icon/:iconId', downloadLimiter, controller.getIconStream);
 
 // Update custom icon / thumbnail
 router.patch('/:id/icon', apiLimiter, upload.single('icon'), attachStreamAndCleanup, controller.updateFileIcon);
+
+// Rename file
+router.patch('/:id/rename', apiLimiter, controller.renameFile);
+
 router.patch('/:id', apiLimiter, upload.single('icon'), attachStreamAndCleanup, controller.updateFileIcon);
 
 // Generate share link

@@ -48,6 +48,7 @@ app.set('io', io);
 // frontend can load previews/downloads from the API domain.
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
 }));
 
 app.use(cors({

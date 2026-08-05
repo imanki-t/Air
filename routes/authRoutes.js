@@ -383,11 +383,17 @@ router.post('/google', authLimiter, async (req, res) => {
     const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: tokenExpiry });
     const sessionCookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 45 * 60 * 1000;
 
+    // [FIX] Use the same cookieOptions() helper as /refresh instead of setting
+    // options inline. The inline version was missing `path: '/'`, so the browser
+    // defaulted the cookie's scope to the directory of the request URL
+    // (/api/auth) instead of the whole site — meaning it was never sent back on
+    // /api/files or /api/folders requests. It also gated secure/sameSite behind
+    // `process.env.NODE_ENV === 'production'`, which silently downgrades to
+    // secure:false + sameSite:'lax' (and gets dropped entirely on cross-site
+    // requests) if NODE_ENV isn't set to exactly that string in the deployment.
     res.cookie('airstream_session', token, {
-      httpOnly: true,
-      secure:   process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge:   sessionCookieMaxAge,
+      ...cookieOptions(rememberMe),
+      maxAge: sessionCookieMaxAge,
     });
 
     // Issue refresh token
@@ -401,10 +407,8 @@ router.post('/google', authLimiter, async (req, res) => {
       used:      false,
     });
     res.cookie('airstream_refresh', refreshTokenValue, {
-      httpOnly: true,
-      secure:   process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge:   sessionCookieMaxAge,
+      ...cookieOptions(rememberMe),
+      maxAge: sessionCookieMaxAge,
     });
 
     return res.json({

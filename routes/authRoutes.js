@@ -286,7 +286,9 @@ router.post('/google', authLimiter, async (req, res) => {
     const db = getDb();
     let user = await db.collection('users').findOne({ googleId });
 
+    let isNewUser = false;
     if (!user) {
+      isNewUser = true;
       // New user — create account and send welcome email
       const newUser = {
         googleId,
